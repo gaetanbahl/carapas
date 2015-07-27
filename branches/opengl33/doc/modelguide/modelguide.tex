@@ -1,0 +1,144 @@
+% Aug 27, 2014: has 118 sections. artisynth.tex and maspack.tex have
+%   about 28 and 23 sections, with about 375 words/sec, so we can
+%   expect this to be around 45,000 words, or about 120 pages.
+
+\documentclass{article}
+
+% Add search paths for input files
+\makeatletter
+\def\input@path{{../}{../../}{../texinputs/}}
+\makeatother
+
+\usepackage{amsmath}
+\usepackage{framed}
+
+%\usepackage{layout}
+%\usepackage{showframe}
+\input{artisynthDoc}
+\input{mathdefs}
+
+\setcounter{tocdepth}{5}
+\setcounter{secnumdepth}{3}
+
+\title{ArtiSynth Modeling Guide}
+\author{John Lloyd and Antonio S\'anchez}
+\setpubdate{October 12, 2014}
+
+\iflatexml
+\date{}
+\fi
+
+% Listings settings
+\definecolor{myblue}{rgb}{0,0,0.6}
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mylightgray}{rgb}{0.95,0.95,0.95}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+\definecolor{myblack}{rgb}{0,0,0}
+\lstset{
+   language=Java,                   % text highlighting for Java
+   breakatwhitespace=false,         % automatic breaks only at whitespace
+   breaklines=true,                 % automatic line breaking
+   commentstyle=\color{mygreen},    % comment style
+   keepspaces=true,                 % keeps spaces in text
+   keywordstyle=\color{myblue},     % keyword style
+   numbers=none,                    % line-numbers; values: (none, left, right)
+   numbersep=5pt,                   % how far the line-numbers are from code
+   numberstyle=\tiny\color{mygray}, % line-numbers style
+   showspaces=false,                % show spaces everywhere
+   showstringspaces=false,          % underline spaces within strings
+   showtabs=false,                  % show tabs
+   stepnumber=1,                    % the step between two line-numbers
+   stringstyle=\color{mymauve},     % string literal style
+   tabsize=3,                       % sets default tabsize to 3 spaces
+   backgroundcolor=\color{mylightgray}, % background color
+   frame=single, 					% adds a frame around the code
+   rulesepcolor=\color{mygray},
+   rulecolor=\color{myblack},
+   framerule=0pt,
+   xleftmargin=2.2ex,               % numbers inside box
+   framexleftmargin=2.2ex,			% indentation of frame
+}
+
+\begin{document}
+
+%\layout
+\maketitle
+
+\iflatexml{\large\pubdate}\fi
+
+\tableofcontents
+
+\setjavabase{artisynth.core.modelbase}
+
+% basic links to other docs: http://www.artisynth.org/doc/html/xxx/xxx.html#sec
+
+\section{Introduction}
+
+This guide describes how to create mechanical and biomechanical models
+in ArtiSynth using its Java API. 
+
+It is assumed that the reader is familiar with basic Java programming,
+including variable assignment, control flow, exceptions, functions and
+methods, object construction, inheritance, and method overloading.
+Some familiarity with the basic I/O classes defined in {\tt
+java.io.*}, including input and output streams and the specification
+of file paths using {\tt File}, as well as the collection classes
+{\tt ArrayList} and {\tt LinkedList} defined in {\tt java.util.*}, is
+also assumed.
+
+\subsection{How to read this guide}
+
+Section \ref{Overview:sec} offers a general overview of ArtiSynth's
+software design, and briefly describes the algorithms used for
+physical simulation (Section \ref{PhysicsSimulation:sec}). The latter
+section may be skipped on first reading. A more comprehensive
+\href{http://www.artisynth.org/doc/artisynth.pdf}{overview paper} is
+available online.
+
+The remainder of the manual gives details instructions on how to build
+various types of mechanical and biomechanical models.  Sections
+\ref{MechModelsI:sec} and \ref{MechModelsII:sec} give detailed
+information about building general mechanical models, involving
+particles, springs, rigid bodies, joints, constraints, and
+contact. Section \ref{SimulationControl:sec} describes how to add
+control panels, controllers, and input and output data streams to a
+simulation.  Section \ref{FEMModels:sec} describes how to incorporate
+finite element models. The required mathematics is reviewed in Section
+\ref{MathematicalReview:sec}.
+
+If time permits, the reader will profit from a top-to-bottom read.
+However, this may not always be necessary. Many of the sections
+contain detailed examples, all of which are available in
+the package {\tt artisynth.demos.tutorial} and which may be run from
+ArtiSynth using {\sf Models > All demos > tutorials}. 
+More experienced readers may wish to find an appropriate example and
+then work backwards into the text and preceeding sections for any
+needed explanatory detail.
+
+\input{overview}
+
+\input{supportingClasses}
+
+\input{mechanicalModelsI}
+
+\input{mechanicalModelsII}
+
+\input{simulationControl}
+
+\input{femModels}
+
+\input{appendix}
+
+\iflatexml
+\bibliographystyle{plain}
+\bibliography{references}
+\else
+\section*{References}
+\bibliographystyle{plain}
+\begin{btSect}{references}
+\btPrintCited
+\end{btSect}
+\fi
+
+\end{document}

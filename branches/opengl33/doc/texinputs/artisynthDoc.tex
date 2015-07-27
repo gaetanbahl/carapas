@@ -1,0 +1,200 @@
+%%
+%% Default settings for artisynth
+%%
+\NeedsTeXFormat{LaTeX2e}
+%%\ProvidesPackage{artisynthDoc}[2012/04/05]
+
+\usepackage[T1]{fontenc}
+\usepackage[latin1]{inputenc}
+\usepackage{listings}
+\usepackage{makeidx}
+\usepackage{latexml}
+\usepackage{graphicx}
+\usepackage{framed}
+\usepackage{color}
+
+\newcommand{\pubdate}{\today}
+\newcommand{\setpubdate}[1]{\renewcommand{\pubdate}{#1}}
+
+\iflatexml
+\usepackage{hyperref}
+\else
+%% then we are making a PDF, so include things that LaTeXML can't handle: 
+%% docbook style, \RaggedRight
+\usepackage{ifxetex}
+\usepackage{pslatex} % fixes fonts; in particular sets a better-fitting \tt font
+
+\usepackage[A4]{artisynth_papersize}
+%\usepackage[letter]{artisynth_papersize}
+\usepackage[hyperlink]{asciidoc-dblatex} 
+
+%\usepackage{verbatim}
+\usepackage{ragged2e}
+\setlength{\RaggedRightRightskip}{0pt plus 4em}
+\RaggedRight
+\renewcommand{\DBKpubdate}{\pubdate}
+\renewcommand{\DBKreleaseinfo}{}
+\fi
+
+% set hypertext links to be dark blue:
+\definecolor{darkblue}{rgb}{0,0,0.8}
+\definecolor{sidebar}{rgb}{0.5,0.5,0.7}
+\hypersetup{colorlinks=true,urlcolor=darkblue,linkcolor=darkblue}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Define macros for handling javadoc class and method references
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\makeatletter
+
+% code inspired by http://stackoverflow.com/questions/2457780/latex-apply-an-operation-to-every-character-in-a-string
+\def\removeargs #1{\doremoveargs#1$\wholeString\unskip}
+\def\doremoveargs#1#2\wholeString{\if#1$%
+\else\if#1({()}\else{#1}\taketherest#2\fi\fi}
+\def\taketherest#1\fi
+{\fi \doremoveargs#1\wholeString}
+
+% Note: still doesn't work properly when called on macro output ...
+% i.e., \dottoslash{\concatnames{model}{base}{foo}} fails 
+\def\dottoslash #1{\dodottoslash#1$\wholeString\unskip}
+\def\dodottoslash#1#2\wholeString{\if#1$%
+\else\if#1.{/}\else{#1}\fi\dottaketherest#2\fi}
+\def\dottaketherest#1\fi{\fi \dodottoslash#1\wholeString}
+
+% concatenates up to three class/method names together, adding '.' characters
+% between them. The first and/or second argument may be empty, in which case
+% the '.' is omitted. To check to see if these arguments are empty, we
+% use a contruction '\if#1@@', which will return true iff #1 is empty
+% (on the assumption that #1 will not contain a '@' character).
+\def\concatnames
+#1#2#3{\if#1@@\if#2@@#3\else #2.#3\fi\else\if#2@@#1.#3\else#1.#2.#3\fi\fi}
+
+\newcommand{\javabase}{}
+\newcommand{\setjavabase}[1]{\renewcommand{\javabase}{#1}}
+
+\iflatexml
+\newcommand{\javaclassx}[2][]{%
+% Includes code to prevent an extra '.' at the front if #1 is empty. It
+% works like this: if '#1' is empty, then '#1.' expands to '.', and so 
+% '\if#1..' will return true, in which case we just output '#2'.
+\href{@JDOCBEGIN/\concatnames{\javabase}{#1}{#2}@JDOCEND}{#2}}
+\newcommand{\javaclass}[2][]{%
+\href{@JDOCBEGIN/\concatnames{}{#1}{#2}@JDOCEND}{#2}}
+
+\newcommand{\javamethodArgsx}[2][]{%
+\href{@JDOCBEGIN/\concatnames{\javabase}{#1}{#2}@JDOCEND}{#2}}
+\newcommand{\javamethodArgs}[2][]{%
+\href{@JDOCBEGIN/\concatnames{}{#1}{#2}@JDOCEND}{#2}}
+\newcommand{\javamethodAlt}[2]{%
+\href{@JDOCBEGIN/\concatnames{}{}{#1}@JDOCEND}{#2}}
+\newcommand{\javamethodAltx}[2]{%
+\href{@JDOCBEGIN/\concatnames{\javabase}{}{#1}@JDOCEND}{#2}}
+
+\newcommand{\javamethodNoArgsx}[2][]{%
+\href{@JDOCBEGIN/\concatnames{\javabase}{#1}{#2}@JDOCEND}{\removeargs{#2}}}
+\newcommand{\javamethodNoArgs}[2][]{%
+\href{@JDOCBEGIN/\concatnames{}{#1}{#2}@JDOCEND}{\removeargs{#2}}}
+\else
+\def\javaurl{http://www.artisynth.org/doc/javadocs/}
+\newcommand{\javaclassx}[2][]{{\color{darkblue}#2}}
+%\href{\javaurl\dottoslash{\concatnames{\javabase}{#1}{#2}}.html}{#2}}
+\newcommand{\javamethodArgsx}[2][]{{\color{darkblue}#2}}
+\newcommand{\javamethodNoArgsx}[2][]{{\color{darkblue}\removeargs{#2}}}
+\newcommand{\javaclass}[2][]{{\color{darkblue}#2}}
+%\href{\javaurl\dottoslash{\concatnames{\javabase}{#1}{#2}}.html}{#2}}
+\newcommand{\javamethodArgs}[2][]{{\color{darkblue}#2}}
+\newcommand{\javamethodNoArgs}[2][]{{\color{darkblue}\removeargs{#2}}}
+\newcommand{\javamethodAlt}[2]{{\color{darkblue}{#2}}}
+\newcommand{\javamethodAltx}[2]{{\color{darkblue}{#2}}}
+\fi
+
+\newcommand{\javamethod}{\@ifstar\javamethodNoArgs\javamethodArgs}
+\newcommand{\javamethodx}{\@ifstar\javamethodNoArgsx\javamethodArgsx}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Define macros for sidebars
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\iflatexml
+\newenvironment{sideblock}{\begin{quote}}{\end{quote}}
+\else
+\usepackage[strict]{changepage}
+\definecolor{sidebarshade}{rgb}{1.0,0.97,0.8}
+\newenvironment{sideblock}{%
+    \def\FrameCommand{%
+    \hspace{1pt}%
+    {\color{sidebar}\vrule width 2pt}%
+    %{\vrule width 2pt}%
+    {\color{sidebarshade}\vrule width 4pt}%
+    \colorbox{sidebarshade}%
+  }%
+  \MakeFramed{\advance\hsize-\width\FrameRestore}%
+  \noindent\hspace{-4.55pt}% disable indenting first paragraph
+  \begin{adjustwidth}{}{7pt}%
+  %\vspace{2pt}\vspace{2pt}%
+}
+{%
+  \vspace{2pt}\end{adjustwidth}\endMakeFramed%
+}
+\fi
+
+\iflatexml
+\newenvironment{shadedregion}{%
+  \definecolor{shadecolor}{rgb}{0.96,0.96,0.98}%
+  \begin{shaded*}%
+% Put text inside a quote to create a surrounding blockquote that
+% will properly accept the color and padding attributes
+  \begin{quote}%
+}
+{%
+  \end{quote}%
+  \end{shaded*}%
+}
+\else
+\newenvironment{shadedregion}{%
+  \definecolor{shadecolor}{rgb}{0.96,0.96,0.98}%
+  \begin{shaded*}%
+}
+{%
+  \end{shaded*}%
+}
+\fi
+
+% Wanted to create a 'listing' environment because lstlisting is
+% tedious to type and because under latexml it may need
+% some massaging to get it to work properly. But hard to do
+% because of the verbatim nature of listing
+%\iflatexml
+%\newenvironment{listing}{\begin{lstlisting}}{\end{lstlisting}}%
+%\else
+%\newenvironment{listing}{\begin{lstlisting}}{\end{lstlisting}}%
+%\fi
+
+\iflatexml\else
+% fancyhdr was complaining that it wanted a 36pt header height ...
+\setlength{\headheight}{36pt}
+\fi
+
+% abbreviation for backslash character
+\newcommand\BKS{\textbackslash}
+
+
+% Convenience stuff
+\newcommand{\ifLaTeXMLelse}[2]{%
+  \iflatexml %
+  #1 %
+  \else %
+  #2 %
+  \fi %
+}
+
+\newcommand{\ifLaTeXML}[1]{ %
+  \iflatexml %
+  #1 %
+  \fi %
+}
+
+\makeatother
