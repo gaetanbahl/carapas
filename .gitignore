@@ -1,0 +1,94 @@
+#####################
+# Other Repositories
+#####################
+.svn
+CVS
+.cvsignore
+
+#####################
+# Archive files
+#####################
+*.gz
+*.tar
+*.zip
+
+#####################
+# Compiled files
+#####################
+*.class
+*.jar
+*.dylib
+*.dll
+*.a
+*.la
+*.jnilib
+*.so
+*.so.*
+*.lib
+*.exe
+*.h.gch
+*.exe
+lib
+
+#####################
+# Compile directories
+#####################
+classes
+
+#####################
+# Compiled Documents
+#####################
+*.pdf
+*.html
+*.eps
+doc
+
+#####################
+# Geometry Files
+#####################
+*.node
+*.elem
+*.exnode
+*.exelem
+*.ele
+*.face
+*.smesh
+*.obj
+*.mtl
+*.asc
+*.vtp
+*.ma
+*.mb
+*.poly
+
+#####################
+# Temporary Files
+#####################
+tmp
+*~
+*.log
+*.old
+
+#####################
+# Eclipse Files
+#####################
+.classpath
+.project
+.cproject
+.settings
+
+#####################
+# Regression Outputs
+#####################
+scripts/*.out
+scripts/*.ref
+
+#####################
+# Image Files
+#####################
+*.dcm
+*.nifti
+
+# Temporary backup directories
+.git_backup
+.git_old
