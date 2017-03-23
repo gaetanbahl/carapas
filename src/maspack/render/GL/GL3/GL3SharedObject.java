@@ -5,7 +5,6 @@ import java.util.HashSet;
 
 import javax.media.opengl.GL;
 import javax.media.opengl.GL3;
-import javax.media.opengl.GL4;
 
 /**
  * Holds pointers to VBOs, attribute info, to be used in creating VAOs.
@@ -15,41 +14,42 @@ import javax.media.opengl.GL4;
  * @author Antonio
  *
  */
-public class GL3SharedObject extends GL3ResourceBase {
-   
+public class GL3SharedObject extends GL3ResourceBase 
+   implements GL3SharedDrawable {
+
    public enum DrawType {
       ARRAY,
       ELEMENT,
       INSTANCED_ARRAY,
       INSTANCED_ELEMENT
    }
-   
+
    // general purpose indicators
    static final int VERTEX_FLAG_POSITION = 0x01;
    static final int VERTEX_FLAG_NORMAL = 0x02;
    static final int VERTEX_FLAG_COLOR = 0x04;
    static final int VERTEX_FLAG_TEXTURE = 0x08;
-   
+
    VertexBufferObject[] vbos;
    IndexBufferObject ibo;
-   
+
    GL3VertexAttributeArray[] attributes;        // list of attributes
    GL3ElementAttributeArray elements;           // element indices
-   
+
    // draw-specific info
-   int start;
-   int count;
-   int mode;
+   int start;      // starting vertex
+   int count;      // # vertices
+   int mode;       // e.g. triangles
    DrawType type;
    int numInstances;
-   
+
    public GL3SharedObject(GL3VertexAttributeArray[] attributes, GL3ElementAttributeArray elements) {
       this(attributes, elements, GL.GL_TRIANGLES); // default guess triangle mode
    }
-   
+
    public GL3SharedObject(GL3VertexAttributeArray[] attributes, 
       GL3ElementAttributeArray elements, int glMode) {
-      
+
       HashSet<VertexBufferObject> vboSet = new HashSet<>();
       for (int i=0; i<attributes.length; ++i) {
          GL3VertexAttributeArray ai = attributes[i];
@@ -57,28 +57,28 @@ public class GL3SharedObject extends GL3ResourceBase {
             vboSet.add(((GL3VertexAttributeArray)ai).getVBO());
          }
       }
-      
+
       IndexBufferObject ibo = null;
       if (elements != null) {
          ibo = elements.getIBO ();
       }
-      
+
       VertexBufferObject[] vbos = vboSet.toArray(new VertexBufferObject[vboSet.size()]);
       set(attributes, elements, vbos, ibo, glMode);
    }
-   
+
    public GL3SharedObject(GL3VertexAttributeArray[] attributes, 
       GL3ElementAttributeArray elements, VertexBufferObject[] vbos, 
       IndexBufferObject ibo, int glMode) {
       set (attributes, elements, vbos, ibo, glMode);
    }
-      
+
    private void set(GL3VertexAttributeArray[] attributes, 
       GL3ElementAttributeArray elements, VertexBufferObject[] vbos, 
       IndexBufferObject ibo, int glMode) {
       this.attributes = Arrays.copyOf(attributes, attributes.length);
       this.elements = elements;
-      
+
       for (VertexBufferObject vbo : vbos) {
          vbo.acquire();  // hold a reference until disposed
       }
@@ -88,11 +88,11 @@ public class GL3SharedObject extends GL3ResourceBase {
       } else {
          this.ibo = null;
       }
-      
+
       detectDefaultDrawType();
       this.mode = glMode;
    }
-   
+
    /**
     * Bind program attributes to the given program (uses the program's attribute 
     * locations)
@@ -125,17 +125,17 @@ public class GL3SharedObject extends GL3ResourceBase {
       gl.glBindVertexArray(0);
       return vao[0];
    }
-   
+
    /**
     * Detects draw mode, count, instances, based on attributes
     */
    private void detectDefaultDrawType() {
-      
+
       boolean instanced = false;
       int nVertices = 0;
       int nElements = 0;
       int nInstanced = Integer.MAX_VALUE;
-      
+
       // guess draw mode
       for (GL3VertexAttributeArray ai : attributes) {
          if (ai instanceof GL3VertexAttributeArray) {
@@ -148,14 +148,14 @@ public class GL3SharedObject extends GL3ResourceBase {
             }
          }
       }
-      
+
       // element indices
       boolean hasElements = false;
       if (elements != null) {
          hasElements = true;
          nElements = elements.getCount();
       }
-      
+
       // choose draw type
       if (hasElements) {
          if (instanced) {
@@ -178,43 +178,43 @@ public class GL3SharedObject extends GL3ResourceBase {
          start = 0;
          count = nVertices;
       }
-      
+
       // default to triangles?
       mode = GL3.GL_TRIANGLES;
    }
-   
+
    public GL3VertexAttributeArray[] getGL3VertexAttributes() {
       return attributes;
    }
-   
+
    public GL3ElementAttributeArray getGL3ElementAttribute() {
       return elements;
    }
-   
+
    public int getMode() {
       return mode;
    }
-   
+
    public int getStart() {
       return start;
    }
-   
+
    public int getCount() {
       return count;
    }
-   
+
    public int getNumInstances() {
       return numInstances;
    }
-   
+
    public DrawType getDrawType() {
       return type;
    }
-   
+
    public void setDrawInfo(int start, int count, int glMode) {
       setDrawInfo(start, count, glMode, 0);
    }
-   
+
    public void setDrawInfo(int start, int count, int glMode, int numInstances) {
       this.start = start;
       this.count = count;
@@ -234,20 +234,20 @@ public class GL3SharedObject extends GL3ResourceBase {
          }
       }
    }
-   
+
    /**
     * Checks whether all internal GL resources are still valid
     * @return true if internal resources are all still valid
     */
    public boolean isValid () {
-      
+
       // check that all VBOs are valid
       for (GL3VertexAttributeArray ai : attributes) {
          if (!ai.isValid ()) {
             return false;
          }
       }
-      
+
       // maybe bind indices
       if (elements != null) {
          if (!elements.isValid ()) {
@@ -256,7 +256,7 @@ public class GL3SharedObject extends GL3ResourceBase {
       }   
       return true;
    }
-   
+
    /**
     * Release hold on any VBOs/IBOs
     */
@@ -273,7 +273,7 @@ public class GL3SharedObject extends GL3ResourceBase {
          ibo = null;
       }
    }
-   
+
    /**
     * Release hold on any VBOs/IBOs
     */
@@ -289,17 +289,17 @@ public class GL3SharedObject extends GL3ResourceBase {
          ibo = null;
       }
    }
-   
+
    @Override
    public boolean isDisposed () {
       return (vbos == null);
    }
-   
+
    @Override
    public GL3SharedObject acquire () {
       return (GL3SharedObject)super.acquire ();
    }
-   
+
    /**
     * Inefficient, generates VAO and destroys it
     */
@@ -312,11 +312,11 @@ public class GL3SharedObject extends GL3ResourceBase {
    public void draw(GL3 gl) {
       draw(gl, mode, start, count);
    }   
-   
+
    public void drawArrays(GL3 gl, int mode) {
       drawArrays(gl,  mode, start, count);
    }
-   
+
    /**
     * @param gl
     * @param mode
@@ -326,7 +326,7 @@ public class GL3SharedObject extends GL3ResourceBase {
    public void drawArrays(GL3 gl, int mode, int start, int count) {
       gl.glDrawArrays(mode, start, count);
    }
-   
+
    /**
     * @param gl
     * @param mode
@@ -337,7 +337,7 @@ public class GL3SharedObject extends GL3ResourceBase {
    public void drawElements(GL3 gl, int mode, int start, int count, int indexType) {
       gl.glDrawElements(mode, count, indexType, start);
    }
-   
+
    /**
     * @param gl
     * @param mode
@@ -348,7 +348,7 @@ public class GL3SharedObject extends GL3ResourceBase {
    public void drawInstancedArray(GL3 gl, int mode, int start, int count, int instances) {
       gl.glDrawArraysInstanced(mode, start, count, instances);
    }
-   
+
    /**
     * @param gl
     * @param mode
@@ -359,25 +359,25 @@ public class GL3SharedObject extends GL3ResourceBase {
    public void drawInstancedElements(GL3 gl, int mode, int start, int count, int instances) {
       gl.glDrawElementsInstanced (mode, count, elements.getType (), start, instances);
    }
-   
-   public void drawInstanced(GL3 gl, int mode, int instances) {
+
+   public void drawInstanced(GL3 gl, int mode, int instanceCount) {
       if (elements != null) {
          gl.glDrawElementsInstanced(mode, elements.getCount(), 
-            elements.getType(), elements.getOffset(), instances);
+            elements.getType(), 0, instanceCount);
       } else {
-         // find number of 
-         gl.glDrawArraysInstanced (mode, 0, count, instances);
+         gl.glDrawArraysInstanced (mode, 0, count, instanceCount);
       }
    }
-   
+
+
    public void drawInstanced(GL3 gl, int instances) {
       drawInstanced(gl, mode, instances);
    }
-   
+
    public void draw(GL3 gl, int start, int count) {
       draw(gl,  mode, start, count);
    }
-   
+
    public void draw(GL3 gl, int mode, int start, int count) {
       switch (type) {
          case ARRAY:
@@ -396,5 +396,21 @@ public class GL3SharedObject extends GL3ResourceBase {
             break;
       }
    }
-  
+
+   @Override
+   public int getBindVersion() {
+      return 1;
+   }
+
+   @Override
+   public void bind(GL3 gl) {
+      bindAttributes(gl);
+   }
+
+   @Override
+   public boolean equals(GL3SharedDrawable other) {
+      return other == this;
+   }
+
+
 }

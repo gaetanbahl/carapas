@@ -11,10 +11,14 @@
 	<menu text="Demos">
 		<include file="src/artisynth/core/modelmenu/demos_hierarchical.xml" />
 	</menu>
-	<menu text="All models">
-		<!-- loads all RootModels in the root package and displays in compact hierarchical 
-			format -->
-		<package source="artisynth.models" view="hierarchical" />
+		<menu text="All models">
+			<!-- loads all RootModels in the root package and displays in compact hierarchical 
+				format -->
+			<package source="artisynth.models" view="hierarchical" />
+		</menu>
+	<menu text="History">
+		<!-- loads history -->
+		<history size="4" />
 	</menu>
 
 </ModelMenu>

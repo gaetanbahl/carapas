@@ -250,6 +250,11 @@ public class GL3SharedRenderObjectVertices extends GL3SharedRenderObjectBase {
    public void drawElements(GL3 gl, int mode, int count, int type, int offset) {
       gl.glDrawElements (mode, count, type, offset);
    }
+   
+   public void drawInstancedElements(GL3 gl, int mode, int count, int type, 
+      int offset, int instanceCount) {
+      gl.glDrawElementsInstanced(mode, count, type, offset, instanceCount);
+   }
 
    public static GL3SharedRenderObjectVertices generate (
       GL3 gl, RenderObject robj, GL3VertexAttributeInfo position,

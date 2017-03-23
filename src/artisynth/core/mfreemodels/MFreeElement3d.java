@@ -7,20 +7,21 @@
 package artisynth.core.mfreemodels;
 
 import java.util.ArrayList;
+import java.util.List;
 
-import artisynth.core.femmodels.AuxiliaryMaterial;
 import artisynth.core.femmodels.FemElement;
 import artisynth.core.femmodels.FemNodeNeighbor;
 import artisynth.core.femmodels.IntegrationData3d;
-import artisynth.core.femmodels.IntegrationPoint3d;
+import artisynth.core.materials.ConstitutiveMaterial;
 import artisynth.core.materials.FemMaterial;
-import artisynth.core.materials.LinearMaterial;
 import maspack.geometry.BVFeatureQuery;
 import maspack.geometry.Boundable;
 import maspack.geometry.PolygonalMesh;
 import maspack.geometry.PolygonalMeshRenderer;
-import maspack.geometry.Vertex3d;
 import maspack.matrix.AffineTransform3d;
+import maspack.matrix.LUDecomposition;
+import maspack.matrix.Matrix;
+import maspack.matrix.Matrix1x1;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix3dBase;
 import maspack.matrix.Matrix6d;
@@ -38,25 +39,35 @@ import maspack.render.RenderList;
 import maspack.render.RenderProps;
 import maspack.render.Renderer;
 import maspack.render.Renderer.Shading;
+import maspack.util.DynamicArray;
 import maspack.util.InternalErrorException;
 
 public class MFreeElement3d extends FemElement implements Boundable {
 
+   private MFreeShapeFunction myShapeFunction;
+   
    protected MFreeNode3d[] myNodes;
    protected FemNodeNeighbor[][] myKBlocks;
-   boolean[][] active;
+   // boolean[][] active;
    
-   protected ArrayList<IntegrationData3d> myIntegrationData;
-   protected ArrayList<MFreeIntegrationPoint3d> myIntegrationPoints;
-   protected ArrayList<int[]> myIntegrationNodeIdxs;
-   protected VectorNd myIntegrationWeights;
+   protected DynamicArray<IntegrationData3d> myIntegrationData;
+   protected DynamicArray<MFreeIntegrationPoint3d> myIntegrationPoints;
+   protected double[] myNodalExtrapolationMatrix;
+   //   protected ArrayList<int[]> myIntegrationNodeIdxs;
+   //   protected VectorNd myIntegrationWeights;
    protected boolean myIntegrationDataValid = false;
    
-//   protected double myLagrangePressure;
+   //  protected double myLagrangePressure;
    protected MatrixBlock[] myIncompressConstraints = null;
+   private static Matrix1x1 myPressureWeightMatrix = null;
+   private int myIncompressIdx = -1;
    
    protected PolygonalMesh myBoundaryMesh = null;
    boolean renderMeshValid = false;
+   
+   protected double[] myRestVolumes;
+   protected double[] myVolumes;
+   protected double[] myLagrangePressures;
 
    protected MFreeStiffnessWarper3d myWarper = null;
    protected MFreeIntegrationPoint3d myWarpingPoint = null;
@@ -67,7 +78,7 @@ public class MFreeElement3d extends FemElement implements Boundable {
    protected PropertyMode myElementWidgetSizeMode = PropertyMode.Inherited;
 
    // Auxiliary Materials are mainly used for implementing muscle fibres
-   protected ArrayList<AuxiliaryMaterial> myAuxMaterials = null;
+   protected ArrayList<ConstitutiveMaterial> myAuxMaterials = null;
 
    public static PropertyList myProps =
       new PropertyList(MFreeElement3d.class, FemElement.class);
@@ -104,17 +115,31 @@ public class MFreeElement3d extends FemElement implements Boundable {
    public PropertyMode getElementWidgetSizeMode() {
       return myElementWidgetSizeMode;
    }
-
-   public MFreeElement3d (MFreeNode3d[] nodes) {
-
+   
+   public MFreeElement3d (MFreeShapeFunction fun, MFreeNode3d[] nodes) {
+      int npvals = numPressureVals();
+      myLagrangePressures = new double[npvals];
+      myRestVolumes = new double[npvals];
+      myVolumes = new double[npvals];
+      
       myNodes = nodes.clone();
-      active = new boolean[myNodes.length][myNodes.length];
-      setAllTermsActive(true);   // on by default
-      myIntegrationData = new ArrayList<IntegrationData3d>();
-      myIntegrationPoints = new ArrayList<MFreeIntegrationPoint3d>();
-      myIntegrationNodeIdxs = new ArrayList<int[]>();
-      myIntegrationWeights = new VectorNd(0);
-
+      // active = new boolean[myNodes.length][myNodes.length];
+      // setAllTermsActive(true);   // on by default
+      myIntegrationData = new DynamicArray<IntegrationData3d>(IntegrationData3d.class);
+      myIntegrationPoints = new DynamicArray<MFreeIntegrationPoint3d>(MFreeIntegrationPoint3d.class);
+      //      myIntegrationNodeIdxs = new ArrayList<int[]>();
+      //      myIntegrationWeights = new VectorNd(0);
+      myNodalExtrapolationMatrix = null;
+      
+      setShapeFunction(fun);
+   }
+   
+   public void setShapeFunction(MFreeShapeFunction f) {
+      myShapeFunction = f;
+   }
+   
+   public MFreeShapeFunction getShapeFunction() {
+      return myShapeFunction;
    }
    
    public boolean isInside(Point3d pnt) {
@@ -131,12 +156,12 @@ public class MFreeElement3d extends FemElement implements Boundable {
    }
 
    public boolean isInvertedAtRest() {
-      ArrayList<MFreeIntegrationPoint3d> ipnts = getIntegrationPoints();
-      ArrayList<IntegrationData3d> idata = getIntegrationData();
+      MFreeIntegrationPoint3d[] ipnts = getIntegrationPoints();
+      IntegrationData3d[] idata = getIntegrationData();
       
-      for (int i=0; i<ipnts.size(); i++) {
-         MFreeIntegrationPoint3d ipnt = ipnts.get(i);
-         IntegrationData3d idat = idata.get(i);
+      for (int i=0; i<ipnts.length; i++) {
+         MFreeIntegrationPoint3d ipnt = ipnts[i];
+         IntegrationData3d idat = idata[i];
          
          ipnt.computeJacobianAndGradient(idat.getInvJ0());
          if (ipnt.getDetF()< 0) {
@@ -148,76 +173,76 @@ public class MFreeElement3d extends FemElement implements Boundable {
       
    }
    
-   public void setAllTermsActive(boolean act) {
-      for (int i = 0; i < myNodes.length; i++) {
-         for (int j = 0; j < myNodes.length; j++) {
-            active[i][j] = act;
-         }
-      }
-   }
+   //   public void setAllTermsActive(boolean act) {
+   //      for (int i = 0; i < myNodes.length; i++) {
+   //         for (int j = 0; j < myNodes.length; j++) {
+   //            active[i][j] = act;
+   //         }
+   //      }
+   //   }
+   // 
+   //   public void setColTermsActive(int j, boolean act) {
+   //      for (int i = 0; i < myNodes.length; i++) {
+   //         active[i][j] = act;
+   //      }
+   //   }
+   //
+   //   public void setRowTermsActive(int i, boolean act) {
+   //      for (int j = 0; j < myNodes.length; j++) {
+   //         active[i][j] = act;
+   //      }
+   //   }
+   //
+   //   public void setTermActive(int i, int j, boolean act) {
+   //      this.active[i][j] = act;
+   //   }
+   //   
+   //   public void setDiagonalTermsActive(boolean act) {
+   //      for (int i=0; i<numNodes(); i++) {
+   //         this.active[i][i] = act;
+   //      }
+   //   }
+   //
+   //   public boolean isTermActive(int i, int j) {
+   //      return this.active[i][j];
+   //   }
+   //   
+   //   public boolean isTermActive(MFreeNode3d rowNode, MFreeNode3d colNode) {
+   //      int idxRow = getNodeIdx(rowNode);
+   //      int idxCol = getNodeIdx(colNode);
+   //      return isTermActive(idxRow, idxCol);
+   //   }
+   //   
+   //   public int getNodeIdx(MFreeNode3d node) {
+   //      for (int i = 0; i < myNodes.length; i++) {
+   //         if (myNodes[i] == node) {
+   //            return i;
+   //         }
+   //      }
+   //      return -1;
+   //   }
+   //
+   //   public void setColTermsActive(MFreeNode3d node, boolean act) {
+   //      int idxj = getNodeIdx(node);
+   //      if (idxj >= 0) {
+   //         setColTermsActive(idxj, act);
+   //      }
+   //   }
 
-   public void setColTermsActive(int j, boolean act) {
-      for (int i = 0; i < myNodes.length; i++) {
-         active[i][j] = act;
-      }
-   }
-
-   public void setRowTermsActive(int i, boolean act) {
-      for (int j = 0; j < myNodes.length; j++) {
-         active[i][j] = act;
-      }
-   }
-
-   public void setTermActive(int i, int j, boolean act) {
-      this.active[i][j] = act;
-   }
-   
-   public void setDiagonalTermsActive(boolean act) {
-      for (int i=0; i<numNodes(); i++) {
-         this.active[i][i] = act;
-      }
-   }
-
-   public boolean isTermActive(int i, int j) {
-      return this.active[i][j];
-   }
-   
-   public boolean isTermActive(MFreeNode3d rowNode, MFreeNode3d colNode) {
-      int idxRow = getNodeIdx(rowNode);
-      int idxCol = getNodeIdx(colNode);
-      return isTermActive(idxRow, idxCol);
-   }
-   
-   public int getNodeIdx(MFreeNode3d node) {
-      for (int i = 0; i < myNodes.length; i++) {
-         if (myNodes[i] == node) {
-            return i;
-         }
-      }
-      return -1;
-   }
-
-   public void setColTermsActive(MFreeNode3d node, boolean act) {
-      int idxj = getNodeIdx(node);
-      if (idxj >= 0) {
-         setColTermsActive(idxj, act);
-      }
-   }
-
-   public void setRowTermsActive(MFreeNode3d node, boolean act) {
-      int idxi = getNodeIdx(node);
-      if (idxi >= 0) {
-         setRowTermsActive(idxi, act);
-      }
-   }
-
-   public void setTermActive(MFreeNode3d nodei, MFreeNode3d nodej, boolean act) {
-      int idxi = getNodeIdx(nodei);
-      int idxj = getNodeIdx(nodej);
-      if (idxi >= 0 && idxj >= 0) {
-         setTermActive(idxi, idxj, act);
-      }
-   }
+   //   public void setRowTermsActive(MFreeNode3d node, boolean act) {
+   //      int idxi = getNodeIdx(node);
+   //      if (idxi >= 0) {
+   //         setRowTermsActive(idxi, act);
+   //      }
+   //   }
+   //
+   //   public void setTermActive(MFreeNode3d nodei, MFreeNode3d nodej, boolean act) {
+   //      int idxi = getNodeIdx(nodei);
+   //      int idxj = getNodeIdx(nodej);
+   //      if (idxi >= 0 && idxj >= 0) {
+   //         setTermActive(idxi, idxj, act);
+   //      }
+   //   }
 
    public MFreeNode3d[] getNodes() {
       return myNodes;
@@ -235,52 +260,53 @@ public class MFreeElement3d extends FemElement implements Boundable {
       return myIntegrationPoints.size();
    }
 
-   public ArrayList<MFreeIntegrationPoint3d> getIntegrationPoints() {
-      return myIntegrationPoints;
+   public MFreeIntegrationPoint3d[] getIntegrationPoints() {
+      return myIntegrationPoints.getArray();
    }
    
    public MFreeIntegrationPoint3d getIntegrationPoint(int idx) {
       return myIntegrationPoints.get(idx);
    }
    
-   public int getIntegrationPointIndex(IntegrationPoint3d pnt) {
+   public int getIntegrationPointIndex(MFreeIntegrationPoint3d pnt) {
       int idx = myIntegrationPoints.indexOf(pnt);
       return idx;
    }
    
-   public ArrayList<IntegrationData3d> getIntegrationData() {
-      return myIntegrationData;
+   public IntegrationData3d[] getIntegrationData() {
+      return myIntegrationData.getArray();
    }
    
    public IntegrationData3d getIntegrationData(int idx) {
       return myIntegrationData.get(idx);
    }
    
-   public ArrayList<int[]> getIntegrationIndices() {
-      return myIntegrationNodeIdxs;
-   }
+   //   public ArrayList<int[]> getIntegrationIndices() {
+   //      return myIntegrationNodeIdxs;
+   //   }
+   //   
+   //   public int[] getIntegrationIndices(int idx) {
+   //      return myIntegrationNodeIdxs.get(idx);
+   //   }
    
-   public int[] getIntegrationIndices(int idx) {
-      return myIntegrationNodeIdxs.get(idx);
-   }
    public void clearState() {
       for (IntegrationData3d idat : myIntegrationData) {
          idat.clearState();
       }
    }
 
-   public VectorNd getIntegrationWeights() {
-      return myIntegrationWeights;
-   }
-
-   public double getIntegrationWeight(int idx) {
-      return myIntegrationWeights.get(idx);
-   }
-   
-   public void setIntegrationWeights(VectorNd weights) {
-      myIntegrationWeights = weights;
-      updateAllVolumes();
-   }
+   //   public VectorNd getIntegrationWeights() {
+   //      return myIntegrationWeights;
+   //   }
+   //
+   //   public double getIntegrationWeight(int idx) {
+   //      return myIntegrationWeights.get(idx);
+   //   }
+   //   
+   //   public void setIntegrationWeights(VectorNd weights) {
+   //      myIntegrationWeights = weights;
+   //      updateAllVolumes();
+   //   }
    
    public void updateAllVolumes() {
       computeRestVolumes();
@@ -297,17 +323,20 @@ public class MFreeElement3d extends FemElement implements Boundable {
       
       int[] idxs = new int[numNodes()];
       for (int j=0; j<numNodes(); j++) {
-         idxs[j] = ipnt.getDependentNodes().indexOf(myNodes[j]);
+         idxs[j] = ipnt.getNodeCoordIdx(myNodes[j]);
          if (idxs[j]<0) {
             return; //XXX happens when right on the boundary
          }
       }
       
-      int idx = myIntegrationWeights.adjustSize(1);
-      myIntegrationWeights.set(idx, iwgt);
+      //      int idx = myIntegrationWeights.adjustSize(1);
+      //      myIntegrationWeights.set(idx, iwgt);
       myIntegrationData.add(idata);
+      ipnt.setNumber(myIntegrationPoints.size());
       myIntegrationPoints.add(ipnt);
-      myIntegrationNodeIdxs.add(idxs);
+      //      myIntegrationNodeIdxs.add(idxs);
+      
+      myNodalExtrapolationMatrix = null;
       
       if (updateVolumes) {
          updateAllVolumes();
@@ -315,14 +344,14 @@ public class MFreeElement3d extends FemElement implements Boundable {
    }
 
    public void setIntegrationData(ArrayList<IntegrationData3d> data) {
-      myIntegrationData = new ArrayList<IntegrationData3d>(data.size());
+      myIntegrationData = new DynamicArray<>(IntegrationData3d.class, data.size());
       myIntegrationData.addAll(data);
    }
    
    public void setIntegrationPoints(ArrayList<MFreeIntegrationPoint3d> points, ArrayList<IntegrationData3d> data) {
       
-      myIntegrationPoints = new ArrayList<MFreeIntegrationPoint3d>(points.size()); 
-      myIntegrationNodeIdxs = new ArrayList<int[]>(points.size());
+      myIntegrationPoints = new DynamicArray<>(MFreeIntegrationPoint3d.class, points.size()); 
+      // myIntegrationNodeIdxs = new ArrayList<int[]>(points.size());
       
       for (int i=0; i<points.size(); i++) {
          IntegrationData3d idata = null;
@@ -332,7 +361,16 @@ public class MFreeElement3d extends FemElement implements Boundable {
          addIntegrationPoint(points.get(i), idata, points.get(i).getWeight(), false);
       }
       updateAllVolumes();
+      myNodalExtrapolationMatrix = null;
       
+   }
+   
+   public void setIntegrationPoints(MFreeIntegrationPoint3d[] points, IntegrationData3d[] data) {
+      
+      myIntegrationPoints = new DynamicArray<>(points);
+      myIntegrationData = new DynamicArray<>(data);
+      myNodalExtrapolationMatrix = null;
+      updateAllVolumes();
    }
    
    public void setIntegrationPoints(ArrayList<MFreeIntegrationPoint3d> points) {
@@ -363,14 +401,14 @@ public class MFreeElement3d extends FemElement implements Boundable {
    }
 
    // Auxiliary materials, used for implementing muscle fibres
-   public void addAuxiliaryMaterial(AuxiliaryMaterial mat) {
+   public void addAuxiliaryMaterial(ConstitutiveMaterial mat) {
       if (myAuxMaterials == null) {
-         myAuxMaterials = new ArrayList<AuxiliaryMaterial>(4);
+         myAuxMaterials = new ArrayList<ConstitutiveMaterial>(4);
       }
       myAuxMaterials.add(mat);
    }
 
-   public boolean removeAuxiliaryMaterial(AuxiliaryMaterial mat) {
+   public boolean removeAuxiliaryMaterial(ConstitutiveMaterial mat) {
       if (myAuxMaterials != null) {
          return myAuxMaterials.remove(mat);
       }
@@ -383,13 +421,14 @@ public class MFreeElement3d extends FemElement implements Boundable {
       return myAuxMaterials == null ? 0 : myAuxMaterials.size();
    }
    
-   public AuxiliaryMaterial[] getAuxiliaryMaterials() {
-      if (myAuxMaterials == null) {
-         return new AuxiliaryMaterial[0];
-      }
-      else {
-         return myAuxMaterials.toArray(new AuxiliaryMaterial[0]);
-      }
+   public List<ConstitutiveMaterial> getAuxiliaryMaterials() {
+      //      if (myAuxMaterials == null) {
+      //         return new ConstitutiveMaterial[0];
+      //      }
+      //      else {
+      //         return myAuxMaterials.toArray(new ConstitutiveMaterial[0]);
+      //      }
+      return myAuxMaterials;
    }
    
    public void connectToHierarchy() {
@@ -434,8 +473,11 @@ public class MFreeElement3d extends FemElement implements Boundable {
          for (int j = 0; j < nodes.length; j++) {
             nodes[i].deregisterNodeNeighbor(nodes[j]);
          }
-         // nodes[i].addMass(-massPerNode);
-         nodes[i].invalidateMassIfNecessary();
+
+         if (!nodes[i].isMassExplicit()) {
+            // nodes[i].addMass(-massPerNode);
+            nodes[i].invalidateMassIfNecessary();
+         }
          nodes[i].removeElementDependency(this);
       }
       super.disconnectFromHierarchy();
@@ -445,36 +487,51 @@ public class MFreeElement3d extends FemElement implements Boundable {
       if (!myWarpingStiffnessValidP) {
          updateWarpingStiffness();
       }
-      if (active[i][j]) {
-         myWarper.addNodeStiffness(myKBlocks[i][j], active, i, j, corotated);
-      }
+      // if (active[i][j]) {
+         myWarper.addNodeStiffness(myKBlocks[i][j], i, j, corotated);
+      //}
    }
    
    public void addMaterialStiffness(int i, int j, Vector3d gi, Matrix6d D,
-      SymmetricMatrix3d sig, Vector3d gj, double dv) {
-      if (active[i][j]) {
-         myKBlocks[i][j].addMaterialStiffness(gi, D, sig, gj, dv);
-      }
+      SymmetricMatrix3d sigma, Vector3d gj, double dv) {
+      // if (active[i][j]) {
+         myKBlocks[i][j].addMaterialStiffness(gi, D, sigma, gj, dv);
+      // }
    }
+   
+   public void addMaterialStiffness(int i, int j, Vector3d gi, Matrix6d D,
+      Vector3d gj, double dv) {
+      // if (active[i][j]) {
+         myKBlocks[i][j].addMaterialStiffness(gi, D, gj, dv);
+      // }
+   }
+   
+   public void addGeometricStiffness(int i, int j, Vector3d gi, SymmetricMatrix3d sigma,
+      Vector3d gj, double dv) {
+      // if (active[i][j]) {
+         myKBlocks[i][j].addGeometricStiffness(gi, sigma, gj, dv);
+      // }
+   }
+   
    
    public void addPressureStiffness(int i, int j, Vector3d gi, double p,
       Vector3d gj, double dv) {
-      if (active[i][j]) {
+      // if (active[i][j]) {
          myKBlocks[i][j].addPressureStiffness(gi, p, gj, dv);
-      }
+      // }
    }
    
    public void addDilationalStiffness(int i, int j, double kp, Vector3d intGi, Vector3d intGj) {
-      if (active[i][j]) {
+      // if (active[i][j]) {
          myKBlocks[i][j].addDilationalStiffness(kp, intGi, intGj);
-      }
+      // }
    }
    
    public void addDilationalStiffness (int i, int j,
       MatrixNd Rinv, MatrixBlock GT_i, MatrixBlock GT_j) {
-      if (active[i][j]) {
+      // if (active[i][j]) {
          myKBlocks[i][j].addDilationalStiffness(Rinv, GT_i, GT_j);
-      }
+      // }
    }
 
    public void setTransposedStiffness() {
@@ -496,18 +553,16 @@ public class MFreeElement3d extends FemElement implements Boundable {
       if (!myWarpingStiffnessValidP) {
          updateWarpingStiffness();
       }
-      myWarper.addNodeForce(f, active, i, myNodes, corotated, myKBlocks[i]);
+      myWarper.addNodeForce(f, i, myNodes, corotated, myKBlocks[i]);
    }
 
    public void updateWarpingStiffness() {
       FemMaterial mat = getEffectiveMaterial();
-      if (mat instanceof LinearMaterial) {
+      if (mat.isLinear()) {
          if (myWarper == null) {
             myWarper = new MFreeStiffnessWarper3d(numNodes());
          }
-         LinearMaterial lmat = (LinearMaterial)mat;
-         myWarper.computeInitialStiffness(
-            this, lmat.getYoungsModulus(), lmat.getPoissonsRatio());
+         myWarper.computeInitialStiffness(this, mat);
       }
       myWarpingStiffnessValidP = true;
    }
@@ -529,6 +584,13 @@ public class MFreeElement3d extends FemElement implements Boundable {
          updateWarpingStiffness();
       }
       myWarper.computeRotation(F, P);
+   }
+   
+   public void updateWarping(Matrix3dBase R) {
+      if (!myWarpingStiffnessValidP) {
+         updateWarpingStiffness();
+      }
+      myWarper.setRotation(R);
    }
    
    public FemNodeNeighbor getStiffnessBlock(int i, int j) {
@@ -595,25 +657,28 @@ public class MFreeElement3d extends FemElement implements Boundable {
    }
 
    public void setRestVolume(double vol) {
-      
       // adjust integration weights
-      if (myIntegrationWeights != null) {
+      // if (myIntegrationWeights != null) {
+      
          double rcompute = computeRestVolumes();
-         myIntegrationWeights.scale(vol / rcompute);
+         for (MFreeIntegrationPoint3d pt : myIntegrationPoints.getArray()) {
+            pt.setWeight(pt.getWeight() * vol / rcompute);
+         }
          computeVolumes();
-      }
+         
+      // }
       myRestVolume = vol;
    }
    
    public void updateJacobiansAndGradients() {
       
-      ArrayList<MFreeIntegrationPoint3d> ipnts = getIntegrationPoints();
-      ArrayList<IntegrationData3d> idata = getIntegrationData();
+      MFreeIntegrationPoint3d[] ipnts = getIntegrationPoints();
+      IntegrationData3d[] idata = getIntegrationData();
       setInverted(false);
 
-      for (int i = 0; i < ipnts.size(); i++) {
-         MFreeIntegrationPoint3d ipnt = ipnts.get(i);
-         IntegrationData3d idat = idata.get(i);
+      for (int i = 0; i < ipnts.length; i++) {
+         MFreeIntegrationPoint3d ipnt = ipnts[i];
+         IntegrationData3d idat = idata[i];
          ipnt.computeJacobianAndGradient(idat.getInvJ0());
          double detJ = ipnt.computeInverseJacobian();
          if (detJ <= 0) {
@@ -627,24 +692,39 @@ public class MFreeElement3d extends FemElement implements Boundable {
             
       double vol = 0;
       double minDetJ = Double.MAX_VALUE;
-
-      ArrayList<MFreeIntegrationPoint3d> ipnts = getIntegrationPoints();
-      ArrayList<IntegrationData3d> idata = getIntegrationData();
-      VectorNd iwgts = getIntegrationWeights();
+      int npvals = numPressureVals();
       
-      for (int i=0; i<ipnts.size(); i++) {
-         MFreeIntegrationPoint3d pt = ipnts.get(i);
-         
+      for (int k=0; k<npvals; k++) {
+         myVolumes[k] = 0;
+      }
+      
+      MFreeIntegrationPoint3d[] ipnts = getIntegrationPoints();
+      IntegrationData3d[] idata = getIntegrationData();
+      // VectorNd iwgts = getIntegrationWeights();
+      
+      for (int i=0; i<ipnts.length; i++) {
+         MFreeIntegrationPoint3d pt = ipnts[i];
          double detJ = pt.getJ().determinant();
-         double dv = detJ*iwgts.get(i);
+         double dv = detJ*pt.getWeight();
          // normalize detJ to get true value relative to rest position
-         detJ *= idata.get(i).getDetJ0();
+         detJ /= idata[i].getDetJ0();  // (though detJ0 should be 1)
+         idata[i].setDv(dv);
          if (detJ < minDetJ) {
             minDetJ = detJ;
          }
+         if (npvals > 1) {
+            double[] H = pt.getPressureWeights().getBuffer();
+            for (int k=0; k<npvals; k++) {
+               myVolumes[k] += H[k]*dv;
+            } 
+         }
          vol += dv;
       }
+      if (npvals == 1) {
+         myVolumes[0] = vol;         
+      }      
       myVolume = vol;
+      
       return minDetJ;
       
    }
@@ -655,16 +735,45 @@ public class MFreeElement3d extends FemElement implements Boundable {
    
    @Override
    protected double computeRestVolumes() {
-      double vol = 0;
-      ArrayList<IntegrationData3d> idata = getIntegrationData();
-      VectorNd iwgts = getIntegrationWeights();
       
-      for (int i=0; i<numIntegrationPoints(); i++) {
-         double dv = iwgts.get(i)*idata.get(i).getDetJ0();
-         vol += dv;
+      int npvals = numPressureVals();
+
+      double vol = 0;
+      for (int k=0; k<npvals; k++) {
+         myRestVolumes[k] = 0;
+      }
+      
+      MFreeIntegrationPoint3d[] ipnts = getIntegrationPoints();
+      IntegrationData3d[] idata = getIntegrationData();
+     
+      for (int i=0; i<ipnts.length; i++) {
+         double dV = idata[i].getDetJ0()*ipnts[i].getWeight();
+         if (npvals > 1) {
+            double[] H = ipnts[i].getPressureWeights().getBuffer();
+            for (int k=0; k<npvals; k++) {
+               myRestVolumes[k] += H[k]*dV;
+            }
+         }
+         vol += dV;
+      }
+      
+      if (npvals == 1) {
+         myRestVolumes[0] = vol;         
       }
       myRestVolume = vol;
-      myRestVolumeValidP = true;
+      
+      //      double vol = 0;
+      //      IntegrationData3d[] idata = getIntegrationData();
+      //      VectorNd iwgts = getIntegrationWeights();
+      //      
+      //      for (int i=0; i<numIntegrationPoints(); i++) {
+      //         double dv = iwgts.get(i)*idata[i].getDetJ0();
+      //         vol += dv;
+      //      }
+      //      myRestVolume = vol;
+      //      myRestVolumeValidP = true;
+      //      return vol;
+      
       return vol;
    }
 
@@ -675,10 +784,13 @@ public class MFreeElement3d extends FemElement implements Boundable {
       super.prerender(list);
       renderMeshValid = false;
       
-      if (myRenderInfo == null) {
-         myRenderInfo = new PolygonalMeshRenderer (myBoundaryMesh);
+      if (myBoundaryMesh != null) {
+         myBoundaryMesh.prerender(list);
+         if (myRenderInfo == null) {
+            myRenderInfo = new PolygonalMeshRenderer (myBoundaryMesh);
+         }
+         myRenderInfo.prerender (getRenderProps());
       }
-      myRenderInfo.prerender (getRenderProps());
    }
    
    protected void renderEdges(Renderer renderer, RenderProps props) {
@@ -700,11 +812,11 @@ public class MFreeElement3d extends FemElement implements Boundable {
 
       if (myBoundaryMesh != null && size > 0) {
          if (!renderMeshValid) {
-            for (Vertex3d vtx : myBoundaryMesh.getVertices()) {
-               if (vtx instanceof MFreeVertex3d) {
-                  ((MFreeVertex3d)vtx).updatePosAndVelState();
-               }
-            }
+            //            for (Vertex3d vtx : myBoundaryMesh.getVertices()) {
+            //               if (vtx instanceof MFreeVertex3d) {
+            //                  ((MFreeVertex3d)vtx).updatePosAndVelState();
+            //               }
+            //            }
             renderMeshValid = true;
          }
          Point3d cntr = new Point3d();
@@ -717,7 +829,11 @@ public class MFreeElement3d extends FemElement implements Boundable {
          renderer.pushModelMatrix();
          renderer.mulModelMatrix (trans);
          //renderer.drawMesh(props, myBoundaryMesh, 0);
-         myBoundaryMesh.render (renderer, props, 0);
+         
+         if (isSelected()) {
+            flags |= Renderer.HIGHLIGHT;
+         }
+         myBoundaryMesh.render (renderer, props, flags);
          renderer.popModelMatrix();
          
       }
@@ -767,15 +883,15 @@ public class MFreeElement3d extends FemElement implements Boundable {
       if (M != null) {
          F = new Matrix3d (M);
       }
-      ArrayList<IntegrationData3d> idata = getIntegrationData();
-      for (int i=0; i<idata.size(); i++) {
-         idata.get(i).setFrame(F);
+      IntegrationData3d[] idata = getIntegrationData();
+      for (int i=0; i<idata.length; i++) {
+         idata[i].setFrame(F);
       }
    }
 
    public Matrix3d getFrame() {
-      ArrayList<IntegrationData3d> idata = getIntegrationData();
-      return idata.get(0).getFrame();
+      IntegrationData3d[] idata = getIntegrationData();
+      return idata[0].getFrame();
    }
    
    /**  
@@ -795,6 +911,16 @@ public class MFreeElement3d extends FemElement implements Boundable {
          myIncompressConstraints = constraints;
       }
       return myIncompressConstraints;
+   }
+   
+   // index of the incompressibility constraint associated with
+   // this element, if any
+   public int getIncompressIndex() {
+      return myIncompressIdx;
+   }
+
+   public void setIncompressIndex (int idx) {
+      myIncompressIdx = idx;
    }
    
    // implementation of IndexedPointSet
@@ -831,4 +957,223 @@ public class MFreeElement3d extends FemElement implements Boundable {
       renderer.setShading (savedShading);
    }   
    
+   /**
+    * Returns the number of pressure variables associated with this element.  
+    * All of the linear elements have one pressure variable, whereas some of 
+    * the quadratic elements have more.
+    * 
+    * @return number of pressure variables
+    * 
+    */
+   public int numPressureVals() {
+      // higher order elements should override this if necessary
+      return 1;
+   }
+   
+   /**
+    * Returns the pressure weight matrix for this element. The pressure
+    * weight matrix is given by the inverse of the integral of
+    * H^T H, where H is the row vector formed from the pressure
+    * shape functions.
+    *
+    * <p>By default, this method returns a pressure weight matrix for the case
+    * where there is only one pressure value. Such matrices always have a
+    * single value of 1. Elements with a larger number of pressure values
+    * should override this method to return a pressure weight matrix
+    * appropriate for that element.
+    */
+   public Matrix getPressureWeightMatrix () {
+      if (myPressureWeightMatrix == null) {
+         myPressureWeightMatrix = new Matrix1x1();
+         myPressureWeightMatrix.m00 = 1;
+      }
+      return myPressureWeightMatrix;
+   }
+
+   public double[] getNodalExtrapolationMatrix() {
+      if (myNodalExtrapolationMatrix == null) {
+         // build
+         IntegrationData3d[] idata = getIntegrationData();
+         MFreeIntegrationPoint3d[] ipnts = getIntegrationPoints();
+         myNodalExtrapolationMatrix = new double[idata.length*myNodes.length];
+         for (int k=0; k<idata.length; ++k) {
+            VectorNd N = ipnts[k].getShapeWeights();
+            for (int j=0; j<myNodes.length; ++j) {
+               myNodalExtrapolationMatrix[j * ipnts.length + k] = N.get(j);
+            }
+         }
+      }
+      return myNodalExtrapolationMatrix;
+   }
+   
+   private void computeNaturalCoordsResidual (
+      Vector3d res, Vector3d coords, Point3d pnt, VectorNd N) {
+      res.setZero();
+      for (int k=0; k<numNodes(); k++) {
+         double v = myShapeFunction.eval(k);
+         N.set(k, v);
+         res.scaledAdd (v, myNodes[k].getFalsePosition(), res);
+      }
+      res.sub (pnt);
+   }
+   
+   /**
+    * Computes "natural" coordinates (i.e. shape-function coordinates) of a point
+    * in 3D world space
+    * @param coords initial guess, value is updated with final coordinate
+    * @param pnt world point to determine coordinates of
+    * @return true if method is successful, if false may indicate that at iterative
+    * method failed to converge
+    */
+   public boolean getNaturalCoordinates(Point3d coords, Point3d pnt) {
+      int iters = getNaturalCoordinates(coords, pnt, 1000, null);
+      if (iters < 0) {
+         return false;
+      }
+      return true;
+   }
+   
+   public boolean coordsAreInside(Point3d coords) {
+      for (MFreeNode3d node : myNodes) {
+         if (!node.isInRestDomain(coords)) {
+            return false;
+         }
+      }
+      return true;
+   }
+   
+   public boolean getNaturalCoordinates (Point3d coords, Point3d pnt, VectorNd N) {
+      return getNaturalCoordinates(coords, pnt, 1000, N) >= 0;
+   }
+   
+   /**
+    * Given point p, get its natural coordinates with respect to this element.
+    * Returns true if the algorithm converges, false if a maximum number of 
+    * iterations is reached. Uses a modified Newton's method to solve the 
+    * equations. The <code>coords</code> argument that returned the coordinates is
+    * used, on input, to supply an initial guess of the coordinates.
+    * Zero is generally a safe guess.
+    * 
+    * @param coords
+    * Outputs the natural coordinates, and supplies (on input) an initial
+    * guess as to their position.
+    * @param pnt
+    * A given point (in world coords)
+    * @param maxIters
+    * Maximum number of Newton iterations
+    * @param N
+    * Resulting shape functionvalues
+    * @return the number of iterations required for convergence, or
+    * -1 if the calculation did not converge.
+    */
+   public int getNaturalCoordinates (Point3d coords, Point3d pnt, int maxIters,
+      VectorNd N) {
+
+      Vector3d res = new Point3d();
+      int i;
+
+      double tol = myNodes[0].getInfluenceRadius() * 1e-12;
+      if (tol <= 0) {
+         tol = 1e-12;
+      }
+      
+      if (N == null) {
+         N = new VectorNd(numNodes());
+      } else {
+         N.setSize(numNodes());
+      }
+      
+      //      if (!coordsAreInside(coords)) {
+      //         return -1;
+      //      }
+      myShapeFunction.update(coords, myNodes);
+      computeNaturalCoordsResidual (res, coords, pnt, N);
+      
+      double prn = res.norm();
+      //System.out.println ("res=" + prn);
+      if (prn < tol) {
+         // already have the right answer
+         return 0;
+      }
+
+      LUDecomposition LUD = new LUDecomposition();
+      Vector3d prevCoords = new Vector3d();
+      Vector3d dNds = new Vector3d();
+      Matrix3d dxds = new Matrix3d();
+      Vector3d del = new Point3d();
+
+      /*
+       * solve using Newton's method.
+       */
+      for (i = 0; i < maxIters; i++) {
+         // compute the Jacobian dx/ds for the current guess
+         dxds.setZero();
+         for (int k=0; k<numNodes(); k++) {
+            myShapeFunction.evalDerivative(k, dNds);
+            dxds.addOuterProduct (myNodes[k].getFalsePosition(), dNds);
+         }
+         LUD.factor (dxds);
+         double cond = LUD.conditionEstimate (dxds);
+         if (cond > 1e10)
+            System.err.println (
+               "Warning: condition number for solving natural coordinates is "
+               + cond);
+         // solve Jacobian to obtain an update for the coords
+         LUD.solve (del, res);
+
+         prevCoords.set (coords); 
+         coords.sub (del);
+         //         if (!coordsAreInside(coords)) {
+         //            return -1;
+         //         }
+         myShapeFunction.update(coords, myNodes);
+         computeNaturalCoordsResidual (res, coords, pnt, N);
+         double rn = res.norm();
+         //System.out.println ("res=" + rn);
+
+         // If the residual norm is within tolerance, we have converged.
+         if (rn < tol) {
+            //System.out.println ("2 res=" + rn);
+            return i+1;
+         }
+         
+         if (rn > prn) {
+            // it may be that "coords + del" is a worse solution.  Let's make
+            // sure we go the correct way binary search suitable alpha in [0 1]
+            double eps = 1e-12;
+            
+            // and keep cutting the step size in half until the residual starts
+            // dropping again
+            double alpha = 0.5;
+            while (alpha > eps && rn > prn) {
+               coords.scaledAdd (-alpha, del, prevCoords);
+               if (!coordsAreInside(coords)) {
+                  return -1;
+               }
+               myShapeFunction.update(coords, myNodes);
+               computeNaturalCoordsResidual (res, coords, pnt, N);
+               rn = res.norm();
+               alpha *= 0.5;
+               //System.out.println ("  alpha=" + alpha + " rn=" + rn);
+            }
+            //System.out.println (" alpha=" + alpha + " rn=" + rn + " prn=" + prn);
+            if (alpha < eps) {
+               return -1;  // failed
+            }
+         }
+         prn = rn;
+      }
+      return -1; // failed
+   }
+   
+   public double getN(int i, Point3d coords) {
+      myShapeFunction.maybeUpdate(coords, myNodes);
+      return myShapeFunction.eval(i);
+   }
+   
+   public void getdNds(Vector3d dNds, int i, Point3d coords) {
+      myShapeFunction.maybeUpdate(coords, myNodes);
+      myShapeFunction.evalDerivative(i, dNds);
+   }
+
 }

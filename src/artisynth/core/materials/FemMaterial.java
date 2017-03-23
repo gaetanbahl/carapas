@@ -1,30 +1,45 @@
 package artisynth.core.materials;
 
-import maspack.matrix.Matrix6d;
-import maspack.matrix.Matrix3d;
-import maspack.matrix.SymmetricMatrix3d;
+import artisynth.core.modelbase.PropertyChangeEvent;
+import artisynth.core.modelbase.PropertyChangeListener;
 import maspack.properties.PropertyList;
 import maspack.properties.PropertyUtils;
-import artisynth.core.modelbase.PropertyChangeListener;
-import artisynth.core.modelbase.PropertyChangeEvent;
+import maspack.util.DynamicArray;
 
-public abstract class FemMaterial extends MaterialBase {
+/**
+ * FEM material base implementing {@link ConstitutiveMaterial}.  Keeps track
+ * of subclasses for use in selector widgets.
+ */
+public abstract class FemMaterial extends MaterialBase implements ConstitutiveMaterial {
 
-   static Class<?>[] mySubClasses = new Class<?>[] {
-      NullMaterial.class,
-      LinearMaterial.class,
-      StVenantKirchoffMaterial.class,
-      MooneyRivlinMaterial.class,
-      CubicHyperelastic.class,
-      OgdenMaterial.class,
-      FungMaterial.class,
-      NeoHookeanMaterial.class,
-      IncompNeoHookeanMaterial.class,
-      IncompressibleMaterial.class
-   };
+   static DynamicArray<Class<?>> mySubclasses = new DynamicArray<>(
+      new Class<?>[] {
+         LinearMaterial.class,
+         StVenantKirchoffMaterial.class,
+         MooneyRivlinMaterial.class,
+         CubicHyperelastic.class,
+         OgdenMaterial.class,
+         FungMaterial.class,
+         NeoHookeanMaterial.class,
+         IncompNeoHookeanMaterial.class,
+         AnisotropicLinearMaterial.class,
+         NullMaterial.class,
+         IncompressibleMaterial.class
+      });
+
+
+   /**
+    * Allow adding of classes (for use in control panels)
+    * @param cls
+    */
+   public static void registerSubclass(Class<? extends FemMaterial> cls) {
+      if (!mySubclasses.contains(cls)) {
+         mySubclasses.add(cls);
+      }
+   }
 
    public static Class<?>[] getSubClasses() {
-      return mySubClasses;
+      return mySubclasses.getArray();
    }
 
    ViscoelasticBehavior myViscoBehavior;
@@ -59,10 +74,40 @@ public abstract class FemMaterial extends MaterialBase {
       return myProps;
    }
 
+   @Override
+   public boolean isInvertible() {
+      return false;
+   }
+
+   @Override
+   public boolean isIncompressible() {
+      return false;
+   }
+
+   @Override
+   public boolean isLinear() {
+      return false;
+   }
+
+   @Override
+   public boolean isCorotated() {
+      return false;
+   }
+
+   @Override
+   public boolean isViscoelastic() {
+      return myViscoBehavior != null;
+   }
+
+   @Override
    public ViscoelasticBehavior getViscoBehavior () {
       return myViscoBehavior;
    }
 
+   /**
+    * Allows setting of viscoelastic behaviour
+    * @param veb
+    */
    public void setViscoBehavior (ViscoelasticBehavior veb) {
       if (veb != null) {
          ViscoelasticBehavior newVeb = veb.clone();
@@ -77,47 +122,13 @@ public abstract class FemMaterial extends MaterialBase {
          myViscoBehavior = null;
          notifyHostOfPropertyChange ("viscoBehavior");
       }
-   }   
-
-   /**
-    * Computes the tangent stiffness matrix
-    * @param D tangent stiffness, populated
-    * @param stress the current stress tensor
-    * @param def deformation information, includes deformation gradient and pressure
-    * @param Q coordinate frame specifying directions of anisotropy
-    * @param baseMat underlying base material (if any)
-    */
-   public abstract void computeTangent (
-      Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def, 
-      Matrix3d Q, FemMaterial baseMat);
-   
-   /**
-    * Computes the strain tensor given the supplied deformation
-    * @param sigma strain tensor, populated
-    * @param def deformation information, includes deformation gradient and pressure
-    * @param Q coordinate frame specifying directions of anisotropy
-    * @param baseMat underlying base material (if any)
-    */
-   public abstract void computeStress (
-      SymmetricMatrix3d sigma, SolidDeformation def, Matrix3d Q,
-      FemMaterial baseMat);
-
-   /**
-    * Returns true if this material is defined for a deformation gradient
-    * with a non-positive determinant.
-    */
-   public boolean isInvertible() {
-      return false;
    }
 
-   public boolean isIncompressible() {
-      return false;
+   @Override
+   public BulkIncompressibleBehavior getIncompressibleBehavior() {
+      return null;
    }
 
-   public boolean isViscoelastic() {
-	  return false;
-   }
-   
    public boolean equals (FemMaterial mat) {
       return true;
    }
@@ -137,6 +148,7 @@ public abstract class FemMaterial extends MaterialBase {
       mat.setViscoBehavior (myViscoBehavior);
       return mat;
    }
+
 }
-   
-   
+
+

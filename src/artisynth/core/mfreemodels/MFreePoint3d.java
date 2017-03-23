@@ -6,17 +6,14 @@
  */
 package artisynth.core.mfreemodels;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import maspack.matrix.Point3d;
 import maspack.matrix.VectorNd;
 
 public interface MFreePoint3d {
    
    public Point3d getRestPosition();
-   public ArrayList<MFreeNode3d> getDependentNodes();
-   public void setDependentNodes(List<MFreeNode3d> nodes, VectorNd coords);
+   public MFreeNode3d[] getDependentNodes();
+   public void setDependentNodes(MFreeNode3d[] nodes, VectorNd coords);
    public VectorNd getNodeCoordinates();
    public void setNodeCoordinates(VectorNd coords);
    public void updatePosState();

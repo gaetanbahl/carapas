@@ -8,7 +8,6 @@ package artisynth.core.femmodels;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
@@ -16,59 +15,94 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 
+import artisynth.core.materials.BulkIncompressibleBehavior;
+import artisynth.core.materials.BulkIncompressibleBehavior.BulkPotential;
+import artisynth.core.materials.ConstitutiveMaterial;
+import artisynth.core.materials.FemMaterial;
+import artisynth.core.materials.IncompressibleMaterial;
+import artisynth.core.materials.LinearMaterial;
+import artisynth.core.materials.SolidDeformation;
+import artisynth.core.materials.ViscoelasticBehavior;
+import artisynth.core.materials.ViscoelasticState;
+import artisynth.core.mechmodels.BodyConnector;
+import artisynth.core.mechmodels.Collidable;
+import artisynth.core.mechmodels.ConnectableBody;
+import artisynth.core.mechmodels.DynamicAttachment;
+import artisynth.core.mechmodels.DynamicComponent;
+import artisynth.core.mechmodels.Frame;
+import artisynth.core.mechmodels.HasAuxState;
+import artisynth.core.mechmodels.HasSurfaceMesh;
+import artisynth.core.mechmodels.MechSystemModel;
+import artisynth.core.mechmodels.MeshComponent;
+import artisynth.core.mechmodels.MeshComponentList;
+import artisynth.core.mechmodels.Point;
+import artisynth.core.mechmodels.PointAttachable;
+import artisynth.core.mechmodels.PointAttachment;
+import artisynth.core.mechmodels.PointList;
+import artisynth.core.mechmodels.PointParticleAttachment;
+import artisynth.core.modelbase.ComponentChangeEvent;
+import artisynth.core.modelbase.ComponentChangeEvent.Code;
+import artisynth.core.modelbase.ComponentUtils;
+import artisynth.core.modelbase.CompositeComponent;
+import artisynth.core.modelbase.CopyableComponent;
+import artisynth.core.modelbase.ModelComponent;
+import artisynth.core.modelbase.ModelComponentBase;
+import artisynth.core.modelbase.RenderableComponentList;
+import artisynth.core.modelbase.StepAdjustment;
+import artisynth.core.modelbase.StructureChangeEvent;
+import artisynth.core.modelbase.TransformGeometryContext;
+import artisynth.core.modelbase.TransformableGeometry;
+import artisynth.core.util.ArtisynthIO;
+import artisynth.core.util.IntegerToken;
+import artisynth.core.util.ScalableUnits;
+import artisynth.core.util.ScanToken;
+import artisynth.core.util.StringToken;
 import maspack.geometry.AABBTree;
 import maspack.geometry.BVFeatureQuery;
 import maspack.geometry.BVNode;
 import maspack.geometry.BVTree;
 import maspack.geometry.Boundable;
 import maspack.geometry.Face;
-import maspack.geometry.HalfEdge;
+import maspack.geometry.GeometryTransformer;
 import maspack.geometry.MeshBase;
 import maspack.geometry.PolygonalMesh;
 import maspack.geometry.Vertex3d;
-import maspack.geometry.GeometryTransformer;
-import maspack.render.*;
-import maspack.matrix.AxisAngle;
 import maspack.matrix.AffineTransform3dBase;
 import maspack.matrix.DenseMatrix;
+import maspack.matrix.EigenDecomposition;
 import maspack.matrix.Matrix;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix3x1Block;
 import maspack.matrix.Matrix3x3Block;
 import maspack.matrix.Matrix3x6Block;
-import maspack.matrix.Matrix6x3Block;
-import maspack.matrix.Matrix6dBlock;
 import maspack.matrix.Matrix6d;
+import maspack.matrix.Matrix6dBlock;
+import maspack.matrix.Matrix6x3Block;
 import maspack.matrix.MatrixBlock;
 import maspack.matrix.MatrixNd;
 import maspack.matrix.NumericalException;
 import maspack.matrix.Point3d;
-import maspack.matrix.EigenDecomposition;
 import maspack.matrix.RigidTransform3d;
 import maspack.matrix.RotationMatrix3d;
+import maspack.matrix.SVDecomposition3d;
 import maspack.matrix.SparseBlockMatrix;
 import maspack.matrix.SparseNumberedBlockMatrix;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.matrix.Vector2d;
-import maspack.matrix.VectorBase;
-import maspack.matrix.MatrixBase;
 import maspack.matrix.Vector3d;
 import maspack.matrix.VectorNd;
 import maspack.matrix.VectorNi;
 import maspack.properties.PropertyList;
 import maspack.properties.PropertyMode;
 import maspack.properties.PropertyUtils;
-import maspack.render.Renderer;
 import maspack.render.RenderList;
-import maspack.render.RenderableUtils;
+import maspack.render.Renderer;
 import maspack.render.color.ColorMapBase;
 import maspack.render.color.HueColorMap;
+import maspack.spatialmotion.SpatialInertia;
 import maspack.spatialmotion.Twist;
 import maspack.spatialmotion.Wrench;
-import maspack.spatialmotion.SpatialInertia;
 import maspack.util.ArraySupport;
 import maspack.util.DataBuffer;
 import maspack.util.DoubleInterval;
@@ -80,28 +114,15 @@ import maspack.util.NumberFormat;
 import maspack.util.Range;
 import maspack.util.ReaderTokenizer;
 import maspack.util.TestException;
-import artisynth.core.materials.FemMaterial;
-import artisynth.core.materials.IncompressibleMaterial;
-import artisynth.core.materials.IncompressibleMaterial.BulkPotential;
-import artisynth.core.materials.LinearMaterial;
-import artisynth.core.materials.SolidDeformation;
-import artisynth.core.materials.ViscoelasticBehavior;
-import artisynth.core.materials.ViscoelasticState;
-import artisynth.core.mechmodels.*;
-import artisynth.core.mechmodels.Collidable.Collidability;
-import artisynth.core.modelbase.*;
-import artisynth.core.modelbase.ComponentChangeEvent.Code;
-import artisynth.core.util.ArtisynthIO;
-import artisynth.core.util.ScalableUnits;
-import artisynth.core.util.ScanToken;
-import artisynth.core.util.IntegerToken;
-import artisynth.core.util.StringToken;
 
 public class FemModel3d extends FemModel
    implements TransformableGeometry, ScalableUnits, MechSystemModel, Collidable,
               CopyableComponent, HasAuxState, HasSurfaceMesh,
               PointAttachable, ConnectableBody {
 
+   public static boolean DEFAULT_USE_NEW_STRESS_AND_STIFFNESS = true;
+   public boolean useNewStressAndStiffness = DEFAULT_USE_NEW_STRESS_AND_STIFFNESS;  // trigger between old and new computation
+   
    protected FemModelFrame myFrame;
    protected FrameFem3dConstraint myFrameConstraint;
    protected boolean myFrameRelativeP;
@@ -193,8 +214,7 @@ public class FemModel3d extends FemModel
    
    // maximum number of pressure DOFs that can occur in an element
    private static int MAX_PRESSURE_VALS = 8;
-   // maximum number of nodes for elements associated with nodal
-   // incompressibility
+   // maximum number of nodes for elements associated with nodal incompressibility
    private static int MAX_NODAL_INCOMP_NODES = 8;
 
    // temp space for computing pressures
@@ -206,12 +226,12 @@ public class FemModel3d extends FemModel
    private Vector3d[] myNodalConstraints = new Vector3d[MAX_NODAL_INCOMP_NODES];
    // temp for computing element-wise linear stiffness strain
    private SymmetricMatrix3d myEps = new SymmetricMatrix3d();
+   SVDecomposition3d SVD = new SVDecomposition3d();
 
    // protected ArrayList<FemSurface> myEmbeddedSurfaces;
    protected MeshComponentList<FemMeshComp> myMeshList;
 
-   HashMap<FemElement3d,int[]> ansysElemProps =
-   new HashMap<FemElement3d,int[]>();
+   HashMap<FemElement3d,int[]> ansysElemProps = new HashMap<FemElement3d,int[]>();
 
    // protected boolean myClearMeshColoring = false;
    protected boolean myComputeNodalStress = false;
@@ -312,8 +332,6 @@ public class FemModel3d extends FemModel
 
    protected void setDefaultValues() {
       super.setDefaultValues();
-      // myNu = DEFAULT_NU;
-      // myE = DEFAULT_E;
       myDensity = DEFAULT_DENSITY;
       myStiffnessDamping = DEFAULT_STIFFNESS_DAMPING;
       myMassDamping = DEFAULT_MASS_DAMPING;
@@ -345,14 +363,14 @@ public class FemModel3d extends FemModel
       myFrame = new FemModelFrame ("frame");
       myNodes = new PointList<FemNode3d>(FemNode3d.class, "nodes", "n");
       myElements = new FemElement3dList("elements", "e");
+      myMeshList =  new MeshComponentList<FemMeshComp>(
+    	         FemMeshComp.class, "meshes", "msh");
       myAdditionalMaterialsList =
-      new AuxMaterialBundleList("materials", "mat");
+         new AuxMaterialBundleList("materials", "mat");
       addFixed(myFrame);
       addFixed(myNodes);
       addFixed(myElements);
       addFixed(myAdditionalMaterialsList);
-      myMeshList =  new MeshComponentList<FemMeshComp>(
-         FemMeshComp.class, "meshes", "msh");
       addFixed(myMeshList);
       super.initializeChildComponents();
    }
@@ -376,8 +394,8 @@ public class FemModel3d extends FemModel
 
    public RenderableComponentList<AuxMaterialBundle> getMaterialBundles() {
       return myAdditionalMaterialsList;
-   }
-
+   }  
+   
    public FemModel3d (String name) {
       super(name);
       setDefaultValues();
@@ -443,7 +461,6 @@ public class FemModel3d extends FemModel
          }
       }
 
-
       // make sure no surfaces depend on it
       for (FemMeshComp fm : myMeshList) {
          if (myAutoGenerateSurface && fm.isSurfaceMesh()) {
@@ -461,22 +478,55 @@ public class FemModel3d extends FemModel
       if (myNodes.remove(p)) {
          return true;
       }
-      else {
-         return false;
-      }
+      return false;
    }
 
    @Override
    public FemElement3d getElement(int idx) {
       return myElements.get(idx);
    }
+   
+   public void addElement(FemElement3d e) {
+	      myElements.add(e);
+	      if (myAutoGenerateSurface) {
+	         mySurfaceMeshValid = false;
+	         myInternalSurfaceMeshComp = null;
+	      }
+	   }
+
+	   public void addNumberedElement(FemElement3d e, int elemId) {
+	      myElements.addNumbered(e, elemId);
+	      if (myAutoGenerateSurface) {
+	         mySurfaceMeshValid = false;
+	         myInternalSurfaceMeshComp = null;
+	      }
+	   }
+
+	   public boolean removeElement(FemElement3d e) {
+	      boolean success = myElements.remove(e);
+	      if (myAutoGenerateSurface) {
+	         mySurfaceMeshValid = false;
+	         myInternalSurfaceMeshComp = null;
+	      }
+	      return success;
+	   }
+
+	   public void clearElements() {
+	      myElements.removeAll();
+	      for (int i = 0; i < myNodes.size(); i++) {
+	         myNodes.get(i).clearMass();
+	      }
+	      if (myAutoGenerateSurface) {
+	         mySurfaceMeshValid = false;
+	         myInternalSurfaceMeshComp = null;
+	      }
+	   }
 
    public LinkedList<FemNodeNeighbor> getNodeNeighbors(FemNode3d node) {
       return node.getNodeNeighbors();
    }
 
-   private LinkedList<FemNodeNeighbor> myEmptyNeighborList =
-   new LinkedList<FemNodeNeighbor>();
+   private LinkedList<FemNodeNeighbor> myEmptyNeighborList = new LinkedList<FemNodeNeighbor>();
 
    /**
     * Gets the indirect neighbors for a node. This is used when computing
@@ -496,42 +546,6 @@ public class FemModel3d extends FemModel
 
    public LinkedList<FemElement3d> getElementNeighbors(FemNode3d node) {
       return node.getElementDependencies();
-   }
-
-   public void addElement(FemElement3d e) {
-      myElements.add(e);
-      if (myAutoGenerateSurface) {
-         mySurfaceMeshValid = false;
-         myInternalSurfaceMeshComp = null;
-      }
-   }
-
-   public void addNumberedElement(FemElement3d e, int elemId) {
-      myElements.addNumbered(e, elemId);
-      if (myAutoGenerateSurface) {
-         mySurfaceMeshValid = false;
-         myInternalSurfaceMeshComp = null;
-      }
-   }
-
-   public boolean removeElement(FemElement3d e) {
-      boolean success = myElements.remove(e);
-      if (myAutoGenerateSurface) {
-         mySurfaceMeshValid = false;
-         myInternalSurfaceMeshComp = null;
-      }
-      return success;
-   }
-
-   public void clearElements() {
-      myElements.removeAll();
-      for (int i = 0; i < myNodes.size(); i++) {
-         myNodes.get(i).clearMass();
-      }
-      if (myAutoGenerateSurface) {
-         mySurfaceMeshValid = false;
-         myInternalSurfaceMeshComp = null;
-      }
    }
    
    /**
@@ -686,12 +700,14 @@ public class FemModel3d extends FemModel
    }
 
    private void computePressuresAndRinv(
-      FemElement3d e, IncompressibleMaterial imat, double scale) {
+      FemElement3d e, FemMaterial imat, double scale) {
 
       int npvals = e.numPressureVals();
 
       myRinv.setSize(npvals, npvals);
       myPressures.setSize(npvals);
+      
+      BulkIncompressibleBehavior ib = imat.getIncompressibleBehavior();
 
       double[] pbuf = myPressures.getBuffer();
       double restVol = e.getRestVolume();
@@ -701,7 +717,7 @@ public class FemModel3d extends FemModel
          IntegrationPoint3d[] ipnts = e.getIntegrationPoints();
          IntegrationData3d[] idata = e.getIntegrationData();
 
-         if (imat.getBulkPotential() != BulkPotential.QUADRATIC) {
+         if (ib.getBulkPotential() != BulkPotential.QUADRATIC) {
             myRinv.setZero();
          }
          for (int k = 0; k < ipnts.length; k++) {
@@ -712,10 +728,10 @@ public class FemModel3d extends FemModel
             double dV = detJ0 * pt.getWeight();
             double[] H = pt.getPressureWeights().getBuffer();
             for (int i = 0; i < npvals; i++) {
-               pbuf[i] += H[i] * imat.getEffectivePressure(detJ) * dV;
+               pbuf[i] += H[i] * ib.getEffectivePressure(detJ) * dV;
             }
-            if (imat.getBulkPotential() != BulkPotential.QUADRATIC) {
-               double mod = imat.getEffectiveModulus(detJ);
+            if (ib.getBulkPotential() != BulkPotential.QUADRATIC) {
+               double mod = ib.getEffectiveModulus(detJ);
                for (int i = 0; i < npvals; i++) {
                   for (int j = 0; j < npvals; j++) {
                      myRinv.add(i, j, H[i] * H[j] * mod * dV);
@@ -726,9 +742,9 @@ public class FemModel3d extends FemModel
          Matrix W = e.getPressureWeightMatrix();
          W.mul(myPressures, myPressures);
          myPressures.scale(1 / restVol);
-         if (imat.getBulkPotential() == BulkPotential.QUADRATIC) {
+         if (ib.getBulkPotential() == BulkPotential.QUADRATIC) {
             myRinv.set(W);
-            myRinv.scale(scale*imat.getBulkModulus() / restVol);
+            myRinv.scale(scale*ib.getBulkModulus() / restVol);
          }
          else {
             // optimize later
@@ -740,26 +756,21 @@ public class FemModel3d extends FemModel
       }
       else {
          double Jpartial = e.myVolumes[0] / e.myRestVolumes[0];
-         pbuf[0] = (imat.getEffectivePressure(Jpartial) +
+         pbuf[0] = (ib.getEffectivePressure(Jpartial) +
                     0 * e.myLagrangePressures[0]);
-         myRinv.set(0, 0, scale*imat.getEffectiveModulus(Jpartial) / restVol);
+         myRinv.set(0, 0, scale*ib.getEffectiveModulus(Jpartial) / restVol);
       }
    }
 
    private boolean requiresWarping(FemElement3d elem, FemMaterial mat) {
-      if (mat instanceof LinearMaterial) {
-         if (((LinearMaterial)mat).isCorotated()) {
-            return true;
-         }
+      if (mat.isCorotated()) {
+         return true;
       }
-
-      for (AuxiliaryMaterial aux : elem.getAuxiliaryMaterials()) {
-         if (aux instanceof AuxMaterialElementDesc) {
-            AuxMaterialElementDesc desc = (AuxMaterialElementDesc)aux;
-            if ((mat = desc.getEffectiveMaterial()) instanceof LinearMaterial) {
-               if (((LinearMaterial)mat).isCorotated()) {
-                  return true;
-               }
+      
+      if (elem.numAuxiliaryMaterials() > 0) {
+         for (ConstitutiveMaterial aux : elem.getAuxiliaryMaterials()) {
+            if (aux.isCorotated()) {
+               return true;
             }
          }
       }
@@ -872,8 +883,7 @@ public class FemModel3d extends FemModel
       if (myComputeNodalStress || myComputeNodalStrain) {
          nodalExtrapMat = e.getNodalExtrapolationMatrix();
          if (linMat != null) {
-            linMat.addStress(wpnt.sigma,
-               myEps, corotated ? e.myWarper.R : null);
+            linMat.addStress(wpnt.sigma, myEps, corotated ? e.myWarper.getRotation() : null);
             for (int i = 0; i < nodes.length; i++) {
                FemNode3d nodei = nodes[i];
                if (myComputeNodalStress) {
@@ -893,10 +903,14 @@ public class FemModel3d extends FemModel
       if (linMat == null || e.numAuxiliaryMaterials() > 0) {
 
          SolidDeformation def = new SolidDeformation();
+         FemIntegrationCoordinate mcoord = new FemIntegrationCoordinate(e, null);
+         def.setMaterialCoordinate(mcoord);
 
          for (int k = 0; k < ipnts.length; k++) {
             IntegrationPoint3d pt = ipnts[k];
             IntegrationData3d dt = idata[k];
+            mcoord.set(e, pt);
+            
             pt.computeJacobianAndGradient(e.myNodes, idata[k].myInvJ0);
             def.setF(pt.F);
             double detJ = pt.computeInverseJacobian();
@@ -965,11 +979,17 @@ public class FemModel3d extends FemModel
             pt.avgp = 0;
             def.setAveragePressure(0);
             if (e.numAuxiliaryMaterials() > 0) {
-               for (AuxiliaryMaterial aux : e.myAuxMaterials) {
-                  aux.computeStress(sigmaAux, def, pt, dt, mat);
+               for (ConstitutiveMaterial aux : e.myAuxMaterials) {
+                  aux.computeStress(sigmaAux, def, Q, mat);
+                  if (scaling != 1) {
+                     sigmaAux.scale(scaling);
+                  }
                   pt.sigma.add(sigmaAux);
                   if (D != null) {
-                     aux.computeTangent(DAux, sigmaAux, def, pt, dt, mat);
+                     aux.computeTangent(DAux, sigmaAux, def, Q, mat);
+                     if (scaling != 1) {
+                        DAux.scale(scaling);
+                     }
                      D.add(DAux);
                   }
                }
@@ -1107,6 +1127,603 @@ public class FemModel3d extends FemModel
             } // XXX ALWAYS??
          } // end soft elem incompress
       } // end checking if computing tangent
+   }
+
+   // DIVBLK
+   private void computeStressAndStiffness(FemElement3d e, FemMaterial mat, 
+      Matrix6d D, IncompMethod softIncomp) {
+      if (useNewStressAndStiffness) {
+         computeNewStressAndStiffness(e, mat, D, softIncomp);
+      } else {
+         computeNonlinearStressAndStiffness(e, mat, D, softIncomp);
+      }
+   }
+      
+   private void computeNewStressAndStiffness(FemElement3d e, FemMaterial mat, 
+      Matrix6d D, IncompMethod softIncomp) {
+
+      IntegrationPoint3d[] ipnts = e.getIntegrationPoints();
+      IntegrationData3d[] idata = e.getIntegrationData();
+      FemNode3d[] nodes = e.getNodes();
+      if (D != null) {
+         D.setZero();
+      }
+
+      // compute corotation if required
+      IntegrationPoint3d wpnt = null;
+      RotationMatrix3d wR = null;  // warping rotation
+      SymmetricMatrix3d wP = null; // warping strain
+      if (requiresWarping(e, mat)) {
+         wpnt = e.getWarpingPoint();
+         IntegrationData3d data = e.getWarpingData();
+         wpnt.computeJacobianAndGradient(e.myNodes, data.myInvJ0);
+         wR = new RotationMatrix3d();
+         wP = new SymmetricMatrix3d();
+         SVD.polarDecomposition(wR, wP, wpnt.F);
+      }
+
+      // see if material is linear
+      FemMaterial linMat = null;
+      SymmetricMatrix3d linStrain = null;
+      if (mat.isLinear()) {
+         linMat = mat;
+         linStrain = new SymmetricMatrix3d();
+         if (linMat.isCorotated()) {
+            linStrain.set(wP);
+         }
+         else {
+            // get strain from warping point
+            wpnt = e.getWarpingPoint();
+            IntegrationData3d data = e.getWarpingData();
+            wpnt.computeJacobianAndGradient(e.myNodes, data.myInvJ0);
+            linStrain.setSymmetric(wpnt.F);
+            wpnt = null;
+         }
+         // compute Cauchy strain
+         linStrain.m00 -= 1;
+         linStrain.m11 -= 1;
+         linStrain.m22 -= 1;
+      }
+
+      // base linear material optimization
+      if (linMat != null) {
+         if (linMat.isCorotated()) {
+            e.updateWarping(wR);
+         }
+         for (int i = 0; i < nodes.length; i++) {
+            int bi = nodes[i].getSolveIndex();
+            if (bi != -1) {
+               FemNode3d n = nodes[i];
+               if (!myStiffnessesValidP) {
+                  for (int j = 0; j < nodes.length; j++) {
+                     int bj = nodes[j].getSolveIndex();
+                     if (!mySolveMatrixSymmetricP || bj >= bi) {
+                        e.addNodeStiffness(i, j, linMat.isCorotated());
+                     }
+                  }
+               }
+               e.addNodeForce(n.myInternalForce, i, linMat.isCorotated());
+            }
+         }
+
+         // nodal stress and strain
+         if (myComputeNodalStress || myComputeNodalStrain) {
+            if (myComputeNodalStress) {
+               wpnt.sigma.setZero();
+               SolidDeformation def = new SolidDeformation();
+               def.setF(wpnt.F);
+               def.setR(wR);
+               def.setMaterialCoordinate(new FemIntegrationCoordinate(e, wpnt));
+               linMat.computeStress(wpnt.sigma, def, null, null);
+               // linMat.addStress(wpnt.sigma, linStrain, linMat.isCorotated() ? wR : null);
+               for (int i = 0; i < nodes.length; i++) {
+                  nodes[i].addScaledStress(1.0 / nodes[i].numAdjacentElements(), wpnt.sigma);
+               }
+            }
+            
+            if (myComputeNodalStrain) {
+               // XXX rotate strain? or is it w.r.t. rest coordinates?
+               //               if (linMat.isCorotated()) {
+               //                  linStrain.mulLeftAndTransposeRight(wR);
+               //               }
+               for (int i = 0; i < nodes.length; i++) {
+                  nodes[i].addScaledStrain(1.0 / nodes[i].numAdjacentElements(), linStrain);
+               }  
+            }
+         } // stress and strain
+         
+         // exit early if no other materials
+         if (e.numAuxiliaryMaterials() == 0) {
+            return;
+         }
+         
+      } // end base linear material
+
+      e.setInverted(false); // will check this below
+      
+      // separation of linear, corotated linear, and nonlinear
+      // since they use different shape function gradients
+      // due to small-strain assumption (J ~ I)
+      // Linear: GNx0                (rest position)
+      // Corotated linear: R*GNx0 
+      // Nonlinear: GNx1             (deformed position)
+      boolean hasLinear = false;
+      boolean hasCorotatedLinear = false;
+      boolean hasNonlinear = false;
+      SymmetricMatrix3d linearStress = null;
+      SymmetricMatrix3d corotatedLinearStress = null;
+      SymmetricMatrix3d nonlinearStress = null;
+      Matrix6d linearTangent = null;
+      Matrix6d corotatedLinearTangent = null;
+      Matrix6d nonlinearTangent = null;
+      Vector3d[] GNx0 = null;
+      Vector3d[] RGNx0 = null;
+      Vector3d[] GNx1 = null;
+      double dv0 = 1;  // rest volume fraction
+      double dv1 = 1;   // deformed volume fraction
+      
+      // initialize stuffs
+      if (mat.isLinear()) {
+         if (mat.isCorotated()) {
+            hasCorotatedLinear = true;
+         } else {
+            hasLinear = true;
+         }
+      } else {
+         hasNonlinear = true;
+      }
+      if (e.numAuxiliaryMaterials() > 0) {
+         for (ConstitutiveMaterial amat : e.getAuxiliaryMaterials()) {
+            if (amat.isLinear()) {
+               if (amat.isCorotated()) {
+                  hasCorotatedLinear = true;
+               } else {
+                  hasLinear = true;
+               }
+            } else {
+               hasNonlinear = true;
+            }
+         }
+      }
+      if (hasLinear) {
+         linearStress = new SymmetricMatrix3d();
+         linearTangent = new Matrix6d();
+         GNx0 = new Vector3d[nodes.length];
+         for (int i=0; i<nodes.length; ++i) {
+            GNx0[i] = new Vector3d();
+         }
+      }
+      if (hasCorotatedLinear) {
+         corotatedLinearStress = new SymmetricMatrix3d();
+         corotatedLinearTangent = new Matrix6d();
+         RGNx0 = new Vector3d[nodes.length];
+         for (int i=0; i<nodes.length; ++i) {
+            RGNx0[i] = new Vector3d();
+         }
+      }
+      if (hasNonlinear) {
+         nonlinearStress = new SymmetricMatrix3d();
+         nonlinearTangent = new Matrix6d();
+         GNx1 = new Vector3d[nodes.length];
+         for (int i=0; i<nodes.length; ++i) {
+            GNx1[i] = new Vector3d();
+         }
+      }
+      
+      // temporaries for auxiliary computation
+      SymmetricMatrix3d sigmaTmp = null;
+      Matrix6d tangentTmp = null;
+      if (e.numAuxiliaryMaterials() > 0) {
+         sigmaTmp = new SymmetricMatrix3d();
+         tangentTmp = new Matrix6d();
+      }
+      
+      ViscoelasticBehavior veb = mat.getViscoBehavior();
+      double vebTangentScale = 1;
+      if (veb != null) {
+         vebTangentScale = veb.getTangentScale();
+      }
+      
+      // pressure and incompressibility
+      int npvals = e.numPressureVals();
+      double pressure = 0;
+      BulkIncompressibleBehavior ib = null;
+      if (mat.isIncompressible()) {
+         ib = mat.getIncompressibleBehavior();
+      }
+      MatrixBlock[] constraints = null;
+      SymmetricMatrix3d C = new SymmetricMatrix3d();
+
+      double[] pbuf = myPressures.getBuffer();
+      if (mat.isIncompressible() && softIncomp != IncompMethod.NODAL) {
+         if (softIncomp == IncompMethod.ELEMENT) {
+            computePressuresAndRinv (e, mat, vebTangentScale);
+            if (D != null) {
+               constraints = e.getIncompressConstraints();
+               for (int i = 0; i < e.myNodes.length; i++) {
+                  constraints[i].setZero();
+               }
+            }
+         }
+      }
+      // XXX should we check if incompressible again?
+      else if (softIncomp == IncompMethod.NODAL) {
+         if (e instanceof TetElement) {
+            ((TetElement)e).getAreaWeightedNormals(myNodalConstraints);
+            for (int i = 0; i < 4; i++) {
+               myNodalConstraints[i].scale(-1 / 12.0);
+            }
+         }
+         else {
+            for (int i = 0; i < e.numNodes(); i++) {
+               myNodalConstraints[i].setZero();
+            }
+         }
+      }
+
+      // basic information regarding local deformation
+      SolidDeformation def = new SolidDeformation();
+      FemIntegrationCoordinate mcoord = new FemIntegrationCoordinate();
+      def.setMaterialCoordinate(mcoord);
+
+      // through each integration point
+      for (int k = 0; k < ipnts.length; k++) {
+         IntegrationPoint3d pt = ipnts[k];
+         IntegrationData3d dt = idata[k];
+         double scaling = dt.myScaling;
+         
+         pt.computeJacobianAndGradient(e.myNodes, idata[k].myInvJ0);
+
+         // material rotation and deformation
+         // we currently expect corotational materials to handle
+         // their own transform of F, although we could
+         // technically do it from here
+         mcoord.set(e, pt);
+         
+         if (mat.isCorotated()) {
+            def.setR(wR);
+         } else {
+            def.setR(RotationMatrix3d.IDENTITY);
+         }
+         def.setF(pt.F);
+         
+         // anisotropy rotational frame
+         Matrix3d Q = (dt.myFrame != null ? dt.myFrame : Matrix3d.IDENTITY);
+
+         double detJ = pt.computeInverseJacobian();
+         if (detJ < myMinDetJ) {
+            myMinDetJ = detJ;
+            myMinDetJElement = e;
+         }
+         if (detJ <= 0 && !e.materialsAreInvertible()) {
+            e.setInverted(true);
+            myNumInverted++;
+         }
+
+         // compute shape function gradients and volume fractions
+         if (hasLinear) {
+            dv0 = idata[k].getDetJ0() * pt.getWeight();
+            pt.computeShapeGradient(idata[k].getInvJ0(), GNx0);
+            if (hasCorotatedLinear) {
+               for (int i=0; i<nodes.length; ++i) {
+                  wR.mul(RGNx0[i], GNx0[i]);
+               }
+            }
+         } else if (hasCorotatedLinear) {
+            dv0 = idata[k].getDetJ0() * pt.getWeight();
+            pt.computeShapeGradient(idata[k].getInvJ0(), RGNx0);
+            for (int i=0; i<nodes.length; ++i) {
+               wR.mul(RGNx0[i]);
+            }
+         }
+         if (hasNonlinear) {
+            dv1 = detJ * pt.getWeight();
+            pt.computeShapeGradient(pt.myInvJ, GNx1);
+         }
+        
+         // compute pressure
+         pressure = 0;
+         double[] H = null;
+         if (softIncomp == IncompMethod.ELEMENT) {
+            H = pt.getPressureWeights().getBuffer();
+            for (int l = 0; l < npvals; l++) {
+               pressure += H[l] * pbuf[l];
+            }
+         }
+         else if (softIncomp == IncompMethod.NODAL) {
+            if (e instanceof TetElement) {
+               // use the average pressure for all nodes
+               pressure = 0;
+               for (int i = 0; i < nodes.length; i++) {
+                  pressure += nodes[i].myPressure;
+               }
+               pressure /= nodes.length;
+            }
+            else {
+               pressure = nodes[k].myPressure;
+            }
+         }
+         else if (softIncomp == IncompMethod.FULL && ib != null) {
+            pressure = ib.getEffectivePressure(detJ / dt.getDetJ0());
+         }
+
+         // System.out.println("FEM Pressure: " + pressure);
+         pt.avgp = pressure;
+         def.setAveragePressure(pressure);
+
+         // clear stress/tangents
+         if (hasLinear) {
+            linearStress.setZero();
+            if (linearTangent != null) {
+               linearTangent.setZero();
+            }
+         }
+         if (hasCorotatedLinear) {
+            corotatedLinearStress.setZero();
+            if (corotatedLinearTangent != null) {
+               corotatedLinearTangent.setZero();
+            }
+         }
+         if (hasNonlinear) {
+            nonlinearStress.setZero();
+            if (nonlinearTangent != null) {
+               nonlinearTangent.setZero();
+            }
+         }
+
+         // base material stress and tangent
+         SymmetricMatrix3d stress;
+         Matrix6d tangent;
+         if (mat.isLinear()) {
+            if (mat.isCorotated()) {
+               stress = corotatedLinearStress;
+               tangent = corotatedLinearTangent;
+            } else {
+               stress = linearStress;
+               tangent = linearTangent;
+            }
+         } else {
+            stress = nonlinearStress;
+            tangent = nonlinearTangent;
+         }
+         
+         mat.computeStress(stress, def, Q, null);
+         if (scaling != 1) {
+            stress.scale(scaling);
+         }
+         if (tangent != null) {
+            mat.computeTangent(tangent, stress, def, Q, null);
+            if (scaling != 1) {
+               tangent.scale(scaling);
+            }
+         }
+         
+         // reset pressure to zero for auxiliary materials
+         pt.avgp = 0;
+         def.setAveragePressure(0);
+         if (e.numAuxiliaryMaterials() > 0) {
+            for (ConstitutiveMaterial aux : e.myAuxMaterials) {
+
+               aux.computeStress(sigmaTmp, def, Q, mat);
+               if (scaling != 1) {
+                  sigmaTmp.scale(scaling);
+               }
+               if (aux.isLinear()) {
+                  if (aux.isCorotated()) {
+                     corotatedLinearStress.add(sigmaTmp);
+                  } else {
+                     linearStress.add(sigmaTmp);
+                  }
+               } else {
+                  nonlinearStress.add(sigmaTmp);
+               }
+               if (D != null) {
+                  aux.computeTangent(tangentTmp, sigmaTmp, def, Q, mat);
+                  if (scaling != 1) {
+                     tangentTmp.scale(scaling);
+                  }
+                  
+                  if (aux.isLinear()) {
+                     if (aux.isCorotated()) {
+                        corotatedLinearTangent.add(tangentTmp);
+                     } else {
+                        linearTangent.add(tangentTmp);
+                     }
+                  } else {
+                     nonlinearTangent.add(tangentTmp);
+                  }
+               }
+            }
+         }
+
+         //XXX this seems to overwrite previous stress/stiffness
+         // and does not include auxiliary materials
+         pt.avgp = pressure; // bring back pressure term
+         def.setAveragePressure(pressure);
+         if (veb != null) {
+            ViscoelasticState state = idata[k].getViscoState();
+            if (state == null) {
+               state = veb.createState();
+               idata[k].setViscoState(state);
+            }
+            // veb.computeStress(pt.sigma, state);
+            veb.computeStress(nonlinearStress, state);
+            if (scaling != 1) {
+               nonlinearStress.scale(scaling);
+            }
+            if (D != null) {
+               veb.computeTangent(nonlinearTangent, state);
+               if (scaling != 1) {
+                  nonlinearTangent.scale(scaling);
+               }
+            }
+         }
+         else {
+            dt.clearState();
+         }
+
+         // sum stress/stiffness contributions to each node
+         for (int i = 0; i < e.myNodes.length; i++) {
+            FemNode3d nodei = e.myNodes[i];
+            int bi = nodei.getSolveIndex();
+            
+            if (hasLinear) {
+               FemUtilities.addStressForce(
+                  nodei.myInternalForce, GNx0[i], linearStress, dv0);
+            }
+            if (hasCorotatedLinear) {
+               FemUtilities.addStressForce(
+                  nodei.myInternalForce, RGNx0[i], corotatedLinearStress, dv0);
+            }
+            if (hasNonlinear) {
+               FemUtilities.addStressForce(
+                  nodei.myInternalForce, GNx1[i], nonlinearStress, dv1);
+            }
+
+            if (D != null) {
+               if (hasLinear) {
+                  D.scaledAdd(dv0, linearTangent);
+               }
+               if (hasCorotatedLinear) {
+                  D.scaledAdd(dv0, corotatedLinearTangent);
+               }
+               if (hasNonlinear) {
+                  D.scaledAdd(dv1, nonlinearTangent);
+               }
+
+               double p = 0;
+               double kp = 0;
+               if (mat.isIncompressible() &&
+                  softIncomp != IncompMethod.NODAL) {
+                  if (softIncomp == IncompMethod.ELEMENT) {
+                     FemUtilities.addToIncompressConstraints(constraints[i], 
+                        H, GNx1[i], dv1);
+                  }
+                  else if (softIncomp == IncompMethod.FULL) {
+                     double dV = dt.getDetJ0() * pt.getWeight();
+                     kp = ib.getEffectiveModulus(detJ / dt.getDetJ0()) * dV;
+                  }
+                  p = pressure;
+               }
+               else if (softIncomp == IncompMethod.NODAL) {
+                  if (e.integrationPointsMapToNodes()) {
+                     myNodalConstraints[i].scale(dv1, GNx1[i]);
+                  }
+                  else { // tet element
+                     for (FemNodeNeighbor nbr : getNodeNeighbors(nodei)) {
+                        int j = e.getLocalNodeIndex(nbr.myNode);
+                        if (j != -1) {
+                           nbr.myDivBlk.scaledAdd(1, myNodalConstraints[j]);
+                        }
+                     }
+                  }
+               }
+               
+               // compute stiffness
+               if (bi != -1) {
+                  for (int j = 0; j < e.myNodes.length; j++) {
+                     int bj = e.myNodes[j].getSolveIndex();
+                     if (!mySolveMatrixSymmetricP || bj >= bi) {
+                        if (hasLinear) {
+                           e.myNbrs[i][j].addMaterialStiffness(GNx0[i], linearTangent, GNx0[j], dv0);
+                        }
+                        if (hasCorotatedLinear) {
+                           e.myNbrs[i][j].addMaterialStiffness(RGNx0[i], corotatedLinearTangent, RGNx0[j], dv0);
+                        }
+                        if (hasNonlinear) {
+                           e.myNbrs[i][j].addMaterialStiffness(GNx1[i], nonlinearTangent, GNx1[j], dv1);
+                           e.myNbrs[i][j].addGeometricStiffness(GNx1[i], nonlinearStress, GNx1[j], dv1);
+                           e.myNbrs[i][j].addPressureStiffness(GNx1[i], p, GNx1[j], dv1);   
+                        }
+
+                        if (kp != 0) {
+                           e.myNbrs[i][j].addDilationalStiffness(vebTangentScale*kp, GNx1[i], GNx1[j]);
+                        }
+                     }
+                  }
+               }
+            }
+            
+            // nodal stress/strain
+            double[] nodalExtrapMat = e.getNodalExtrapolationMatrix();
+            if (nodalExtrapMat != null) {
+               if (myComputeNodalStress) {
+                  double a = nodalExtrapMat[i * ipnts.length + k];
+                  if (a != 0) {
+                     if (hasLinear) {
+                        nodei.addScaledStress(
+                           a / nodei.numAdjacentElements(), linearStress);
+                     }
+                     if (hasCorotatedLinear) {
+                        nodei.addScaledStress(
+                           a / nodei.numAdjacentElements(), corotatedLinearStress);
+                     }
+                     if (hasNonlinear) {
+                        nodei.addScaledStress(
+                           a / nodei.numAdjacentElements(), nonlinearStress);
+                     }
+                  }
+               }
+               
+               if (myComputeNodalStrain) {
+                  double a = nodalExtrapMat[i * ipnts.length + k];
+                  if (a != 0) {
+                     // pt.computeRightCauchyGreen(C);
+                     def.computeRightCauchyGreen(C);
+                     C.m00 -= 1;
+                     C.m11 -= 1;
+                     C.m22 -= 1;
+                     C.scale(0.5);
+                     nodei.addScaledStrain(
+                        a / nodei.numAdjacentElements(), C);
+                  }
+               }
+               
+            }
+         }
+         
+         // nodal incompressibility constraints
+         if (D != null && softIncomp == IncompMethod.NODAL &&
+            e.integrationPointsMapToNodes()) {
+            for (FemNodeNeighbor nbr : getNodeNeighbors(e.myNodes[k])) {
+               int j = e.getLocalNodeIndex(nbr.myNode);
+               if (j != -1) {
+                  nbr.myDivBlk.scaledAdd(1, myNodalConstraints[j]);
+               }
+            }
+         }
+         
+      } // end looping through integration points
+      
+      // element-wise incompressibility constraints
+      if (D != null) {
+         if (mat.isIncompressible() && softIncomp == IncompMethod.ELEMENT) {
+            boolean kpIsNonzero = false;
+            for (int l = 0; l < npvals; l++) {
+               double Jpartial = e.myVolumes[l] / e.myRestVolumes[l];
+               myKp[l] =
+                  ib.getEffectiveModulus(Jpartial) / e.myRestVolumes[l];
+               if (myKp[l] != 0) {
+                  kpIsNonzero = true;
+               }
+            }
+            // double kp = imat.getEffectiveModulus(vol/restVol)/restVol;
+            if (true) {
+               for (int i = 0; i < e.myNodes.length; i++) {
+                  int bi = e.myNodes[i].getSolveIndex();
+                  if (bi != -1) {
+                     for (int j = 0; j < e.myNodes.length; j++) {
+                        int bj = e.myNodes[j].getSolveIndex();
+                        if (!mySolveMatrixSymmetricP || bj >= bi) {
+                           e.myNbrs[i][j].addDilationalStiffness(
+                              myRinv, constraints[i], constraints[j]);
+                        } // end filling in symmetric
+                     } // end filling in dilatational stiffness
+                  } // end checking if valid index
+               } // end looping through nodes
+            } // XXX ALWAYS??
+         } // end soft elem incompress
+      } // end checking if computing tangent
 
    }
 
@@ -1173,7 +1790,7 @@ public class FemModel3d extends FemModel
          else if (e.integrationPointsMapToNodes()) {
             IntegrationData3d[] idata = e.getIntegrationData();
             for (int i = 0; i < nodes.length; i++) {
-               nodes[i].myVolume += idata[i].myDv;
+               nodes[i].myVolume += idata[i].getDv();
             }
          }
       }
@@ -1210,6 +1827,45 @@ public class FemModel3d extends FemModel
          }
       }
       myNodalRestVolumesValidP = true;
+   }
+   
+   public void computeNodalIncompressibility(FemMaterial mat, Matrix6d D) {
+      
+      BulkIncompressibleBehavior ib = mat.getIncompressibleBehavior();
+      
+      for (FemNode3d n : myNodes) {
+         if (volumeIsControllable(n)) {
+            double restVol = n.myRestVolume;
+            myKp[0] =
+            ib.getEffectiveModulus(n.myVolume / restVol) / restVol;
+            // myKp[0] = 1;
+            if (myKp[0] != 0) {
+               for (FemNodeNeighbor nbr_i : getNodeNeighbors(n)) {
+                  int bi = nbr_i.myNode.getSolveIndex();
+                  for (FemNodeNeighbor nbr_j : getNodeNeighbors(n)) {
+                     int bj = nbr_j.myNode.getSolveIndex();
+                     if (!mySolveMatrixSymmetricP || bj >= bi) {
+                        FemNodeNeighbor nbr =
+                        nbr_i.myNode.getNodeNeighbor(nbr_j.myNode);
+                        if (nbr == null) {
+                           nbr =
+                           nbr_i.myNode.getIndirectNeighbor(nbr_j.myNode);
+                        }
+                        if (nbr == null) {
+                           throw new InternalErrorException(
+                              "No neighbor block at bi=" + bi + ", bj=" + bj);
+                        }
+                        else {
+                           nbr.addDilationalStiffness(
+                              myKp, nbr_i.myDivBlk, nbr_j.myDivBlk);
+                        }
+
+                     }
+                  }
+               }
+            }
+         }
+      }
    }
 
    // DIVBLK
@@ -1268,7 +1924,8 @@ public class FemModel3d extends FemModel
 
       for (FemElement3d e : myElements) {
          FemMaterial mat = getElementMaterial(e);
-         computeNonlinearStressAndStiffness(e, mat, D, softIncomp);
+         // computeNonlinearStressAndStiffness(e, mat, D, softIncomp);
+         computeStressAndStiffness(e, mat, D, softIncomp);
          if (checkTangentStability) {
             double s = checkMatrixStability(D);
             if (s < mins) {
@@ -1277,41 +1934,10 @@ public class FemModel3d extends FemModel
             }
          }
       }
-      if (softIncomp == IncompMethod.NODAL) {
-         IncompressibleMaterial imat = (IncompressibleMaterial)myMaterial;
-         for (FemNode3d n : myNodes) {
-            if (volumeIsControllable(n)) {
-               double restVol = n.myRestVolume;
-               myKp[0] =
-               imat.getEffectiveModulus(n.myVolume / restVol) / restVol;
-               // myKp[0] = 1;
-               if (myKp[0] != 0) {
-                  for (FemNodeNeighbor nbr_i : getNodeNeighbors(n)) {
-                     int bi = nbr_i.myNode.getSolveIndex();
-                     for (FemNodeNeighbor nbr_j : getNodeNeighbors(n)) {
-                        int bj = nbr_j.myNode.getSolveIndex();
-                        if (!mySolveMatrixSymmetricP || bj >= bi) {
-                           FemNodeNeighbor nbr =
-                           nbr_i.myNode.getNodeNeighbor(nbr_j.myNode);
-                           if (nbr == null) {
-                              nbr =
-                              nbr_i.myNode.getIndirectNeighbor(nbr_j.myNode);
-                           }
-                           if (nbr == null) {
-                              throw new InternalErrorException(
-                                 "No neighbor block at bi=" + bi + ", bj=" + bj);
-                           }
-                           else {
-                              nbr.addDilationalStiffness(
-                                 myKp, nbr_i.myDivBlk, nbr_j.myDivBlk);
-                           }
-
-                        }
-                     }
-                  }
-               }
-            }
-         }
+      
+      // incompressibility
+      if ( (softIncomp == IncompMethod.NODAL) && myMaterial != null && myMaterial.isIncompressible()) {
+         computeNodalIncompressibility(myMaterial, D);
       }
 
       if (checkTangentStability && minE != null) {
@@ -1391,7 +2017,9 @@ public class FemModel3d extends FemModel
       // myMinDetJ = Double.MAX_VALUE;
       for (FemElement3d e : myElements) {
          FemMaterial mat = getElementMaterial(e);
-         computeNonlinearStressAndStiffness(
+         // computeNonlinearStressAndStiffness(
+         //    e, mat, /* D= */null, softIncomp);
+         computeStressAndStiffness(
             e, mat, /* D= */null, softIncomp);
       }
       myStressesValidP = true;
@@ -1417,7 +2045,7 @@ public class FemModel3d extends FemModel
             return false;
          }
          if (e.numAuxiliaryMaterials() > 0) {
-            for (AuxiliaryMaterial aux : e.myAuxMaterials) {
+            for (ConstitutiveMaterial aux : e.myAuxMaterials) {
                if (!aux.hasSymmetricTangent()) {
                   return false;
                }
@@ -1500,6 +2128,53 @@ public class FemModel3d extends FemModel
          }
       }
       // System.out.println ("symmetric=" + mySolveMatrix.isSymmetric(1e-6));
+   }
+
+   // builds a Stiffness matrix, where entries are ordered by node numbers
+   public SparseBlockMatrix getStiffnessMatrix() {
+
+      if (!myStressesValidP || !myStiffnessesValidP) {
+         updateStressAndStiffness();
+      }
+
+      SparseBlockMatrix M = new SparseBlockMatrix();
+      int nnodes = numNodes();
+      int[] sizes = new int[nnodes];
+      for (int i=0; i<nnodes; ++i) {
+         sizes[i] = 3;
+      }
+      M.addRows (sizes, sizes.length);
+      M.addCols (sizes, sizes.length);
+      M.setVerticallyLinked (true);
+
+      int idx = 0;
+      for (FemNode3d node : getNodes()) {
+         node.setIndex(idx++);
+      }
+
+      // create solve blocks
+      for (FemNode3d node : getNodes()) {
+         MatrixBlock blk = node.createSolveBlock();
+         M.addBlock(node.getIndex(), node.getIndex(), blk);
+      }
+      for (int i = 0; i < myNodes.size(); i++) {
+         FemNode3d node = myNodes.get(i);
+         for (FemNodeNeighbor nbr : getNodeNeighbors(node)) {
+            FemNode3d other = nbr.getNode();
+            Matrix3x3Block blk = null;
+            if (other != node) {
+               blk = new Matrix3x3Block();
+               M.addBlock(node.getIndex(), nbr.getNode().getIndex(), blk);
+            } else {
+               blk = (Matrix3x3Block)M.getBlock(node.getIndex(), node.getIndex());
+            }
+            nbr.addPosJacobian(blk, -1.0);
+         }
+      }
+
+      // System.out.println ("symmetric=" + mySolveMatrix.isSymmetric(1e-6));
+
+      return M;
    }
 
    private void addNodeNeighborBlock(
@@ -2970,7 +3645,7 @@ public class FemModel3d extends FemModel
          FemMaterial mat = getElementMaterial(e);
          double detJ = e.computeVolumes();
          e.setInverted(false);
-         if (!(mat instanceof LinearMaterial)) {
+         if (!(mat.isLinear())) {
             if (detJ < myMinDetJ) {
                if (!e.materialsAreInvertible()) {
                   myMinDetJ = detJ;

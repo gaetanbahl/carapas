@@ -26,11 +26,10 @@ public class IntegrationData3d {
 //   public SymmetricMatrix3d mySigmaPrev; 
 //   public double[] myHPrev;
    protected ViscoelasticState myViscoState;
-   
 
    private void init() {
       myInvJ0 = new Matrix3d(Matrix3d.IDENTITY);
-      myDetJ0 = 1;
+      myDetJ0  = 1;
       myScaling = 1;
    }
 
@@ -60,11 +59,11 @@ public class IntegrationData3d {
    }
    
    public double getDv() {
-      return myDv;
+	   return myDv;
    }
    
    public void setDv(double dv) {
-      myDv = dv;
+	   myDv = dv;
    }
 
    public double getScaling() {

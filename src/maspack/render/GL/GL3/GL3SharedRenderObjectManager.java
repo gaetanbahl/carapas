@@ -7,9 +7,11 @@ import java.util.Map.Entry;
 import javax.media.opengl.GL;
 import javax.media.opengl.GL3;
 
+import maspack.render.RenderInstances;
 import maspack.render.RenderObject;
 import maspack.render.RenderObject.RenderObjectIdentifier;
 import maspack.render.GL.GLGarbageSource;
+import maspack.util.DisposeObserver;
 
 public class GL3SharedRenderObjectManager implements GLGarbageSource {
 
@@ -17,12 +19,14 @@ public class GL3SharedRenderObjectManager implements GLGarbageSource {
    HashMap<RenderObjectIdentifier,GL3SharedRenderObjectPrimitives> indexedMap;
    HashMap<RenderObjectIdentifier,GL3SharedRenderObjectLines> lineMap;
    HashMap<RenderObjectIdentifier,GL3SharedRenderObjectPoints> pointMap;
+   HashMap<DisposeObserver,GL3SharedRenderInstances> instanceMap;
    
    public GL3SharedRenderObjectManager(GL3VertexAttributeMap attributeMap) {
       this.attributeMap = attributeMap;
       indexedMap = new HashMap<> ();
       lineMap = new HashMap<> ();
       pointMap = new HashMap<> ();
+      instanceMap = new HashMap<>();
    }
    
    public GL3SharedRenderObjectPrimitives getPrimitives(GL3 gl, RenderObject robj) {
@@ -84,6 +88,29 @@ public class GL3SharedRenderObjectManager implements GLGarbageSource {
       
       return gro;
    }
+   
+   public GL3SharedRenderInstances getInstances(GL3 gl, RenderInstances rinst) {
+      
+      GL3SharedRenderInstances gro = null;
+      synchronized (pointMap) {
+         DisposeObserver rid = rinst.getDisposeObserver();
+         gro = instanceMap.get (rid);
+         if (gro == null || gro.disposeInvalid (gl)) {
+            gro = GL3SharedRenderInstances.generate(gl, rinst, 
+               attributeMap.get("instance_position"),
+               attributeMap.get("instance_orientation"), 
+               attributeMap.get("instance_affine_matrix"),
+               attributeMap.get("instance_normal_matrix"),
+               attributeMap.get("instance_scale"),
+               attributeMap.get("instance_color"));
+            instanceMap.put (rid, gro);
+         } else {
+            gro.maybeUpdate (gl, rinst);
+         }
+      }
+      
+      return gro;
+   }
 
    @Override
    public void garbage (GL gl) {
@@ -122,6 +149,17 @@ public class GL3SharedRenderObjectManager implements GLGarbageSource {
             }
          }
       }
+      
+      synchronized(instanceMap) {
+         Iterator<Entry<DisposeObserver,GL3SharedRenderInstances>> it = instanceMap.entrySet ().iterator ();
+         while (it.hasNext ()) {
+            Entry<DisposeObserver,GL3SharedRenderInstances> entry = it.next ();
+            if (entry.getKey ().isDisposed()) {
+               it.remove ();
+               entry.getValue ().dispose (gl3);
+            }
+         }
+      }
    }
    
    public void dispose(GL gl) {
@@ -149,6 +187,13 @@ public class GL3SharedRenderObjectManager implements GLGarbageSource {
             gro.dispose (gl3);
          }
          pointMap.clear ();
+      }
+      
+      synchronized(instanceMap) {
+         for (GL3SharedRenderInstances gro : instanceMap.values ()) {
+            gro.dispose (gl3);
+         }
+         instanceMap.clear ();
       }
    }
    

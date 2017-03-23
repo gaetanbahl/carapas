@@ -7,6 +7,7 @@ import java.util.Map.Entry;
 import javax.media.opengl.GL;
 import javax.media.opengl.GL3;
 
+import maspack.render.RenderInstances;
 import maspack.render.RenderObject;
 import maspack.render.RenderObject.RenderObjectIdentifier;
 import maspack.render.VertexIndexArray;
@@ -61,14 +62,13 @@ public class GL3RenderObjectManager implements GLGarbageSource {
          }
          return true;
       }
-      
-      
    }
    
    HashMap<ROIKey, GL3RenderObjectElements> elementsMap;
    HashMap<RenderObjectIdentifier,GL3RenderObjectPrimitives> indexedMap;
    HashMap<RenderObjectIdentifier,GL3RenderObjectLines> lineMap;
    HashMap<RenderObjectIdentifier,GL3RenderObjectPoints> pointMap;
+   HashMap<DisposeObserver, GL3RenderInstances> instanceMap;
    
    public GL3RenderObjectManager(GL3SharedResources sharedManager) {
       this.shared = sharedManager;
@@ -76,6 +76,7 @@ public class GL3RenderObjectManager implements GLGarbageSource {
       indexedMap = new HashMap<> ();
       lineMap = new HashMap<> ();
       pointMap = new HashMap<> ();
+      instanceMap = new HashMap<>();
    }
    
    public GL3RenderObjectElements getElements(GL3 gl, RenderObject robj, VertexIndexArray idxs) {
@@ -110,6 +111,11 @@ public class GL3RenderObjectManager implements GLGarbageSource {
          }
       }
       
+      return gro;
+   }
+   
+   public GL3SharedRenderObjectPrimitives getSharedPrimitives(GL3 gl, RenderObject robj) {
+      GL3SharedRenderObjectPrimitives gro = shared.getPrimitives (gl, robj);
       return gro;
    }
    
@@ -152,6 +158,24 @@ public class GL3RenderObjectManager implements GLGarbageSource {
       return gro;
    }
 
+   public GL3RenderInstances getInstances(GL3 gl, RenderInstances rinst) {
+               
+      GL3RenderInstances grinst = null;
+      synchronized (instanceMap) {
+         DisposeObserver key = rinst.getDisposeObserver();
+         grinst = instanceMap.get (key);
+         if (grinst == null || grinst.disposeInvalid (gl)) {
+            grinst = GL3RenderInstances.generate(gl, shared.getInstances(gl, rinst));
+            instanceMap.put (key, grinst);
+            
+         } else {
+            grinst.maybeUpdate (gl, rinst);
+         }
+      }
+      
+      return grinst;
+   }
+   
    @Override
    public void garbage (GL gl) {
       GL3 gl3 = (GL3)gl;
@@ -201,6 +225,17 @@ public class GL3RenderObjectManager implements GLGarbageSource {
             }
          }
       }
+      
+      synchronized (instanceMap) {
+         Iterator<Entry<DisposeObserver,GL3RenderInstances>> it = instanceMap.entrySet ().iterator ();
+         while (it.hasNext ()) {
+            Entry<DisposeObserver,GL3RenderInstances> entry = it.next ();
+            if (entry.getKey ().isDisposed()) {
+               it.remove ();
+               entry.getValue ().dispose (gl3);
+            }
+         }        
+      }
    }
    
    public void dispose(GL gl) {
@@ -235,6 +270,13 @@ public class GL3RenderObjectManager implements GLGarbageSource {
             gro.dispose (gl3);
          }
          pointMap.clear ();
+      }
+      
+      synchronized(instanceMap) {
+         for (GL3RenderInstances grinst : instanceMap.values ()) {
+            grinst.dispose (gl3);
+         }
+         instanceMap.clear ();
       }
    }
    

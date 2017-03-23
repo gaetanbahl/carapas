@@ -6,12 +6,12 @@
  */
 package artisynth.core.femmodels;
 
-import maspack.matrix.*;
-import maspack.render.*;
-
-import artisynth.core.materials.LinearMaterial;
 import artisynth.core.materials.FemMaterial;
-import artisynth.core.mechmodels.*;
+import maspack.matrix.Matrix3d;
+import maspack.matrix.Point3d;
+import maspack.matrix.Vector3d;
+import maspack.render.RenderProps;
+import maspack.render.Renderer;
 
 public class QuadtetElement extends FemElement3d {
 
@@ -334,13 +334,11 @@ public class QuadtetElement extends FemElement3d {
       // System.out.println("updating stiffness: E="+myE+", nu="+myNu);
 
       FemMaterial mat = getEffectiveMaterial();
-      if (mat instanceof LinearMaterial) {
+      if (mat.isLinear()) {
          if (myWarper == null){
             myWarper = new StiffnessWarper3d(10);
          }
-         LinearMaterial lmat = (LinearMaterial)mat;
-         myWarper.computeInitialStiffness (
-            this, lmat.getYoungsModulus(), lmat.getPoissonsRatio());
+         myWarper.computeInitialStiffness (this, mat);
          myWarper.setInitialJ (myNodes[0], myNodes[1], myNodes[2], myNodes[3]);
       }
       myWarpingStiffnessValidP = true;

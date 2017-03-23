@@ -42,4 +42,8 @@ public interface AuxiliaryMaterial extends Clonable {
 
    public abstract boolean isInvertible();
 
+   public abstract boolean isLinear();
+   
+   public abstract boolean isCorotated();
+
 }

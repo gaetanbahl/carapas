@@ -6,24 +6,58 @@
  */
 package artisynth.core.mfreemodels;
 
-import maspack.function.DifferentiableFunction3x1;
+import maspack.matrix.Point3d;
+import maspack.matrix.Vector3d;
 
-public abstract class MFreeShapeFunction implements DifferentiableFunction3x1 {
+public interface MFreeShapeFunction {
 
-   public enum MFreeShapeFunctionType {
-      MLS, GMLS
-   }
+   //   
+   //   public abstract double eval(MFreeNode3d node, MFreeNode3d[] nodes,
+   //      Point3d pnt);
+   //   
+   //   public abstract double evalDerivative(MFreeNode3d node, MFreeNode3d[] nodes, 
+   //      Point3d in, int[] derivatives);
    
-   public abstract MFreeShapeFunctionType getType();
+   /**
+    * Current coordinate to be used for evaluation
+    * @return
+    */
+   public Point3d getCoordinate();
    
-   public static MFreeShapeFunction create(MFreeShapeFunctionType type, MFreeNode3d node) {
-      switch(type) {
-         case MLS:
-            return new MLSShapeFunction(node);
-         case GMLS:
-            return new GMLSShapeFunction((MFreeHermiteNode3d)node, 1, 1, 1);
-      }
-      return null;
-   }
+   /**
+    * Current nodes used for evaluation
+    * @return
+    */
+   public MFreeNode3d[] getNodes();
+   
+   /**
+    * Update internals for computing the shape function value and derivatives at the
+    * given point
+    * @param pnt  point at which to evaluate shape functions
+    * @param nodes dependent nodes
+    */
+   public void update(Point3d pnt, MFreeNode3d[] nodes);
+   
+   /**
+    * Returns the value of the i'th shape function (related to node i)
+    * @param nidx node index
+    * @return computed value
+    */
+   public double eval(int nidx);
+   
+   /**
+    * Returns the value of the i'th shape function derivatives
+    * @param nidx node index
+    * @param dNds derivatives (d/dx, d/dy, d/dz)
+    */
+   public void evalDerivative(int nidx, Vector3d dNds);
+
+   /**
+    * Update only if coords and nodes are different
+    * @param coords
+    * @param myNodes
+    * @return
+    */
+   public boolean maybeUpdate(Point3d coords, MFreeNode3d[] myNodes);
    
 }

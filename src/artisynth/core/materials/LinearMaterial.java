@@ -3,40 +3,30 @@ package artisynth.core.materials;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix3dBase;
 import maspack.matrix.Matrix6d;
-import maspack.matrix.RotationMatrix3d;
-import maspack.matrix.SVDecomposition3d;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.properties.PropertyList;
 import maspack.properties.PropertyMode;
 import maspack.properties.PropertyUtils;
 
-public class LinearMaterial extends FemMaterial {
+public class LinearMaterial extends LinearMaterialBase {
 
    public static PropertyList myProps =
-      new PropertyList (LinearMaterial.class, FemMaterial.class);
+      new PropertyList (LinearMaterial.class, LinearMaterialBase.class);
 
    protected static double DEFAULT_NU = 0.33;
    protected static double DEFAULT_E = 500000;
-   protected static boolean DEFAULT_COROTATED = true;
 
    private double myNu = DEFAULT_NU;
    private double myE = DEFAULT_E;
-   private boolean myCorotated = DEFAULT_COROTATED;
 
    PropertyMode myNuMode = PropertyMode.Inherited;
    PropertyMode myEMode = PropertyMode.Inherited;
-   PropertyMode myCorotatedMode = PropertyMode.Inherited;
-
-   private SVDecomposition3d mySVD;
 
    static {
       myProps.addInheritable (
          "YoungsModulus:Inherited", "Youngs modulus", DEFAULT_E, "[0,inf]");
       myProps.addInheritable (
          "PoissonsRatio:Inherited", "Poissons ratio", DEFAULT_NU, "[-1,0.5]");
-      myProps.addInheritable (
-         "corotated:Inherited isCorotated",
-         "apply corotation", DEFAULT_COROTATED);
    }
 
    public PropertyList getAllPropertyInfo() {
@@ -44,21 +34,18 @@ public class LinearMaterial extends FemMaterial {
    }
 
    public LinearMaterial (){
+      this(DEFAULT_E, DEFAULT_NU, DEFAULT_COROTATED);
    }
 
    public LinearMaterial (double E, double nu) {
-      this (E, nu, /*corotated=*/true);
+      this (E, nu, DEFAULT_COROTATED);
    }
 
    public LinearMaterial (double E, double nu, boolean corotated) {
+      super (corotated);
       setYoungsModulus (E);
       setPoissonsRatio (nu);
-      setCorotated (corotated);
    }
-
-   public boolean isInvertible() {
-      return true;
-   }   
 
    public synchronized void setPoissonsRatio (double nu) {
       myNu = nu;
@@ -100,36 +87,9 @@ public class LinearMaterial extends FemMaterial {
       return myEMode;
    }
 
-   public synchronized void setCorotated (boolean enable) {
-      myCorotated = enable;
-      myCorotatedMode =
-         PropertyUtils.propagateValue (this, "corotated", myCorotated, myCorotatedMode);
-      notifyHostOfPropertyChange();
-   }
-
-   public boolean isCorotated() {
-      return myCorotated;
-   }
-
-   public void setCorotatedMode (PropertyMode mode) {
-      myCorotatedMode =
-         PropertyUtils.setModeAndUpdate (this, "corotated", myCorotatedMode, mode);
-   }
-
-   public PropertyMode getCorotatedMode() {
-      return myCorotatedMode;
-   }
-
-   /** 
-    * Computes the Cauchy stress from Cauchy strain and adds it to and existing
-    * stress.
-    * 
-    * @param sigma value to which stress should be added
-    * @param Eps Cauchy stress
-    * @param R (optional) Co-Rotation matrix, if any
-    */
+   @Override
    public void addStress (
-      SymmetricMatrix3d sigma, SymmetricMatrix3d Eps, Matrix3dBase R) {
+      SymmetricMatrix3d sigma, SymmetricMatrix3d eps, Matrix3dBase R) {
 
       // save for the rotated case
       double m00 = sigma.m00;
@@ -147,8 +107,8 @@ public class LinearMaterial extends FemMaterial {
       double lam = myE*myNu/((1+myNu)*(1-2*myNu));
       double mu = myE/(2*(1+myNu));
 
-      double lamtrEps = lam*Eps.trace();
-      sigma.scaledAdd (2*mu, Eps);
+      double lamtrEps = lam*eps.trace();
+      sigma.scaledAdd (2*mu, eps);
       sigma.m00 += lamtrEps;
       sigma.m11 += lamtrEps;
       sigma.m22 += lamtrEps;
@@ -168,46 +128,32 @@ public class LinearMaterial extends FemMaterial {
          sigma.m20 += m02;
          sigma.m21 += m12;
       }
+      
    }
 
    public void computeStress (
       SymmetricMatrix3d sigma, SolidDeformation def, Matrix3d Q,
       FemMaterial baseMat) {
 
-      Matrix3d F = def.getF();
-      RotationMatrix3d R = null; 
-
-      if (myCorotated) {
-         R = new RotationMatrix3d();
-         if (mySVD == null) {
-            mySVD = new SVDecomposition3d();
-         }
-         // use sigma to store P; this will be converted to Cauchy strain
-         mySVD.polarDecomposition (R, sigma, F);
-      }
-      else {
-         // set sigma to symmetric part of F
-         sigma.setSymmetric (F);
-      }
-      // subtract I to compute Cauchy strain in sigma
-      sigma.m00 -= 1;
-      sigma.m11 -= 1;
-      sigma.m22 -= 1;
-
+      Matrix3dBase R = computeStrain(def.getF(), sigma, def.getR());
+      
       // lam and mu are the first and second Lame parameters
       double lam = myE*myNu/((1+myNu)*(1-2*myNu));
       double mu = myE/(2*(1+myNu));
 
       // convert sigma from strain to stress
+      // sigma = 2*mu*eps + lamda*trace(eps)*I
       double lamtrEps = lam*(sigma.m00+sigma.m11+sigma.m22);
       sigma.scale (2*mu);
       sigma.m00 += lamtrEps;
       sigma.m11 += lamtrEps;
       sigma.m22 += lamtrEps;
 
-      if (R != null) {
+      // rotate stress back to original frame
+      if (isCorotated()) {
          sigma.mulLeftAndTransposeRight (R);
       }
+      
    }
 
    public void computeTangent (
@@ -215,7 +161,7 @@ public class LinearMaterial extends FemMaterial {
       Matrix3d Q, FemMaterial baseMat) {
 
       D.setZero();
-      
+
       // lam and mu are the first and second Lame parameters
       double lam = myE*myNu/((1+myNu)*(1-2*myNu));
       double mu = myE/(2*(1+myNu));
@@ -231,20 +177,30 @@ public class LinearMaterial extends FemMaterial {
       D.m33 = mu;
       D.m44 = mu;
       D.m55 = mu;
-      
-      if (myCorotated) {
-         // need to rotate this tensor from linear frame into material one
-         Matrix3d F = def.getF();
-         RotationMatrix3d R = new RotationMatrix3d();
-         if (mySVD == null) {
-            mySVD = new SVDecomposition3d();
-         }
-         mySVD.polarDecomposition (R, (Matrix3d)null, F);
-         // R rotates from linear frame to the material one. Transpose
-         // of R rotates from material frame to linear one.
-         R.transpose();
-         TensorUtils.rotateTangent (D, D, R);
-      }
+
+      // XXX isotropic materials are invariant under rotation
+      //      if (myCorotated) {
+      //
+      //         // need to rotate this tensor from linear frame into material one
+      //         Matrix3d F = def.getF();
+      //         RotationMatrix3d R = new RotationMatrix3d();
+      //
+      //         Matrix3dBase dR = def.getR();
+      //         if (dR == null) {
+      //            if (mySVD == null) {
+      //               mySVD = new SVDecomposition3d();
+      //            }
+      //            // use sigma to store P; this will be converted to Cauchy strain
+      //            mySVD.polarDecomposition (R, (Matrix3d)null, F);
+      //         } else {
+      //            R.set(dR);
+      //         }
+      //
+      //         // R rotates from linear frame to the material one. Transpose
+      //         // of R rotates from material frame to linear one.
+      //         R.transpose();
+      //         TensorUtils.rotateTangent2 (D, D, R);
+      //      }
    }
 
    public boolean equals (FemMaterial mat) {
@@ -253,8 +209,7 @@ public class LinearMaterial extends FemMaterial {
       }
       LinearMaterial linm = (LinearMaterial)mat;
       if (myNu != linm.myNu ||
-          myE != linm.myE ||
-          myCorotated != linm.myCorotated) {
+         myE != linm.myE) {
          return false;
       }
       else {
@@ -282,5 +237,5 @@ public class LinearMaterial extends FemMaterial {
          setYoungsModulus (myE*s);
       }
    }
-   
+
 }

@@ -1,4 +1,4 @@
-function [status] = setArtisynthClasspath (homedir) 
+function [status] = setArtisynthClasspath (homedir,paths) 
 % procedure setArtisynthClasspath (homedir) 
 %
 %    Sets the java classpath to enable running ArtiSynth. 'homedir' should be
@@ -53,6 +53,10 @@ for i = 1:length(exts)
       newentries = [ newentries, psep, exts{i} ];
    end
 end
+%
+% add any classes found as in ARTISYNTH_PATH
+%
+
 %
 % Add new classes and jars to the 'artisynth.class.path' property.
 % This is needed when starting a Jython console from matlab, in order

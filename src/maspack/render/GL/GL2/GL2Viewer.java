@@ -32,6 +32,8 @@ import maspack.render.Dragger3d;
 import maspack.render.Light;
 import maspack.render.Light.LightSpace;
 import maspack.render.Light.LightType;
+import maspack.render.RenderInstances.InstanceTransformType;
+import maspack.render.RenderInstances;
 import maspack.render.RenderKey;
 import maspack.render.RenderList;
 import maspack.render.RenderObject;
@@ -2787,6 +2789,35 @@ public class GL2Viewer extends GLViewer implements HasProperties {
          gl.glUseProgramObjectARB (0);
       }
    }
+   
+   private void drawRawTriangles(GL2 gl, RenderObject robj, int gidx,
+      int offset, int count, boolean useNormals, 
+      boolean useColors, boolean useTextures, boolean useHSV ) {
+      
+      gl.glBegin(GL.GL_TRIANGLES);
+      int[] tris = robj.getTriangles (gidx);
+      int triangleStride = robj.getTriangleStride();
+
+      int idx = 0;
+      for (int i=0; i<count; ++i) {
+         idx = (i+offset)*triangleStride;
+         for (int j=0; j<triangleStride; ++j) {
+            int vidx = tris[idx+j];
+            if (useColors) {
+               robj.getVertexColor (vidx);
+               setVertexColor (gl, robj.getVertexColor(vidx), useHSV);
+            }
+            if (robj.hasNormals ()) {
+               gl.glNormal3fv(robj.getVertexNormal(vidx), 0);
+            }
+            if (useTextures) {
+               gl.glTexCoord2fv (robj.getVertexTextureCoord (vidx), 0);
+            }
+            gl.glVertex3fv(robj.getVertexPosition(vidx), 0);
+         }
+      }
+      gl.glEnd();
+   }
 
    @Override
    public void drawTriangles(RenderObject robj, int gidx, int offset, int count) {
@@ -2853,36 +2884,15 @@ public class GL2Viewer extends GLViewer implements HasProperties {
             gvo.beginCompile (gl);
          }
 
-         gl.glBegin(GL.GL_TRIANGLES);
-
          // prevent modifications on RenderObject while reading
          robj.readLock ();
 
-         int[] tris = robj.getTriangles (gidx);
-         int triangleStride = robj.getTriangleStride();
-
-         int idx = 0;
-         for (int i=0; i<count; ++i) {
-            idx = (i+offset)*triangleStride;
-            for (int j=0; j<triangleStride; ++j) {
-               int vidx = tris[idx+j];
-               if (!selecting && useColors) {
-                  robj.getVertexColor (vidx);
-                  setVertexColor (gl, robj.getVertexColor(vidx), useHSV);
-               }
-               if (robj.hasNormals ()) {
-                  gl.glNormal3fv(robj.getVertexNormal(vidx), 0);
-               }
-               if (robj.hasTextureCoords ()) {
-                  gl.glTexCoord2fv (robj.getVertexTextureCoord (vidx), 0);
-               }
-               gl.glVertex3fv(robj.getVertexPosition(vidx), 0);
-            }
-         }
-
+         drawRawTriangles(gl, robj, gidx, offset, 
+            count, robj.hasNormals(), useColors, 
+            hasTexture, useHSV);
+         
          robj.readUnlock ();
          
-         gl.glEnd();
 
          if (gvo != null) {
             gvo.endCompile (gl);
@@ -3954,6 +3964,148 @@ public class GL2Viewer extends GLViewer implements HasProperties {
       }
       if (enableLighting) {
          setLightingEnabled(true);
+      }
+   }
+   
+   @Override
+   public void drawPoints(RenderObject robj, int gidx, RenderInstances rinst) {
+      // TODO Auto-generated method stub
+      
+   }
+   
+   @Override
+   public void drawLines(RenderObject robj, int gidx, RenderInstances rinst) {
+      // TODO Auto-generated method stub
+      
+   }
+   
+   @Override
+   public void drawTriangles(RenderObject robj, int gidx, RenderInstances rinst) {
+      
+      boolean selecting = isSelecting();
+      boolean hasColors = ((robj.hasColors() || rinst.hasColors()) && hasVertexColoring());
+      boolean useColors = hasColors && !selecting && (myActiveColor==ActiveColor.DEFAULT);
+      boolean useHSV = isHSVColorInterpolationEnabled ();
+      
+      // update state
+      maybeUpdateState(gl);
+
+      // if use vertex colors, get them to track glColor      
+      int savedShading = 0;
+      if (useColors) {
+         savedShading = enableVertexColoring (useHSV);
+      }
+
+      boolean useDisplayList = (!selecting || !hasColors) && (!robj.isTransient());
+      
+      GL2VersionedObject gvo = null;
+      boolean compile = true;
+
+      if (useDisplayList) {
+         // XXX do something here to track stuff
+         //         RenderObjectKey key = new RenderObjectKey(robj.getIdentifier (), DrawType.LINES, gidx);
+         //         LineFingerPrint fingerprint = 
+         //            new LineFingerPrint(robj.getVersionInfo(), 
+         //               style, mySurfaceResolution, rad);
+         //         
+         //         gvo = myGLResources.getVersionedObject (key);
+         //         if (gvo != null) {
+         //            boolean iv = gvo.disposeInvalid (gl);
+         //            if (iv == true) {
+         //               Logger.getSystemLogger().debug(" invalid object disposed " + gvo);
+         //            }
+         //         }
+         //         if (gvo == null || gvo.disposeInvalid (gl)) {
+         //            gvo = myGLResources.allocateVersionedObject(gl, key, fingerprint);
+         //            compile = true;
+         //         } else {
+         //            compile = !(gvo.compareExchangeFingerPrint(fingerprint));
+         //         }
+      }
+
+      if (compile) {
+         if (gvo != null) {
+            gvo.beginCompile (gl);
+         }
+         
+         // prevent writes to robj and rinst
+         robj.readLock ();
+         rinst.readLock();
+         
+         int ninstances = rinst.numInstances();
+         int[] instances = rinst.getInstances();
+         
+         int ipos = rinst.getInstanceTypeOffset();
+         int tpos = rinst.getInstanceTransformOffset();
+         int cpos = rinst.getInstanceColorOffset();
+         int spos  = rinst.getInstanceScaleOffset();
+         int stride = rinst.getInstanceStride();
+         InstanceTransformType[] type = RenderInstances.getTransformTypes();
+         boolean hasInstanceScales = rinst.hasScales();
+         boolean hasInstanceColors = useColors && rinst.hasColors();
+
+         gl.glPushMatrix();
+         for (int i=0; i<ninstances; ++i) {
+            int iidx = instances[ipos];
+            int tidx = instances[tpos];
+            int cidx = instances[cpos];
+            int sidx = instances[spos];
+               
+            // transform
+            switch(type[iidx]) {
+               case AFFINE: {
+                  AffineTransform3d aff = rinst.getAffine(tidx);
+                  mulTransform (gl, aff);
+                  break;
+               }
+               case FRAME: {
+                  RigidTransform3d frame = rinst.getFrame(tidx);
+                  mulTransform(gl, frame);
+                  break;
+               }
+               case POINT: {
+                  float[] trans = rinst.getPoint(tidx);
+                  gl.glTranslatef(trans[0], trans[1], trans[2]);
+                  break;
+               }
+            }
+            
+            if (hasInstanceScales && (sidx >= 0)) {
+               Double s = rinst.getScale(sidx);
+               gl.glScaled(s, s, s);
+            }
+            
+            if (hasInstanceColors && (cidx >= 0)) {
+               byte[] c = rinst.getColor(cidx);
+               gl.glColor4ub(c[0], c[1], c[2], c[3]);
+            }
+            
+            // draw raw object
+            drawRawTriangles(gl, robj, gidx, 0, robj.numTriangles(gidx), robj.hasNormals(), 
+               !hasInstanceColors && useColors,
+               !selecting & robj.hasTextureCoords(), useHSV);
+            
+            ipos += stride;
+            tpos += stride;
+            cpos += stride;
+            spos += stride;
+         }
+         gl.glPopMatrix();
+         
+         robj.readUnlock ();
+         rinst.readUnlock();
+         
+         if (gvo != null) {
+            gvo.endCompile (gl);
+            gvo.draw (gl);
+         }
+      } else {
+         gvo.draw (gl);
+      }
+
+      // disable color tracking
+      if (useColors) {
+         disableVertexColoring (useHSV, savedShading);
       }
    }
 
