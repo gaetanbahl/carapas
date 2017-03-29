@@ -26,7 +26,6 @@ import javax.media.opengl.GL2GL3;
 import javax.media.opengl.GLAutoDrawable;
 import javax.media.opengl.GLContext;
 import javax.media.opengl.GLEventListener;
-import javax.media.opengl.awt.GLCanvas;
 import javax.swing.event.MouseInputListener;
 
 import maspack.matrix.AffineTransform2d;
@@ -102,6 +101,11 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
          return minor;
       }
    }
+   
+   /**
+    * Whether to use a GLJPanel or GLCanvas
+    */
+   public static boolean useGLJPanel = true;
    
    // Disposal
    GLGarbageBin<GLResource> myGLGarbageBin;
@@ -385,7 +389,7 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
    
    // Canvas
    protected GLAutoDrawable drawable;  // currently active drawable
-   protected GLCanvas canvas;          // main GL canvas
+   protected GLDrawableComponent canvas;          // main GL canvas
    
    protected int width;
    protected int height;
@@ -563,15 +567,15 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
    }
 
    public KeyListener[] getKeyListeners() {
-      return getCanvas().getKeyListeners();
+      return canvas.getKeyListeners();
    }
 
    public void addKeyListener (KeyListener l) {
-      getCanvas().addKeyListener(l);
+      canvas.addKeyListener(l);
    }
 
    public void removeKeyListener (KeyListener l) {
-      getCanvas().removeKeyListener(l);
+      canvas.removeKeyListener(l);
    }
 
    public LinkedList<Dragger3d> getDraggers() {
@@ -1161,6 +1165,14 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
       return height;
    }
 
+   public int getScreenX() {
+      return canvas.getX();
+   }
+
+   public int getScreenY() {
+      return canvas.getY();
+   }
+
    public GL getGL() {
       if (drawable != null) {
          return drawable.getGL();
@@ -1344,7 +1356,7 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
     * @param yang
     * amount of vertical rotation (in radians)
     */
-   protected void rotate (double xang, double yang) {
+   public void rotate (double xang, double yang) {
 
       switch (myRotationMode) {
          case CONTINUOUS:
@@ -1583,7 +1595,7 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
       myProgramInfo = new GLProgramInfo();
    }
 
-   public GLCanvas getCanvas() {
+   public GLDrawableComponent getCanvas() {
       return canvas;
    }
 
@@ -2036,6 +2048,12 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
       // assign current drawable
       this.drawable = drawable;
 
+      // reset attributes due to possible change by GLJPanel
+      if (useGLJPanel) {
+         myCommittedViewerState = null;
+         myCommittedColor = null;      
+      }
+      
       int flags = myRenderFlags.get();
 
       // check if gamma property needs to be changed

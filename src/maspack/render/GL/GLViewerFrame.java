@@ -21,7 +21,7 @@ public class GLViewerFrame extends JFrame {
    private static final long serialVersionUID = 1L;
    protected GLViewer viewer;
    
-   protected static GLViewer.GLVersion defaultVersion = GLViewer.GLVersion.GL2;
+   protected static GLViewer.GLVersion defaultVersion = GLViewer.GLVersion.GL3;
 
    public GLViewer getViewer() {
       return viewer;
@@ -47,7 +47,7 @@ public class GLViewerFrame extends JFrame {
             throw new IllegalArgumentException (
                "Unimplemented viewer type: " + vers);
       }
-      getContentPane().add (viewer.getCanvas());
+      getContentPane().add (viewer.getCanvas().getComponent());
       pack();
       
       addWindowListener (new WindowAdapter() {
@@ -76,7 +76,7 @@ public class GLViewerFrame extends JFrame {
             "Unknown GLViewer type: " + shareWith.getClass());
       }
       setUndecorated (undecorated);
-      getContentPane().add (viewer.getCanvas());
+      getContentPane().add (viewer.getCanvas().getComponent());
       pack();
       
       addWindowListener (new WindowAdapter() {

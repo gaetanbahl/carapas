@@ -30,6 +30,7 @@ import maspack.render.RenderProps;
 import maspack.render.TextureContent;
 import maspack.render.VertexIndexArray;
 import maspack.render.GL.GLClipPlane;
+import maspack.render.GL.GLDrawableComponent;
 import maspack.render.GL.GLFrameCapture;
 import maspack.render.GL.GLGridPlane;
 import maspack.render.GL.GLLightManager;
@@ -157,7 +158,13 @@ public class GL3Viewer extends GLViewer {
          resources = new GL3SharedResources(cap, attributeMap);
       }
       myGLResources = resources;
-      canvas = myGLResources.createCanvas();
+      if (useGLJPanel) {
+         Logger.getSystemLogger().debug("Using GLJPanel");
+         canvas = GLDrawableComponent.create(myGLResources.createPanel());
+      } else {
+         canvas = GLDrawableComponent.create(myGLResources.createCanvas());
+      }
+      
       myGLResources.registerViewer (this);
       myRenderObjectManager = new GL3RenderObjectManager (resources);
       
@@ -216,9 +223,6 @@ public class GL3Viewer extends GLViewer {
       setAxialView (DEFAULT_AXIAL_VIEW);
       setModelMatrix(RigidTransform3d.IDENTITY);
 
-      //      System.out.println(projectionMatrix);
-      //      System.out.println(viewMatrix);
-      //      System.out.println(modelMatrix);
    }
 
    @Override
@@ -349,6 +353,11 @@ public class GL3Viewer extends GLViewer {
       this.drawable = drawable;
       this.gl = GL3Utilities.wrap(drawable.getGL ().getGL3 ());
 
+      // reset state (necessary because of GLJPanel)
+      if (useGLJPanel) {
+         myCommittedProgram = null;
+      }
+      
       try {
       
          if (!myInternalRenderListValid) {
@@ -364,10 +373,13 @@ public class GL3Viewer extends GLViewer {
          // turn off buffer swapping when doing a selection render because
          // otherwise the previous buffer sometimes gets displayed
          drawable.setAutoSwapBufferMode (selectEnabled ? false : true);
+
          if (myProfiling) {
             myTimer.start();
          }
+      
          doDisplay (drawable, flags);
+         
          if (myProfiling) {
             myTimer.stop();
             System.out.printf (
@@ -411,6 +423,13 @@ public class GL3Viewer extends GLViewer {
          e.printStackTrace ();
       }
       
+      //      // XXX code to display info on the buffer
+      //      ByteBuffer pixels = BufferUtilities.newNativeByteBuffer(4*width*height);
+      //      gl.glReadPixels(0, 0, width, height, GL3.GL_RGBA, GL.GL_UNSIGNED_BYTE, pixels);
+      //      GLSupport.showImage(pixels, width, height);
+      //      BufferUtilities.freeDirectBuffer(pixels);
+      //      GLSupport.checkAndPrintGLError(gl);
+
       this.drawable = null;
       this.gl = null;
    }
