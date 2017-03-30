@@ -105,7 +105,7 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
    /**
     * Whether to use a GLJPanel or GLCanvas
     */
-   public static boolean useGLJPanel = true;
+   public static boolean useGLJPanel = false;
    
    // Disposal
    GLGarbageBin<GLResource> myGLGarbageBin;
