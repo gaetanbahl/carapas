@@ -275,7 +275,7 @@ public class GL3Viewer extends GLViewer {
             myGLResources.getVertexTexcoordAttribute ().getLocation (),
             myGLResources.getVertexPositionAttribute ().getLocation ())
          );
-      
+
       // create a basic position-based flexible object
       gloFlex = GL3FlexObject.generate (gl, 
          myGLResources.getVertexPositionAttribute (), myGLResources.getVertexNormalAttribute(), 

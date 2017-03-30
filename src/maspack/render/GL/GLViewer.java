@@ -179,6 +179,7 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
          return vs;
       }
    }
+
    protected ViewState myViewState = null;
    protected LinkedList<ViewState> viewStateStack = null;
    protected ViewerState myCommittedViewerState = null;    // "committed" viewer state
@@ -777,6 +778,7 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
       if (!myInternalRenderListValid) {
          buildInternalRenderList();
       }
+
       if (canvas.isVisible()) {
          canvas.repaint();
       }

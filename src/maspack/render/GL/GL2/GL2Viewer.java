@@ -821,7 +821,7 @@ public class GL2Viewer extends GLViewer implements HasProperties {
             disableTransparency ();
          }
       }
-      
+
       // disable clipping planes
       for (int i=GL2.GL_CLIP_PLANE0; i<clipIdx; ++i) {
          gl.glDisable(i);
