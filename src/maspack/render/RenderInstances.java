@@ -12,35 +12,53 @@ import maspack.matrix.Vector3d;
 import maspack.util.Clonable;
 import maspack.util.Disposable;
 import maspack.util.DisposeObservable;
-import maspack.util.DisposeObserver;
 import maspack.util.DisposeObserver.DisposeObserverImpl;
 import maspack.util.DynamicIntArray;
 import maspack.util.Versioned;
 
-public class RenderInstances implements Versioned, DisposeObservable, Disposable, Clonable {
+/**
+ * Object containing information for repetitively drawing instances of {@link RenderObject}s, with
+ * varying transforms:
+ * <ul>
+ * <li><em>point</em>, a simple 3 degree-of-freedom translation
+ * <li><em>frame</em>, a rigid 6 degree-of-freedom transform 
+ * <li><em>affine</em>, a non-rigid 12 degree-of-freedom transform
+ * </ul>
+ *
+ */
+public class RenderInstances implements Versioned, DisposeObservable, Disposable {
 
+   private static int nextIdNumber = 0;
+   
    public static enum InstanceTransformType {
       POINT, // scale, translation
       FRAME,  // scale, rigid transform (translation + rotation)
       AFFINE  // scale, affine (translation + affine stretch/skew) 
    }
    
-   private static class InstancesDisposeObserver extends DisposeObserverImpl {
-      @Override
-      protected void dispose () {
-         super.dispose ();
+   public static class RenderInstancesIdentifier extends DisposeObserverImpl {
+      private int id;
+      
+      public RenderInstancesIdentifier(int id) {
+         this.id = id;
       }
-   }
-   InstancesDisposeObserver observer;
-   
-   @Override
-   public boolean isDisposed() {
-      return observer.isDisposed();
-   }
-   
-   @Override
-   public DisposeObserver getDisposeObserver() {
-      return observer;
+      
+      /**
+       * Unique identifying number
+       */
+      public int getId() {
+         return id;
+      }
+      
+      @Override
+      protected void dispose() {
+         super.dispose();
+      }
+
+      public boolean isValid() {
+         return !isDisposed();
+      }
+      
    }
    
    /**
@@ -297,9 +315,11 @@ public class RenderInstances implements Versioned, DisposeObservable, Disposable
    volatile boolean totalModified;
    
    ReentrantReadWriteLock lock;
+   
+   RenderInstancesIdentifier rid;
       
    public RenderInstances() {
-      observer = new InstancesDisposeObserver();
+      rid = new RenderInstancesIdentifier(nextIdNumber++);
       versionInfo = createVersionInfo();
       stateInfo = createStateInfo();   
       lock = new ReentrantReadWriteLock();
@@ -340,6 +360,18 @@ public class RenderInstances implements Versioned, DisposeObservable, Disposable
     */
    public void writeUnlock() {
       lock.writeLock().unlock();
+   }
+   
+   /**
+    * Returns a special identifier for this
+    * RenderInstances object.  It contains a unique ID number, as well as a flag
+    * for determining whether the object still persists and is valid.
+    * This should be as the key in HashMaps etc... so that the original
+    * RenderObject can be cleared and garbage-collected when it runs out 
+    * of scope. 
+    */
+   public RenderInstancesIdentifier getIdentifier() {
+      return rid;
    }
    
    /**
@@ -1553,7 +1585,7 @@ public class RenderInstances implements Versioned, DisposeObservable, Disposable
     * @return <code>true</code> if this RenderObject is valid
     */
    public boolean isValid() {
-      return !(observer.isDisposed());
+      return !(rid.isDisposed());
    }
 
    /**
@@ -1561,7 +1593,7 @@ public class RenderInstances implements Versioned, DisposeObservable, Disposable
     */
    public void dispose() {
       clearAll();
-      observer.dispose();
+      rid.dispose();
    }
 
    /**
@@ -1575,7 +1607,7 @@ public class RenderInstances implements Versioned, DisposeObservable, Disposable
    /**
     * @return a new copy of the object
     */
-   public RenderInstances clone()  {
+   public RenderInstances copy()  {
 
       readLock();
       RenderInstances r;
@@ -1628,6 +1660,20 @@ public class RenderInstances implements Versioned, DisposeObservable, Disposable
       return r;
    }
    
+   @Override
+   public boolean isDisposed() {
+      return rid.isDisposed();
+   }
+   
+   @Override
+   public RenderInstancesIdentifier getDisposeObserver() {
+      return rid;
+   }
+   
+   /**
+    * Interface to allow simplified iterations through all instance transforms
+    *
+    */
    public static interface RenderInstanceConsumer {
       public void point(int pidx, float[] pos, Double scale, byte[] color);
       public void frame(int fidx, RigidTransform3d trans, Double scale, byte[] color);

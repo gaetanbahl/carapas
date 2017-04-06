@@ -28,7 +28,7 @@ public class GL3RenderObjectManager implements GLGarbageSource {
       }
       
       public boolean isValid() {
-         if (!rid.isValid ()) {
+         if (rid.isDisposed ()) {
             return false;
          }
          if (via.isDisposed ()) {
@@ -197,7 +197,7 @@ public class GL3RenderObjectManager implements GLGarbageSource {
          Iterator<Entry<RenderObjectIdentifier,GL3RenderObjectPrimitives>> it = indexedMap.entrySet ().iterator ();
          while (it.hasNext ()) {
             Entry<RenderObjectIdentifier,GL3RenderObjectPrimitives> entry = it.next ();
-            if (!entry.getKey ().isValid ()) {
+            if (entry.getKey ().isDisposed ()) {
                it.remove ();
                entry.getValue ().dispose (gl3);
             }
@@ -208,7 +208,7 @@ public class GL3RenderObjectManager implements GLGarbageSource {
          Iterator<Entry<RenderObjectIdentifier,GL3RenderObjectLines>> it = lineMap.entrySet ().iterator ();
          while (it.hasNext ()) {
             Entry<RenderObjectIdentifier,GL3RenderObjectLines> entry = it.next ();
-            if (!entry.getKey ().isValid ()) {
+            if (entry.getKey ().isDisposed ()) {
                it.remove ();
                entry.getValue ().dispose (gl3);
             }
@@ -219,7 +219,7 @@ public class GL3RenderObjectManager implements GLGarbageSource {
          Iterator<Entry<RenderObjectIdentifier,GL3RenderObjectPoints>> it = pointMap.entrySet ().iterator ();
          while (it.hasNext ()) {
             Entry<RenderObjectIdentifier,GL3RenderObjectPoints> entry = it.next ();
-            if (!entry.getKey ().isValid ()) {
+            if (entry.getKey ().isDisposed ()) {
                it.remove ();
                entry.getValue ().dispose (gl3);
             }

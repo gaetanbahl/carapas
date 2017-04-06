@@ -2089,7 +2089,7 @@ public class GL3Viewer extends GLViewer {
     * @param tidx triangle group to draw (-1 to ignore)
     * @param rinst instances
     */
-   public void drawInstances(RenderObject robj, int pidx, int lidx, int tidx,
+   protected void drawInstances(RenderObject robj, int pidx, int lidx, int tidx,
       RenderInstances rinst) {
       maybeUpdateState(gl);
       

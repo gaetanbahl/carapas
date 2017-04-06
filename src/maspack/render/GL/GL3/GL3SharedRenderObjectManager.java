@@ -121,7 +121,7 @@ public class GL3SharedRenderObjectManager implements GLGarbageSource {
          Iterator<Entry<RenderObjectIdentifier,GL3SharedRenderObjectPrimitives>> it = indexedMap.entrySet ().iterator ();
          while (it.hasNext ()) {
             Entry<RenderObjectIdentifier,GL3SharedRenderObjectPrimitives> entry = it.next ();
-            if (!entry.getKey ().isValid ()) {
+            if (entry.getKey ().isDisposed ()) {
                it.remove ();
                entry.getValue ().dispose (gl3);
             }
@@ -132,7 +132,7 @@ public class GL3SharedRenderObjectManager implements GLGarbageSource {
          Iterator<Entry<RenderObjectIdentifier,GL3SharedRenderObjectLines>> it = lineMap.entrySet ().iterator ();
          while (it.hasNext ()) {
             Entry<RenderObjectIdentifier,GL3SharedRenderObjectLines> entry = it.next ();
-            if (!entry.getKey ().isValid ()) {
+            if (entry.getKey ().isDisposed ()) {
                it.remove ();
                entry.getValue ().dispose (gl3);
             }
@@ -143,7 +143,7 @@ public class GL3SharedRenderObjectManager implements GLGarbageSource {
          Iterator<Entry<RenderObjectIdentifier,GL3SharedRenderObjectPoints>> it = pointMap.entrySet ().iterator ();
          while (it.hasNext ()) {
             Entry<RenderObjectIdentifier,GL3SharedRenderObjectPoints> entry = it.next ();
-            if (!entry.getKey ().isValid ()) {
+            if (entry.getKey ().isDisposed ()) {
                it.remove ();
                entry.getValue ().dispose (gl3);
             }
