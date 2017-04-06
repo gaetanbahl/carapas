@@ -16,5 +16,9 @@
 			format -->
 		<package source="artisynth.models" view="hierarchical" />
 	</menu>
+	<menu text="History">
+		<!-- loads history -->
+		<history size="4" />
+	</menu>
 
 </ModelMenu>

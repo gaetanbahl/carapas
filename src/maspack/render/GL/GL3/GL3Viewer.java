@@ -23,6 +23,7 @@ import maspack.matrix.RigidTransform3d;
 import maspack.matrix.Vector3d;
 import maspack.render.ColorMapProps;
 import maspack.render.Dragger3d;
+import maspack.render.RenderInstances;
 import maspack.render.RenderList;
 import maspack.render.RenderObject;
 import maspack.render.RenderProps;
@@ -1135,12 +1136,12 @@ public class GL3Viewer extends GLViewer {
          case INSTANCED_FRAMES:
             myProgramInfo.setInstanceColorsEnabled (hasColors);
             myProgramInfo.setShading (getShading());
-            myProgramInfo.setVertexNormalsEnabled (true);
+            myProgramInfo.setVertexNormalsEnabled (hasNormals);
             break;
          case INSTANCED_LINES:
             myProgramInfo.setLineColorsEnabled (hasColors);
             myProgramInfo.setShading (getShading());
-            myProgramInfo.setVertexNormalsEnabled (true);
+            myProgramInfo.setVertexNormalsEnabled (hasNormals);
             break;
          
          case POINTS:
@@ -2068,6 +2069,83 @@ public class GL3Viewer extends GLViewer {
             break;
          }
       }
+   }
+   
+   /**
+    * Draw an object multiple times with differing per-instance information
+    * @param robj
+    * @param rinst
+    */
+   public void drawInstances(RenderObject robj, RenderInstances rinst) {
+      drawInstances(robj, robj.getPointGroupIdx(), 
+         robj.getLineGroupIdx(), robj.getTriangleGroupIdx(), rinst);
+   }
+   
+   /**
+    * Draw instances of the supplied render object
+    * @param robj render object to draw
+    * @param pidx point group to draw (-1 to ignore)
+    * @param lidx line group to draw (-1 to ignore)
+    * @param tidx triangle group to draw (-1 to ignore)
+    * @param rinst instances
+    */
+   protected void drawInstances(RenderObject robj, int pidx, int lidx, int tidx,
+      RenderInstances rinst) {
+      maybeUpdateState(gl);
+      
+      GL3RenderInstances glinst = myRenderObjectManager.getInstances(gl, rinst);
+      GL3SharedRenderObjectPrimitives grop = myRenderObjectManager.getSharedPrimitives(
+         gl, robj);
+      
+      GL3SharedRenderObjectPrimitivesDrawable wrapped = 
+         new GL3SharedRenderObjectPrimitivesDrawable(grop);
+      wrapped.setDrawGroups(pidx, lidx, tidx);
+      
+      if (glinst.hasPoints()) {
+         updateProgram(gl, RenderingMode.INSTANCED_POINTS, robj.hasNormals(),
+            rinst.hasColors(), false);
+         glinst.drawPoints(gl, wrapped);
+      }
+      if (glinst.hasFrames()) {
+         updateProgram(gl, RenderingMode.INSTANCED_FRAMES, robj.hasNormals(),
+            rinst.hasColors(), false);
+         glinst.drawFrames(gl, wrapped);
+      }
+      if (glinst.hasAffines()) {
+         updateProgram(gl, RenderingMode.INSTANCED_AFFINES, robj.hasNormals(),
+            rinst.hasColors(), false);
+         glinst.drawAffines(gl, wrapped);
+      }
+   }
+   
+   /**
+    * Draw an object multiple times with differing per-instance information
+    * @param robj
+    * @param gidx point group index
+    * @param rinst
+    */
+   public void drawPoints(RenderObject robj, int gidx, RenderInstances rinst) {
+      drawInstances(robj, gidx, -1, -1, rinst);
+   }
+
+   /**
+    * Draw an object multiple times with differing per-instance information
+    * @param robj
+    * @param gidx line group index
+    * @param rinst
+    */
+   public void drawLines(RenderObject robj, int gidx, RenderInstances rinst) {
+      drawInstances(robj, -1, gidx, -1, rinst);
+   }
+   
+   /**
+    * Draw an object multiple times with differing per-instance information
+    * @param robj
+    * @param gidx triangle group index
+    * @param rinst
+    */
+   public void drawTriangles(RenderObject robj, int gidx, RenderInstances rinst) {
+      drawInstances(robj, -1, -1, gidx, rinst);
    }
 
    /*==============================================================================
