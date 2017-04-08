@@ -1,24 +1,21 @@
 package artisynth.demos.test;
 
-import java.awt.Color;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 
 import artisynth.core.mechmodels.FixedMeshBody;
 import artisynth.core.workspace.DriverInterface;
 import artisynth.core.workspace.RootModel;
 import maspack.geometry.Face;
-import maspack.geometry.HalfEdge;
 import maspack.geometry.MeshFactory;
 import maspack.geometry.PolygonalMesh;
-import maspack.geometry.RobustPreds;
 import maspack.geometry.SignedDistanceGrid;
 import maspack.geometry.Vertex3d;
-import maspack.matrix.Point3d;
 import maspack.matrix.Vector3d;
 import maspack.render.RenderProps;
-import maspack.render.Renderer.FaceStyle;
 
-public class SDTest extends RootModel {
+public class SDGridTest extends RootModel {
    
    SignedDistanceGrid sdgrid;
    
@@ -119,11 +116,20 @@ public class SDTest extends RootModel {
       f[fidx++] = mesh.addFace(v[23], v[24], v[21]);
       f[fidx++] = mesh.addFace(v[24], v[25], v[21]);
       
-      v[0].setPosition(new Point3d(0,0,0));
-      v[25].setPosition(new Point3d(0,0,0));
+      //      // Move in some corner(s)
+      //      v[0].setPosition(new Point3d(0,0,0));
+      //      v[25].setPosition(new Point3d(0,0,0));
       
       int divisions = 3;
       mesh = MeshFactory.subdivide(mesh, divisions);
+      
+      // randomize vertex order and re-number
+      ArrayList<Vertex3d> vertices = mesh.getVertices();
+      Collections.shuffle(vertices);
+      for (int i=0; i<vertices.size(); ++i) {
+         vertices.get(i).setIndex(i);
+      }
+      
       
       FixedMeshBody fm = new FixedMeshBody("cube", mesh);
       addRenderable(fm);
