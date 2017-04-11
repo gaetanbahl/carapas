@@ -49,6 +49,7 @@ import maspack.geometry.Face;
 import maspack.geometry.HalfEdge;
 import maspack.geometry.MeshBase;
 import maspack.geometry.PolygonalMesh;
+import maspack.geometry.SignedDistanceGrid;
 import maspack.geometry.Vertex3d;
 import maspack.matrix.Point3d;
 import maspack.matrix.Vector2d;
@@ -1279,6 +1280,16 @@ public class MFreeMeshComp extends FemMeshBase implements CollidableBody, PointA
       }
       ax.setFromNodes (nodeWeights.keySet(), weightVec);
       return ax;
+   }
+
+   @Override
+   public boolean hasDistanceGrid() {
+      return false;
+   }
+
+   @Override
+   public SignedDistanceGrid getDistanceGrid() {
+      return null;
    }
 
 }

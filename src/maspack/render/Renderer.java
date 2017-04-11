@@ -1847,36 +1847,6 @@ public interface Renderer {
     */
    public void drawPoints(RenderObject robj, int gidx, RenderInstances rinst);
    
-   /**
-    * Draws the specified group of triangles, repeated for each instance
-    * in rinst.
-    * @param robj object to draw
-    * @param gidx triangle group to draw
-    * @param rinst instance to draw
-    */
-   public void drawTriangles(RenderObject robj, int gidx, RenderInstances rinst);
-
-   /**
-    * Draws the specified group of lines, repeated for each instance
-    * in rinst.  Lines are drawn as {@link LineStyle#LINE} and use the
-    * current line-width, as determined by {@link #getLineWidth()}.
-    * @param robj object to draw
-    * @param gidx line group to draw
-    * @param rinst instance to draw
-    */
-   public void drawLines(RenderObject robj, int gidx, RenderInstances rinst);
-   
-   /**
-    * Draws the specified group of points, repeated for each instance
-    * in rinst.  Points are drawn as {@link PointStyle#POINT} and use the
-    * current point-size, as determined by {@link #getPointSize()}.
-    * 
-    * @param robj object to draw
-    * @param gidx point group to draw
-    * @param rinst instance to draw
-    */
-   public void drawPoints(RenderObject robj, int gidx, RenderInstances rinst);
-   
    // MATRICES
    
    /**

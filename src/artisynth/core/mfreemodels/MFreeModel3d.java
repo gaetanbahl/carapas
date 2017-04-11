@@ -12,7 +12,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import artisynth.core.femmodels.FemElement3d;
 import artisynth.core.femmodels.FemMarker;
 import artisynth.core.femmodels.FemModel;
 import artisynth.core.femmodels.FemNode3d;
@@ -33,6 +32,8 @@ import artisynth.core.materials.SolidDeformation;
 import artisynth.core.materials.ViscoelasticBehavior;
 import artisynth.core.materials.ViscoelasticState;
 import artisynth.core.mechmodels.Collidable;
+import artisynth.core.mechmodels.Collidable.Collidability;
+import artisynth.core.mechmodels.CollidableBody;
 import artisynth.core.mechmodels.CollidableDynamicComponent;
 import artisynth.core.mechmodels.CollisionHandler;
 import artisynth.core.mechmodels.ContactMaster;
@@ -63,9 +64,8 @@ import maspack.geometry.Boundable;
 import maspack.geometry.GeometryTransformer;
 import maspack.geometry.MeshBase;
 import maspack.geometry.PolygonalMesh;
-import maspack.geometry.Vertex3d;
 import maspack.geometry.SignedDistanceGrid;
-import maspack.geometry.GeometryTransformer;
+import maspack.geometry.Vertex3d;
 import maspack.matrix.AffineTransform3dBase;
 import maspack.matrix.DenseMatrix;
 import maspack.matrix.EigenDecomposition;
@@ -99,7 +99,8 @@ import maspack.util.DoubleInterval;
 import maspack.util.InternalErrorException;
 
 public class MFreeModel3d extends FemModel implements TransformableGeometry,
-ScalableUnits, MechSystemModel, Collidable, CopyableComponent {
+   ScalableUnits, MechSystemModel,
+   CollidableBody, CopyableComponent {
 
    protected SparseBlockMatrix M = null;
    protected VectorNd b = null;
@@ -1732,6 +1733,16 @@ ScalableUnits, MechSystemModel, Collidable, CopyableComponent {
    }
 
    @Override
+   public PolygonalMesh getCollisionMesh() {
+      for (MFreeMeshComp mc : myMeshList) {
+         if (mc.getMesh() instanceof PolygonalMesh) {
+            return (PolygonalMesh)(mc.getMesh());
+         }
+      }
+      return null;
+   }
+   
+   @Override
    public boolean hasDistanceGrid() {
       return false;
    }
@@ -1741,7 +1752,6 @@ ScalableUnits, MechSystemModel, Collidable, CopyableComponent {
       return null;
    }
 
-   @Override
    public Collidability getCollidable() {
       MFreeMeshComp mesh = mySurfaceMesh;
       if (mesh != null) {

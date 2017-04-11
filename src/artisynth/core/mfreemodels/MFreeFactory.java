@@ -50,6 +50,7 @@ import maspack.matrix.Matrix3d;
 import maspack.matrix.Point3d;
 import maspack.matrix.RigidTransform3d;
 import maspack.matrix.Vector3d;
+import maspack.matrix.Vector3i;
 import maspack.matrix.VectorNd;
 import maspack.util.DynamicArray;
 import maspack.util.FastRadialMarcher;
@@ -129,7 +130,7 @@ public class MFreeFactory {
       // surface mesh
       PolygonalMesh surface =
          MeshFactory.createQuadBox(
-            size[0], size[1], size[2], Point3d.ZERO, res[0], res[1], res[2], true);
+            size[0], size[1], size[2], res[0], res[1], res[2], true);
       surface.triangulate();
 
       // offset ipnts from border
@@ -238,7 +239,7 @@ public class MFreeFactory {
       Point3d[][][] pnts = new Point3d[nx][ny][nz];
 
       // BVFeatureQuery query = new BVFeatureQuery();
-      Vector3d sdres = new Vector3d(2*nx, 2*ny, 2*nz);
+      Vector3i sdres = new Vector3i(2*nx, 2*ny, 2*nz);
       sdres.x = Math.min(sdres.x, 30);
       sdres.y = Math.min(sdres.y, 30);
       sdres.z = Math.min(sdres.z, 30);

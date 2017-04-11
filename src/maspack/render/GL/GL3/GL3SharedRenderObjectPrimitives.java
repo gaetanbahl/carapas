@@ -123,11 +123,7 @@ public class GL3SharedRenderObjectPrimitives
 
       IndexBufferPutter indexPutter =
          IndexBufferPutter.getDefault(nVertices - 1);
-<<<<<<< HEAD
-      int gltype = indexPutter.storage().getGLType();
-=======
       int gltype = indexPutter.storage ().getGLType ();
->>>>>>> master
       final int INDEX_BYTES = indexPutter.bytesPerIndex();
 
       pointsInfo = createAttributeInfoArrays(robj.numPointGroups());
@@ -221,11 +217,7 @@ public class GL3SharedRenderObjectPrimitives
       GL3 gl, int mode, int gidx, int offset, int count) {
       drawElements(
          gl, mode, count, pointsInfo[gidx].type,
-<<<<<<< HEAD
-         pointsInfo[gidx].offset + offset * pointsInfo[gidx].stride);
-=======
          pointsInfo[gidx].offset + offset*pointsInfo[gidx].stride);
->>>>>>> master
    }
 
    public void drawLineGroup(GL3 gl, int mode, int gidx) {
@@ -238,11 +230,7 @@ public class GL3SharedRenderObjectPrimitives
       GL3 gl, int mode, int gidx, int offset, int count) {
       drawElements(
          gl, mode, 2 * count, linesInfo[gidx].type,
-<<<<<<< HEAD
-         linesInfo[gidx].offset + 2 * linesInfo[gidx].type * offset);
-=======
          linesInfo[gidx].offset+2*linesInfo[gidx].type*offset);
->>>>>>> master
    }
 
    public void drawTriangleGroup(GL3 gl, int mode, int gidx) {
@@ -255,11 +243,7 @@ public class GL3SharedRenderObjectPrimitives
       GL3 gl, int mode, int gidx, int offset, int count) {
       drawElements(
          gl, mode, 3 * count, trianglesInfo[gidx].type,
-<<<<<<< HEAD
-         trianglesInfo[gidx].offset + 3 * trianglesInfo[gidx].stride * offset);
-=======
          trianglesInfo[gidx].offset+3*trianglesInfo[gidx].stride*offset);
->>>>>>> master
    }
 
    public void drawInstancedPointGroup(
@@ -307,11 +291,7 @@ public class GL3SharedRenderObjectPrimitives
          instanceCount);
    }
 
-<<<<<<< HEAD
-   public static GL3SharedRenderObjectPrimitives generate(
-=======
    public static GL3SharedRenderObjectPrimitives generate (
->>>>>>> master
       GL3 gl, RenderObject robj, GL3VertexAttributeInfo position,
       GL3VertexAttributeInfo normal, GL3VertexAttributeInfo color,
       GL3VertexAttributeInfo texcoord) {
@@ -323,11 +303,7 @@ public class GL3SharedRenderObjectPrimitives
          new GL3SharedRenderObjectPrimitives(
             robj, staticVBO, dynamicVBO, ibo, position, normal, color,
             texcoord);
-<<<<<<< HEAD
-      out.maybeUpdate(gl, robj); // trigger a build
-=======
       out.maybeUpdate (gl, robj);  // trigger a build
->>>>>>> master
       return out;
    }
 

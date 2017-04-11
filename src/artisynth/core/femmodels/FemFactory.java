@@ -1133,6 +1133,14 @@ public class FemFactory {
       double R, double rin, double rout, int nt, int nl, int nr) {
 
       FemNode3d nodes[][][] = new FemNode3d[nt][nl][nr];
+      
+      // round nt and nl up to even to allow proper tesselation
+      if ((nt % 2) == 1) {
+         nt++;
+      }
+      if ((nl % 2) == 1) {
+         nl++;
+      }
 
       // round nt and nl up to even to allow proper tesselation
       if ((nt % 2) == 1) {
@@ -1738,7 +1746,6 @@ public class FemFactory {
       for (FemElement3d e : quadMod.getElements()) {
          double mass = e.getRestVolume() * density;
          e.setMass(mass);
-         // e.updateNodeMasses(mass);
          e.invalidateNodeMasses();
       }
       return quadMod;
@@ -2124,7 +2131,7 @@ public class FemFactory {
     * @param model model to which the elements should be added, or
     * <code>null</code> if the model is to be created from scratch. Note that
     * <code>model</code> must be different from <code>surfaceFem</code>
-    * @param n number of layers 
+    * @param n number of layers
     * @param d layer thickness
     * @param zOffset offset from the surface
     * @param surface surface mesh to extrude
