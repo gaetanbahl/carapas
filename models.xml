@@ -20,5 +20,9 @@
 		<!-- loads history -->
 		<history size="4" />
 	</menu>
+	<menu text="History">
+		<!-- loads history -->
+		<history size="4" />
+	</menu>
 
 </ModelMenu>

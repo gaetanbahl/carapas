@@ -852,7 +852,7 @@ public class GL3Viewer extends GLViewer {
          return;
       }
       
-      // XXX used instanced rendering?
+      // XXX use instanced rendering?
 
       // scale and translate model matrix
       pushModelMatrix();
@@ -1984,7 +1984,7 @@ public class GL3Viewer extends GLViewer {
          default: {
 
             myProgramInfo.setLineScaleOffsetEnabled (true);
-            updateProgram (gl, RenderingMode.INSTANCED_LINES, false, robj.hasColors (), false);
+            updateProgram (gl, RenderingMode.INSTANCED_LINES, true, robj.hasColors (), false);
             myProgramInfo.setLineScaleOffsetEnabled (false);
             
             switch (style) {
@@ -2063,7 +2063,7 @@ public class GL3Viewer extends GLViewer {
                point = getPrimitive (gl, PrimitiveType.CUBE);
             }
             gro.setRadius(gl, (float)rad);
-            updateProgram (gl, RenderingMode.INSTANCED_POINTS, robj.hasNormals (), 
+            updateProgram (gl, RenderingMode.INSTANCED_POINTS, true, 
                robj.hasColors (), robj.hasTextureCoords ());
             gro.drawInstancedPointGroup (gl, point, gidx, offset, count);
             break;

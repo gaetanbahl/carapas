@@ -1,19 +1,25 @@
 package artisynth.demos.test;
 
+import java.awt.Color;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 
 import artisynth.core.mechmodels.FixedMeshBody;
-import artisynth.core.workspace.DriverInterface;
 import artisynth.core.workspace.RootModel;
 import maspack.geometry.Face;
 import maspack.geometry.MeshFactory;
 import maspack.geometry.PolygonalMesh;
 import maspack.geometry.SignedDistanceGrid;
 import maspack.geometry.Vertex3d;
+import maspack.matrix.Point3d;
 import maspack.matrix.Vector3d;
+import maspack.matrix.Vector3i;
 import maspack.render.RenderProps;
+import maspack.render.Renderer;
+import maspack.render.Renderer.DrawMode;
+import maspack.render.Renderer.FaceStyle;
+import maspack.render.Renderer.Shading;
 
 public class SDGridTest extends RootModel {
    
@@ -116,14 +122,14 @@ public class SDGridTest extends RootModel {
       f[fidx++] = mesh.addFace(v[23], v[24], v[21]);
       f[fidx++] = mesh.addFace(v[24], v[25], v[21]);
       
-      //      // Move in some corner(s)
-      //      v[0].setPosition(new Point3d(0,0,0));
+      // Move in some corner(s)
+      v[0].setPosition(new Point3d(0,0,0));
       //      v[25].setPosition(new Point3d(0,0,0));
       
       int divisions = 3;
       mesh = MeshFactory.subdivide(mesh, divisions);
       
-      // randomize vertex order and re-number
+      // randomize vertex order and re-number (to test different chiralities)
       ArrayList<Vertex3d> vertices = mesh.getVertices();
       Collections.shuffle(vertices);
       for (int i=0; i<vertices.size(); ++i) {
@@ -132,9 +138,10 @@ public class SDGridTest extends RootModel {
       
       
       FixedMeshBody fm = new FixedMeshBody("cube", mesh);
+      RenderProps.setFaceStyle(fm, FaceStyle.FRONT_AND_BACK);
       addRenderable(fm);
       
-      int cells = 1<<(divisions+1);
+      int cells = 1<<(divisions+2);
       double margin = 1.0/cells;
       cells += 2;
       
@@ -148,7 +155,7 @@ public class SDGridTest extends RootModel {
             for (double z=-c+dx; z<c; z+=dx) {
                double d = sdgrid.getDistanceAndNormal(norm, x, y, z);
                // check bottom corner
-               if ((x < 0 && y < 0 && z < 0)||(x > 0 && y > 0 && z > 0)) {
+               if ((x < 0 && y < 0 && z < 0)) { //||(x > 0 && y > 0 && z > 0)) {
                   if (d < 0) {
                      System.err.println("Point (" + x + "," + y + "," + z + ") incorrectly labelled as inside");
                   }
@@ -165,17 +172,54 @@ public class SDGridTest extends RootModel {
    }
    
    @Override
-   public void attach(DriverInterface driver) {
-      super.attach(driver);
+   public void render (Renderer renderer, int flags) {
+
       
-      driver.getViewerManager().addRenderable(sdgrid);
-   }
+      if (sdgrid != null) {
+         Shading savedShading = renderer.getShading();
+         renderer.setShading (Shading.NONE);
+         renderer.setPointSize(5);
+         
+         Vector3d min = sdgrid.getMinCoords();
+         Vector3d max = sdgrid.getMaxCoords();
    
-   @Override
-   public void detach(DriverInterface driver) {
-      super.detach(driver);
-      
-      driver.getViewerManager().removeRenderable(sdgrid);
+         renderer.beginDraw (DrawMode.LINES); // Draw 4 vertical lines.
+         renderer.addVertex (max.x, max.y, max.z);
+         renderer.addVertex (max.x, max.y, min.z);
+         renderer.addVertex (min.x, max.y, max.z);
+         renderer.addVertex (min.x, max.y, min.z);
+         renderer.addVertex (min.x, min.y, max.z);
+         renderer.addVertex (min.x, min.y, min.z);
+         renderer.addVertex (max.x, min.y, max.z);
+         renderer.addVertex (max.x, min.y, min.z);
+         // Draw a diagonal line from max to min.
+         renderer.addVertex (min.x, min.y, min.z);
+         renderer.addVertex (max.x, max.y, max.z);
+         renderer.endDraw();
+         
+         
+         double[] phi = sdgrid.getDistances();
+         
+         // Draw the vertices on the grid.
+         Vector3d coords = new Vector3d();
+         for (int i = 0; i < phi.length; i++) {
+            Vector3i vxyz = new Vector3i();
+            sdgrid.vertexToXyzIndices (vxyz, i);
+            sdgrid.getVertexCoords (coords, vxyz);
+         
+            if (phi[i] <= 0) {
+               renderer.setColor(Color.BLUE);
+               renderer.drawPoint(coords);
+            } else {
+               renderer.setColor(Color.RED);
+               renderer.drawPoint(coords);
+            }
+            
+         }
+         
+         renderer.setPointSize(1);
+         renderer.setShading (savedShading);
+      }
    }
 
 }

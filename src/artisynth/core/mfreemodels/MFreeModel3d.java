@@ -64,6 +64,8 @@ import maspack.geometry.GeometryTransformer;
 import maspack.geometry.MeshBase;
 import maspack.geometry.PolygonalMesh;
 import maspack.geometry.Vertex3d;
+import maspack.geometry.SignedDistanceGrid;
+import maspack.geometry.GeometryTransformer;
 import maspack.matrix.AffineTransform3dBase;
 import maspack.matrix.DenseMatrix;
 import maspack.matrix.EigenDecomposition;
@@ -1727,6 +1729,16 @@ ScalableUnits, MechSystemModel, Collidable, CopyableComponent {
 
    public MeshBase getMesh(int idx) {
       return myMeshList.get(idx).getMesh();
+   }
+
+   @Override
+   public boolean hasDistanceGrid() {
+      return false;
+   }
+   
+   @Override   
+   public SignedDistanceGrid getDistanceGrid() {
+      return null;
    }
 
    @Override

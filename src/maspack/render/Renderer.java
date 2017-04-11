@@ -1813,9 +1813,39 @@ public interface Renderer {
    
    /**
     * Draws all the primitives in the first point, line and triangles groups.
-    * @param robj
+    * @param robj render object
     */
-   public void draw(RenderObject robj);
+   public void draw (RenderObject robj);
+   
+   /**
+    * Draws the specified group of triangles, repeated for each instance
+    * in rinst.
+    * @param robj object to draw
+    * @param gidx triangle group to draw
+    * @param rinst instance to draw
+    */
+   public void drawTriangles(RenderObject robj, int gidx, RenderInstances rinst);
+
+   /**
+    * Draws the specified group of lines, repeated for each instance
+    * in rinst.  Lines are drawn as {@link LineStyle#LINE} and use the
+    * current line-width, as determined by {@link #getLineWidth()}.
+    * @param robj object to draw
+    * @param gidx line group to draw
+    * @param rinst instance to draw
+    */
+   public void drawLines(RenderObject robj, int gidx, RenderInstances rinst);
+   
+   /**
+    * Draws the specified group of points, repeated for each instance
+    * in rinst.  Points are drawn as {@link PointStyle#POINT} and use the
+    * current point-size, as determined by {@link #getPointSize()}.
+    * 
+    * @param robj object to draw
+    * @param gidx point group to draw
+    * @param rinst instance to draw
+    */
+   public void drawPoints(RenderObject robj, int gidx, RenderInstances rinst);
    
    /**
     * Draws the specified group of triangles, repeated for each instance
@@ -2217,7 +2247,7 @@ public interface Renderer {
     * manages its own selection; this call should
     * be used in place of {@link #beginSelectionQuery} for such objects.
     * Selectables that manage their own selection are identified by
-    * having a value <code>numq</code> >= 0, where <code>numq</code>
+    * having a value {@code numq >= 0}, where <code>numq</code>
     * is the value returned by
     * {@link maspack.render.IsSelectable#numSelectionQueriesNeeded
     * IsSelectable#numSelectionQueriesNeeded{}}.

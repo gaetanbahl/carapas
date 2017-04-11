@@ -205,7 +205,6 @@ public abstract class GLSharedResources implements GLEventListener, GLGarbageSou
    /**
     * Unregisters a particular viewer with this set of resources.
     * MUST BE CALLED IN THE GLViewer's dispose() METHOD.
-    * @param viewer
     */
    public synchronized void deregisterViewer(Object viewer) {
       viewers.remove (viewer);
@@ -221,7 +220,6 @@ public abstract class GLSharedResources implements GLEventListener, GLGarbageSou
    
    /**
     * Clears all resources with the associated with the master
-    * @param gl
     */
    public void dispose(GL gl) {
       for (GLTexture tex : textureMap.values ()) {
@@ -413,7 +411,6 @@ public abstract class GLSharedResources implements GLEventListener, GLGarbageSou
     * Runs garbage collection if sufficient time has
     * passed since the last collection, as specified
     * by the garbage collection interval
-    * @param gl
     * @return true if garbage collection run
     */
    public boolean maybeRunGarbageCollection(GL gl) {
@@ -423,7 +420,6 @@ public abstract class GLSharedResources implements GLEventListener, GLGarbageSou
    /**
     * Enables or disables an automatic garbage timer.  This
     * timer runs on a separate thread.
-    * @param set
     */
    public void setGarbageTimerEnabled(boolean set) {
       if (set != garbageTimerEnabled) {
