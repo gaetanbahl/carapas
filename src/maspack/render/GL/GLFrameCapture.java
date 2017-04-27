@@ -11,16 +11,52 @@ import javax.media.opengl.GL2;
 import javax.media.opengl.GL2GL3;
 
 import maspack.concurrency.SimpleThreadManager;
-
+import maspack.render.GL.GLViewer.ScreenShotCallback;
 
 public class GLFrameCapture {
 
+   private static class ImageSaverCallback implements ScreenShotCallback {
+      File file;
+      String format;
+      
+      public ImageSaverCallback(File file, String fmt) {
+         this.file = file;
+         this.format = fmt;
+      }
+
+      @Override
+      public void screenshot(BufferedImage image) {
+         try {
+            ImageIO.write (image, format, file);
+         }
+         catch (IOException io_e) {
+            io_e.printStackTrace();
+         }
+      }
+      
+   }
+   
    SimpleThreadManager imageThreadManager;
    
-   private File file;
-   private String format;
+   
+   private ScreenShotCallback callback;
    private FrameBufferObject fbo;
    private volatile boolean lock;
+   
+   private GLFrameCapture(int x, int y, int w, int h, 
+      int nsamples, boolean gammaCorrected,
+      ScreenShotCallback callback) {
+      
+      fbo = new FrameBufferObject(x, y, w, h, nsamples, gammaCorrected);
+      lock = false;
+      this.callback = callback;
+   }
+   
+   public GLFrameCapture(
+      int w, int h, int nsamples, boolean gammaCorrected, 
+      ScreenShotCallback callback) {
+      this(0, 0, w, h, nsamples, gammaCorrected, callback);
+   }
    
    public GLFrameCapture(
       int w, int h, int nsamples, boolean gammaCorrected, 
@@ -31,12 +67,13 @@ public class GLFrameCapture {
    public GLFrameCapture(
       int x, int y, int w, int h, int nsamples, boolean gammaCorrected, 
       File file, String format) {
-      this.file = file;
-      this.format = format;
-      fbo = new FrameBufferObject(x, y, w, h, nsamples, gammaCorrected);
-      lock = false;
+      this(x, y, w, h, nsamples, gammaCorrected, 
+         new ImageSaverCallback(file, format));
    }
    
+   /**
+    * @return underlying frame buffer object
+    */
    public FrameBufferObject getFBO() {
       return fbo;
    }
@@ -65,30 +102,26 @@ public class GLFrameCapture {
    public synchronized void unlock() {
       lock = false;
    }
+
+   public void reconfigure(GL2GL3 gl, int w, int h, int nsamples, boolean gammaCorrection, 
+      File file, String format) {
+      reconfigure(gl, 0, 0, w, h, nsamples, gammaCorrection, new ImageSaverCallback(file, format));
+   }
    
-   //   public void reconfigure(int w, int h, File file, String format) {
-   //      this.file = file;
-   //      this.format = format;
-   //      fbo.reconfigure(w, h, -1);
-   //   }
+   public void reconfigure(GL2GL3 gl, int x, int y, int w, int h, int nsamples, boolean gammaCorrection, 
+      File file, String format) {
+      reconfigure(gl, x, y, w, h, nsamples, gammaCorrection, new ImageSaverCallback(file, format));
+   }
    
-   //   public void reconfigure(int x, int y, int w, int h, File file, String format) {
-   //      this.file = file;
-   //      this.format = format;
-   //      fbo.reconfigure(x, y, w, h, -1);
-   //   }
-   
-   public void reconfigure(GL2GL3 gl, int w, int h, int nsamples, boolean gammaCorrection, File file, String format) {
-      this.file = file;
-      this.format = format;
-      fbo.configure(gl, w, h, nsamples, gammaCorrection);
+   public void reconfigure(GL2GL3 gl, int w, int h, int nsamples, 
+      boolean gammaCorrection, ScreenShotCallback callback) {
+      reconfigure(gl, 0, 0, w, h, nsamples, gammaCorrection, callback);
    }
    
    public void reconfigure(GL2GL3 gl, int x, int y, int w, int h, int nsamples, 
-      boolean gammaCorrection, File file, String format) {
-      this.file = file;
-      this.format = format;
+      boolean gammaCorrection, ScreenShotCallback callback) {
       fbo.configure(gl, x, y, w, h, nsamples, gammaCorrection);
+      this.callback = callback;
    }
    
    public void activateFBO(GL2GL3 gl) {
@@ -100,44 +133,18 @@ public class GLFrameCapture {
       fbo.deactivate(gl);
    }
    
-   private static class ImageWriterRunnable implements Runnable {
+   private static class CallbackRunnable implements Runnable {
       
-      private int width;
-      private int height;
-      private String format;
-      private File file;
-      int[] pixelsARGB;
+      BufferedImage image;
+      ScreenShotCallback callback;
       
-      public ImageWriterRunnable(String format, File file, 
-         int width, int height, int[] pixelsARGB) {
-         this.width = width;
-         this.height = height;
-         this.file = file;
-         this.format = format;
-         this.pixelsARGB = pixelsARGB;
+      public CallbackRunnable(ScreenShotCallback callback, BufferedImage image) {
+         this.callback = callback;
+         this.image = image;
       }
       
       public void run() {
-         // JPG for some reason breaks if we turn on the alpha layer.
-         // JPG doesn't support alpha anyways.
-         BufferedImage image = null;
-         if (format.equalsIgnoreCase("jpg") || format.equalsIgnoreCase("jpeg")) {
-            image = new BufferedImage (width, height, BufferedImage.TYPE_INT_RGB);
-         } else {
-            image = new BufferedImage (width, height, BufferedImage.TYPE_INT_RGB);
-         }
-         
-         image.setRGB (0, 0,
-                       width, height,
-                       pixelsARGB,
-                       0, width);
-         
-         try {
-            ImageIO.write (image, format, file);
-         }
-         catch (IOException io_e) {
-            io_e.printStackTrace();
-         }
+        callback.screenshot(image);
       }
    }
    
@@ -148,16 +155,34 @@ public class GLFrameCapture {
 
       // Get the ARGB pixels as integers.
       int[] pixelsARGB = fbo.getPixelsARGB (gl);
+      
+      // JPG for some reason breaks if we turn on the alpha layer.
+      // JPG doesn't support alpha anyways.
+      BufferedImage image = createImage(fbo.getWidth(), fbo.getHeight(), pixelsARGB);
+      
       if (imageThreadManager == null) {
          imageThreadManager = new SimpleThreadManager("GLFrameCapture", 1, 5000);
       }
       
       // write image in separate thread
       synchronized (imageThreadManager) {
-         imageThreadManager.execute(new ImageWriterRunnable(format, file, 
-            fbo.getWidth(), fbo.getHeight(), pixelsARGB));  
+         imageThreadManager.execute(new CallbackRunnable(callback, image));  
       }
       
+   }
+   
+   private static BufferedImage createImage(int width, int height, int[] pixelsARGB) {
+     
+      BufferedImage image = new BufferedImage (width, height, BufferedImage.TYPE_INT_RGB);
+      image.setRGB (0, 0, width, height, pixelsARGB, 0, width);
+      return image;
+   }
+   
+   public BufferedImage captureImage(GL2GL3 gl) {
+      // Get the ARGB pixels as integers.
+      int[] pixelsARGB = fbo.getPixelsARGB (gl);
+      
+      return createImage(fbo.getWidth(), fbo.getHeight(), pixelsARGB);
    }
    
    public void waitForCompletion() {

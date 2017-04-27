@@ -593,6 +593,9 @@ public class GL3Viewer extends GLViewer {
       //                          transparency to be off)
       maybeUpdateState(gl);
       
+      // detach any vertex arrays
+      VertexArrayObject.bindDefault(gl);
+      
       gl.glFlush();
    }
 
@@ -692,10 +695,23 @@ public class GL3Viewer extends GLViewer {
       }
       grab = true;
    }
-
+   
    @Override
-   public void setupScreenShot(int w, int h, File file, String format) {
-      setupScreenShot(w, h, -1, file, format);
+   public void setupScreenShot(int w, int h, int samples, ScreenShotCallback callback) {
+      boolean gammaCorrection = isGammaCorrectionEnabled();
+      GLFrameCapture fc = frameCapture;
+      if (fc == null) {
+         fc = new GLFrameCapture (w, h, samples, gammaCorrection, callback);
+         fc.lock();
+         frameCapture = fc;
+      }
+      else {
+         synchronized(fc) {
+            fc.lock();
+            fc.reconfigure(gl, w, h, samples, gammaCorrection, callback);
+         }
+      }
+      grab = true;
    }
 
    public void awaitScreenShotCompletion() {

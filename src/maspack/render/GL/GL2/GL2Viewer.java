@@ -2174,6 +2174,32 @@ public class GL2Viewer extends GLViewer implements HasProperties {
       }
       grab = true;
    }
+   
+   /**
+    * Setup for a screenshot during the next render cycle
+    * @param w width of shot
+    * @param h height of shot
+    * @param samples number of samples to use for the
+    *        multisample FBO (does antialiasing)
+    * @param callback callback to be notified when screenshot is complete
+    */
+   public void setupScreenShot (int w, int h, int samples, 
+      ScreenShotCallback callback) {
+      boolean gammaCorrection = isGammaCorrectionEnabled();
+      GLFrameCapture fc = frameCapture;
+      if (fc == null) {
+         fc = new GLFrameCapture (w, h, samples, gammaCorrection, callback);
+         fc.lock();
+         frameCapture = fc;
+      }
+      else {
+         synchronized(fc) {
+            fc.lock();  // lock until screen capture is complete
+            fc.reconfigure(gl, w, h, samples, gammaCorrection, callback);
+         }
+      }
+      grab = true;
+   }
 
    public void setupScreenShot (
       int w, int h, File file, String format) {

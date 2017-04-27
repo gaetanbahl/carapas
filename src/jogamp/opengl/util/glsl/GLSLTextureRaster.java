@@ -26,7 +26,11 @@
  * or implied, of JogAmp Community.
  */
 
-package maspack.render.GL.jogl;
+/**
+ * Replace the GLSLTextureRaster, forcing it to use its own Vertex Array Object
+ * Otherwise, it will sometimes fail to draw
+ */
+package jogamp.opengl.util.glsl;
 
 import java.nio.FloatBuffer;
 
@@ -170,6 +174,7 @@ public class GLSLTextureRaster  {
         if(null != sp) {
             sp.useProgram(gl, true);
             
+            // XXX attach VAO
             if (gl.isGL2ES3()) {
                GL2ES3 gl3 = gl.getGL2ES3();
                if (VAO == -1) {
@@ -187,6 +192,7 @@ public class GLSLTextureRaster  {
             interleavedVBO.enableBuffer(gl, false);
             sp.useProgram(gl, false);
             
+            // XXX detach VAO
             if (gl.isGL2ES3()) {
                GL2ES3 gl3 = gl.getGL2ES3();
                gl3.glBindVertexArray(0);  // unbind vertex array

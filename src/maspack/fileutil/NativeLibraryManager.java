@@ -220,7 +220,11 @@ public class NativeLibraryManager {
 
    LibDesc createDesc (String libName) {
       return new LibDesc (libName);
-   }         
+   }    
+   
+   LibDesc createDesc (String libName, String srcName) {
+      return new LibDesc (libName, null);
+   }    
 
    /**
     * Descriptor for a library name, which breaks out its basename, version
@@ -230,12 +234,17 @@ public class NativeLibraryManager {
    class LibDesc {
       SystemType mySys; // General system type associated with the library
       String myBasename;    // Library basename
+      String mySourceName;  // Library source location
       String myVersionStr;  // version string, or "" if none
       int myMajorNum;       // major version number, or -1 if none
       int myMinorNum;       // minor version number, or -1 if none
       
       public LibDesc (String libName) {
-         set (libName);
+         set (libName, null);
+      }
+      
+      public LibDesc (String libDestName, String libSrcName) {
+         set (libDestName, libSrcName);
       }
 
       private String setVersionInfo (String str) {
@@ -258,60 +267,70 @@ public class NativeLibraryManager {
        * Sets the components of this description from a string name.
        */
       public void set (String libName) {
+         set(libName, null);
+      }
 
+      /**
+       * Sets the components of this description from a string name.
+       */
+      public void set(String libDestName, String libSrcName) {
+
+         // explicit source location
+         mySourceName = libSrcName;
+         
          // check for explicit library names first ... 
-         if (libName.endsWith (".dll")) {
+         if (libDestName.endsWith (".dll")) {
             // indicates a Windows library
             mySys = SystemType.Windows;
-            String base = libName.substring (0, libName.length()-4);
+            String base = libDestName.substring (0, libDestName.length()-4);
             myBasename = setVersionInfo (base);
          }
-         else if (libName.endsWith (".dylib")) {
+         else if (libDestName.endsWith (".dylib")) {
             // indicates a MacOS library
-            if (!libName.startsWith ("lib")) {
+            if (!libDestName.startsWith ("lib")) {
                throw new IllegalArgumentException (
-                  "Illegal library name: "+libName+" should have 'lib' prefix");
+                  "Illegal library name: "+libDestName+" should have 'lib' prefix");
             }
             mySys = SystemType.MacOS;
-            String base = libName.substring (3, libName.length()-6);
+            String base = libDestName.substring (3, libDestName.length()-6);
             myBasename = setVersionInfo (base);
          }
-         else if (libName.endsWith (".so")) {
+         else if (libDestName.endsWith (".so")) {
             // indicates a Linux library
-            if (!libName.startsWith ("lib")) {
+            if (!libDestName.startsWith ("lib")) {
                throw new IllegalArgumentException (
-                  "Illegal library name: "+libName+" should have 'lib' prefix");
+                  "Illegal library name: "+libDestName+" should have 'lib' prefix");
             }
             mySys = SystemType.Linux;
-            myBasename = libName.substring (3, libName.length()-3);
+            myBasename = libDestName.substring (3, libDestName.length()-3);
             myVersionStr = "";
             myMajorNum = -1;
             myMinorNum = -1;
          }
-         else if (libName.contains (".so.")) {
+         else if (libDestName.contains (".so.")) {
             // also indicates a Linux library
-            if (!libName.startsWith ("lib")) {
+            if (!libDestName.startsWith ("lib")) {
                throw new IllegalArgumentException (
-                  "Illegal library name: "+libName+" should have 'lib' prefix");
+                  "Illegal library name: "+libDestName+" should have 'lib' prefix");
             }
-            int idx = libName.lastIndexOf (".so.");
-            setVersionInfo (libName.substring (idx+3));
+            int idx = libDestName.lastIndexOf (".so.");
+            setVersionInfo (libDestName.substring (idx+3));
             if (myVersionStr.equals ("")) {
                throw new IllegalArgumentException (
-                  "Illegal library name: '"+libName+"'");
+                  "Illegal library name: '"+libDestName+"'");
             }
             mySys = SystemType.Linux;
-            myBasename = libName.substring (3, idx);            
+            myBasename = libDestName.substring (3, idx);            
          }
          else {
             // generic library name - no system
             mySys = SystemType.Generic;
-            myBasename = setVersionInfo (libName);
+            myBasename = setVersionInfo (libDestName);
          }
 
          if (myBasename.equals ("")) {
             throw new IllegalArgumentException (
-                  "Illegal library name: '"+libName+"'");
+                  "Illegal library name: '"+libDestName+"'");
          }
       }
 
@@ -411,6 +430,13 @@ public class NativeLibraryManager {
          return builder.toString();
       }
 
+      public String getSourceName(SystemType sysType) {
+         if (mySourceName != null) {
+            return mySourceName;   
+         }
+         return getFileName(sysType);
+      }
+      
       /**
        * Checks to see if an indicated system type is compatible with
        * the system type associated with this library.
@@ -563,6 +589,10 @@ public class NativeLibraryManager {
    String getFileName (LibDesc desc) {
       return desc.getFileName (mySystemType);
    }
+   
+   String getSourceName(LibDesc desc) {
+      return desc.getSourceName (mySystemType);
+   }
 
    /**
     * Returns the system-specific file name for the named library.  For
@@ -667,7 +697,7 @@ public class NativeLibraryManager {
       }
       String localLibFile = libFile.toString();
       String remoteLibFile =
-         myRemoteHost+"/"+getNativeDirectoryName()+"/"+getFileName(desc);
+         myRemoteHost+"/"+getNativeDirectoryName()+"/"+getSourceName(desc);
       boolean grab = true;
       if (checkHash) {
          grab = !Manager.equalsHash(
@@ -807,14 +837,15 @@ public class NativeLibraryManager {
     * formatted.
     *
     * @param libName name of the library.
+    * @param srcName optional source name of the library (to download from server)
     * @throws maspack.fileutil.NativeLibraryException if the required library
     * is not present and cannot be obtained.
     */
-   public static void verify (String libName) {
+   public static void verify (String libName, String srcName) {
       if (myManager == null) {
          myManager = new NativeLibraryManager ();
       }
-      LibDesc desc = myManager.createDesc (libName);
+      LibDesc desc = myManager.createDesc (libName, srcName);
       if (desc.matchesSystem(myManager.mySystemType)) {
          if (myManager.getLibraryPath (desc) == null) {
             Exception grabEx = myManager.myGrabException;

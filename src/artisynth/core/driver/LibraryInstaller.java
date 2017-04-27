@@ -9,6 +9,7 @@ package artisynth.core.driver;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashMap;
 import java.util.LinkedList;
 
 import artisynth.core.util.ArtisynthIO;
@@ -38,6 +39,7 @@ public class LibraryInstaller {
 
    protected LinkedList<String> myJarnames = new LinkedList<String>();
    protected LinkedList<String> myLibnames = new LinkedList<String>();
+   protected HashMap<String,String> myLibSourceMap = new HashMap<>();  // source names
    protected File myLibDir;
 
    public String getRemoteSource () {
@@ -55,11 +57,18 @@ public class LibraryInstaller {
    }
 
    public void addLibrary (String libName) {
-      if (libName.endsWith (".jar")) {
-         myJarnames.add (libName);
+      addLibrary(libName, libName);
+   }
+   
+   public void addLibrary (String libSourceName, String libDestName) {
+      if (libDestName.endsWith (".jar")) {
+         myJarnames.add (libDestName);
       }
       else {
-         myLibnames.add (libName);
+         myLibnames.add (libDestName);
+      }
+      if (libSourceName != null) {
+         myLibSourceMap.put(libDestName, libSourceName);
       }
    }
 
@@ -231,8 +240,12 @@ public class LibraryInstaller {
          }
          NativeLibraryManager.setFlags (newFlags);         
          for (String libname : myLibnames) {
+            String srcname = myLibSourceMap.get(libname);
+            if (srcname == null) {
+               srcname = libname;
+            }
             try {
-               NativeLibraryManager.verify (libname);
+               NativeLibraryManager.verify (libname, srcname);
             }
             catch (Exception e) {
                if (isConnectionException (e)) {
@@ -272,9 +285,13 @@ public class LibraryInstaller {
          int options = (updateLibs ? FileManager.CHECK_HASH : 0);
          for (String jarname : myJarnames) {
             File jfile = new File (myLibDir, jarname);
+            String srcname = myLibSourceMap.get(jarname);
+            if (srcname == null) {
+               srcname = jarname;
+            }
             if (!jfile.exists()) {
                try {
-                  grabber.getRemote (jarname);
+                  grabber.getRemote (jarname, srcname);
                   System.out.println ("Downloaded jar file "+jfile);
                }
                catch (Exception e) {
@@ -288,8 +305,8 @@ public class LibraryInstaller {
             }
             else if (updateLibs) {
                try {
-                  if (!grabber.equalsHash (jarname)) {
-                     grabber.getRemote (jarname);
+                  if (!grabber.equalsHash (jarname, srcname)) {
+                     grabber.getRemote (jarname, srcname);
                   }
                   System.out.println ("Updated jar file "+jfile);
                }
@@ -306,32 +323,33 @@ public class LibraryInstaller {
       return allOK;
    }
 
-   protected void maybeAddLibrary (String libName, SystemType sysType) {
+   protected void maybeAddLibrary (String libSourceName, String libDestName, SystemType sysType) {
 
       if (sysType != null) {
          if (!NativeLibraryManager.getSystemType().isInstanceOf (sysType)) {
             return;
          }
       }
-      if (!libName.endsWith (".jar")) {
-         if (NativeLibraryManager.libraryMatchesSystem (libName)) {
-            addLibrary (libName);
+      if (!libDestName.endsWith (".jar")) {
+         if (NativeLibraryManager.libraryMatchesSystem (libDestName)) {
+            addLibrary (libSourceName, libDestName);
          }
          else if (sysType != null) {
             System.out.println (
-               "Warning: library "+libName+
+               "Warning: library "+libDestName+
                " does not match system "+sysType+", ignoring");
          }
       }
       else {
-         addLibrary (libName);         
+         addLibrary (libSourceName, libDestName);         
       }
    }
 
    protected void readLine (ReaderTokenizer rtok) throws IOException {
       String word1 = null;
       String word2 = null;
-
+      String word3 = null;
+      
       rtok.nextToken();
       while (rtok.ttype != ReaderTokenizer.TT_EOF && 
              rtok.ttype != ReaderTokenizer.TT_EOL) {
@@ -341,21 +359,43 @@ public class LibraryInstaller {
          else if (word2 == null && rtok.tokenIsWord()) {
             word2 = rtok.sval;
          }
+         else if (word3 == null && rtok.tokenIsWord()) {
+            word3 = rtok.sval;
+         }
          else {
             throw new IOException ("Unexpected token "+rtok);
          }
          rtok.nextToken();
       }
+      
+      SystemType sysType = null;
+      String libdest = null;
+      String libsource = null;
+      
+      // check first word for system type
       if (word2 != null) {
-         SystemType sysType = NativeLibraryManager.getSystemType (word1);
-         if (sysType == SystemType.Unknown || sysType == null) {
+         // try word1 for system type
+         sysType = NativeLibraryManager.getSystemType (word1);
+         if (sysType != SystemType.Unknown && sysType != null) {
+            // shift down
+            word1 = word2;
+            word2 = word3;
+            word3 = null;
+         } else if (word3 != null) {
             throw new IOException (
-                "Illegal system specifier '"+word1+"', line "+rtok.lineno());
+               "Illegal system specifier '"+word1+"', line "+rtok.lineno());
          }
-         maybeAddLibrary (word2, /*system=*/sysType);
       }
-      else if (word1 != null) {
-         maybeAddLibrary (word1, /*system=*/null);
+      
+      libsource = word1;
+      if (word2 != null) {
+         libdest = word2;
+      } else {
+         libdest = word1;
+      }
+      
+      if (libsource != null) {
+         maybeAddLibrary (libsource, libdest, /*system=*/sysType);
       }
    }
 

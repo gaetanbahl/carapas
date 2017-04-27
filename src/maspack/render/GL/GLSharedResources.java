@@ -17,10 +17,10 @@ import javax.media.opengl.GLDrawableFactory;
 import javax.media.opengl.GLEventListener;
 import javax.media.opengl.GLProfile;
 import javax.media.opengl.awt.GLCanvas;
+import javax.media.opengl.awt.GLJPanel;
 
 import maspack.render.TextureContent;
 import maspack.render.TextureContent.ContentFormat;
-import maspack.render.GL.jogl.GLJPanel;
 import maspack.util.BufferUtilities;
 import maspack.util.Logger;
 import maspack.util.Rectangle;
