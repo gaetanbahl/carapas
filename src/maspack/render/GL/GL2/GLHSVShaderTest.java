@@ -6,9 +6,9 @@
  */
 package maspack.render.GL.GL2;
 
-import javax.media.opengl.GL;
-import javax.media.opengl.GL2;
-import javax.media.opengl.fixedfunc.GLLightingFunc;
+import com.jogamp.opengl.GL;
+import com.jogamp.opengl.GL2;
+import com.jogamp.opengl.fixedfunc.GLLightingFunc;
 
 import maspack.matrix.Point3d;
 import maspack.matrix.Vector3d;
@@ -33,7 +33,7 @@ public class GLHSVShaderTest implements IsRenderable {
       if (renderer instanceof GL2Viewer) {
          GL2 gl = ((GL2Viewer)renderer).getGL2();
 
-         int shader = GLHSVShader.getShaderProgram(gl);
+         long shader = GLHSVShader.getShaderProgram(gl);
          if (shader != -1) {
             gl.glUseProgramObjectARB (shader);
          }

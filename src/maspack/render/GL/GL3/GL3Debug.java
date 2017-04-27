@@ -8,27 +8,27 @@ import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.nio.ShortBuffer;
 
-import javax.media.opengl.GL;
-import javax.media.opengl.GL2;
-import javax.media.opengl.GL2ES1;
-import javax.media.opengl.GL2ES2;
-import javax.media.opengl.GL2ES3;
-import javax.media.opengl.GL2GL3;
-import javax.media.opengl.GL3;
-import javax.media.opengl.GL3ES3;
-import javax.media.opengl.GL3bc;
-import javax.media.opengl.GL4;
-import javax.media.opengl.GL4ES3;
-import javax.media.opengl.GL4bc;
-import javax.media.opengl.GLArrayData;
-import javax.media.opengl.GLBufferStorage;
-import javax.media.opengl.GLContext;
-import javax.media.opengl.GLES1;
-import javax.media.opengl.GLES2;
-import javax.media.opengl.GLES3;
-import javax.media.opengl.GLException;
-import javax.media.opengl.GLProfile;
-import javax.media.opengl.GLUniformData;
+import com.jogamp.opengl.GL;
+import com.jogamp.opengl.GL2;
+import com.jogamp.opengl.GL2ES1;
+import com.jogamp.opengl.GL2ES2;
+import com.jogamp.opengl.GL2ES3;
+import com.jogamp.opengl.GL2GL3;
+import com.jogamp.opengl.GL3;
+import com.jogamp.opengl.GL3ES3;
+import com.jogamp.opengl.GL3bc;
+import com.jogamp.opengl.GL4;
+import com.jogamp.opengl.GL4ES3;
+import com.jogamp.opengl.GL4bc;
+import com.jogamp.opengl.GLArrayData;
+import com.jogamp.opengl.GLBufferStorage;
+import com.jogamp.opengl.GLContext;
+import com.jogamp.opengl.GLES1;
+import com.jogamp.opengl.GLES2;
+import com.jogamp.opengl.GLES3;
+import com.jogamp.opengl.GLException;
+import com.jogamp.opengl.GLProfile;
+import com.jogamp.opengl.GLUniformData;
 
 import com.jogamp.common.nio.PointerBuffer;
 
@@ -623,22 +623,13 @@ public class GL3Debug implements GL3 {
 
    public void glClearNamedBufferDataEXT(
       int arg0, int arg1, int arg2, int arg3, Buffer arg4) {
-      System.out.println(
-         "glClearNamedBufferDataEXT(" + arg0 + "," + arg1 + "," + arg2 + ","
-            + arg3 + "," + arg4 + ")");
-      gl.glClearNamedBufferDataEXT(arg0, arg1, arg2, arg3, arg4);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glClearNamedBufferSubDataEXT(
       int arg0, int arg1, int arg2, int arg3, long arg4, long arg5,
       Buffer arg6) {
-      gl.glClearNamedBufferSubDataEXT(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glClearStencil(int arg0) {
@@ -690,53 +681,27 @@ public class GL3Debug implements GL3 {
    }
 
    public void glColorP3ui(int arg0, int arg1) {
-      System.out.println("glColorP3ui(" + arg0 + "," + arg1 + ")");
-      gl.glColorP3ui(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glColorP3uiv(int arg0, int[] arg1, int arg2) {
-      System.out
-         .println("glColorP3uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glColorP3uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glColorP3uiv(int arg0, IntBuffer arg1) {
-      System.out.println("glColorP3uiv(" + arg0 + "," + arg1 + ")");
-      gl.glColorP3uiv(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glColorP4ui(int arg0, int arg1) {
-      System.out.println("glColorP4ui(" + arg0 + "," + arg1 + ")");
-      gl.glColorP4ui(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glColorP4uiv(int arg0, int[] arg1, int arg2) {
-      System.out
-         .println("glColorP4uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glColorP4uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glColorP4uiv(int arg0, IntBuffer arg1) {
-      System.out.println("glColorP4uiv(" + arg0 + "," + arg1 + ")");
-      gl.glColorP4uiv(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glCompileShader(int arg0) {
@@ -2356,24 +2321,12 @@ public class GL3Debug implements GL3 {
 
    public void glGetNamedFramebufferParameterivEXT(
       int arg0, int arg1, int[] arg2, int arg3) {
-      System.out.println(
-         "glGetNamedFramebufferParameterivEXT(" + arg0 + "," + arg1 + "," + arg2
-            + "," + arg3 + ")");
-      gl.glGetNamedFramebufferParameterivEXT(arg0, arg1, arg2, arg3);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glGetNamedFramebufferParameterivEXT(
       int arg0, int arg1, IntBuffer arg2) {
-      System.out.println(
-         "glGetNamedFramebufferParameterivEXT(" + arg0 + "," + arg1 + "," + arg2
-            + ")");
-      gl.glGetNamedFramebufferParameterivEXT(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glGetNamedStringARB(
@@ -3622,125 +3575,55 @@ public class GL3Debug implements GL3 {
    }
 
    public void glMultiTexCoordP1ui(int arg0, int arg1, int arg2) {
-      System.out.println(
-         "glMultiTexCoordP1ui(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glMultiTexCoordP1ui(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glMultiTexCoordP1uiv(int arg0, int arg1, int[] arg2, int arg3) {
-      System.out.println(
-         "glMultiTexCoordP1uiv(" + arg0 + "," + arg1 + "," + arg2 + "," + arg3
-            + ")");
-      gl.glMultiTexCoordP1uiv(arg0, arg1, arg2, arg3);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glMultiTexCoordP1uiv(int arg0, int arg1, IntBuffer arg2) {
-      System.out.println(
-         "glMultiTexCoordP1uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glMultiTexCoordP1uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glMultiTexCoordP2ui(int arg0, int arg1, int arg2) {
-      System.out.println(
-         "glMultiTexCoordP2ui(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glMultiTexCoordP2ui(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glMultiTexCoordP2uiv(int arg0, int arg1, int[] arg2, int arg3) {
-      System.out.println(
-         "glMultiTexCoordP2uiv(" + arg0 + "," + arg1 + "," + arg2 + "," + arg3
-            + ")");
-      gl.glMultiTexCoordP2uiv(arg0, arg1, arg2, arg3);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glMultiTexCoordP2uiv(int arg0, int arg1, IntBuffer arg2) {
-      System.out.println(
-         "glMultiTexCoordP2uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glMultiTexCoordP2uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glMultiTexCoordP3ui(int arg0, int arg1, int arg2) {
-      System.out.println(
-         "glMultiTexCoordP3ui(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glMultiTexCoordP3ui(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glMultiTexCoordP3uiv(int arg0, int arg1, int[] arg2, int arg3) {
-      System.out.println(
-         "glMultiTexCoordP3uiv(" + arg0 + "," + arg1 + "," + arg2 + "," + arg3
-            + ")");
-      gl.glMultiTexCoordP3uiv(arg0, arg1, arg2, arg3);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glMultiTexCoordP3uiv(int arg0, int arg1, IntBuffer arg2) {
-      System.out.println(
-         "glMultiTexCoordP3uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glMultiTexCoordP3uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glMultiTexCoordP4ui(int arg0, int arg1, int arg2) {
-      System.out.println(
-         "glMultiTexCoordP4ui(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glMultiTexCoordP4ui(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glMultiTexCoordP4uiv(int arg0, int arg1, int[] arg2, int arg3) {
-      System.out.println(
-         "glMultiTexCoordP4uiv(" + arg0 + "," + arg1 + "," + arg2 + "," + arg3
-            + ")");
-      gl.glMultiTexCoordP4uiv(arg0, arg1, arg2, arg3);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glMultiTexCoordP4uiv(int arg0, int arg1, IntBuffer arg2) {
-      System.out.println(
-         "glMultiTexCoordP4uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glMultiTexCoordP4uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glNamedFramebufferParameteriEXT(int arg0, int arg1, int arg2) {
-      System.out.println(
-         "glNamedFramebufferParameteriEXT(" + arg0 + "," + arg1 + "," + arg2
-            + ")");
-      gl.glNamedFramebufferParameteriEXT(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glNamedStringARB(
@@ -3763,28 +3646,15 @@ public class GL3Debug implements GL3 {
    }
 
    public void glNormalP3ui(int arg0, int arg1) {
-      System.out.println("glNormalP3ui(" + arg0 + "," + arg1 + ")");
-      gl.glNormalP3ui(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glNormalP3uiv(int arg0, int[] arg1, int arg2) {
-      System.out
-         .println("glNormalP3uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glNormalP3uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glNormalP3uiv(int arg0, IntBuffer arg1) {
-      System.out.println("glNormalP3uiv(" + arg0 + "," + arg1 + ")");
-      gl.glNormalP3uiv(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glObjectLabel(
@@ -4218,28 +4088,15 @@ public class GL3Debug implements GL3 {
    }
 
    public void glSecondaryColorP3ui(int arg0, int arg1) {
-      System.out.println("glSecondaryColorP3ui(" + arg0 + "," + arg1 + ")");
-      gl.glSecondaryColorP3ui(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glSecondaryColorP3uiv(int arg0, int[] arg1, int arg2) {
-      System.out.println(
-         "glSecondaryColorP3uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glSecondaryColorP3uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glSecondaryColorP3uiv(int arg0, IntBuffer arg1) {
-      System.out.println("glSecondaryColorP3uiv(" + arg0 + "," + arg1 + ")");
-      gl.glSecondaryColorP3uiv(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glSetMultisamplefvAMD(
@@ -4400,103 +4257,51 @@ public class GL3Debug implements GL3 {
    }
 
    public void glTexCoordP1ui(int arg0, int arg1) {
-      System.out.println("glTexCoordP1ui(" + arg0 + "," + arg1 + ")");
-      gl.glTexCoordP1ui(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTexCoordP1uiv(int arg0, int[] arg1, int arg2) {
-      System.out
-         .println("glTexCoordP1uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glTexCoordP1uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTexCoordP1uiv(int arg0, IntBuffer arg1) {
-      System.out.println("glTexCoordP1uiv(" + arg0 + "," + arg1 + ")");
-      gl.glTexCoordP1uiv(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTexCoordP2ui(int arg0, int arg1) {
-      System.out.println("glTexCoordP2ui(" + arg0 + "," + arg1 + ")");
-      gl.glTexCoordP2ui(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTexCoordP2uiv(int arg0, int[] arg1, int arg2) {
-      System.out
-         .println("glTexCoordP2uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glTexCoordP2uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTexCoordP2uiv(int arg0, IntBuffer arg1) {
-      System.out.println("glTexCoordP2uiv(" + arg0 + "," + arg1 + ")");
-      gl.glTexCoordP2uiv(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTexCoordP3ui(int arg0, int arg1) {
-      System.out.println("glTexCoordP3ui(" + arg0 + "," + arg1 + ")");
-      gl.glTexCoordP3ui(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTexCoordP3uiv(int arg0, int[] arg1, int arg2) {
-      System.out
-         .println("glTexCoordP3uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glTexCoordP3uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTexCoordP3uiv(int arg0, IntBuffer arg1) {
-      System.out.println("glTexCoordP3uiv(" + arg0 + "," + arg1 + ")");
-      gl.glTexCoordP3uiv(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTexCoordP4ui(int arg0, int arg1) {
-      System.out.println("glTexCoordP4ui(" + arg0 + "," + arg1 + ")");
-      gl.glTexCoordP4ui(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTexCoordP4uiv(int arg0, int[] arg1, int arg2) {
-      System.out
-         .println("glTexCoordP4uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glTexCoordP4uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTexCoordP4uiv(int arg0, IntBuffer arg1) {
-      System.out.println("glTexCoordP4uiv(" + arg0 + "," + arg1 + ")");
-      gl.glTexCoordP4uiv(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTexImage1D(
@@ -4782,13 +4587,7 @@ public class GL3Debug implements GL3 {
 
    public void glTextureBufferRangeEXT(
       int arg0, int arg1, int arg2, int arg3, long arg4, long arg5) {
-      System.out.println(
-         "glTextureBufferRangeEXT(" + arg0 + "," + arg1 + "," + arg2 + ","
-            + arg3 + "," + arg4 + "," + arg5 + ")");
-      gl.glTextureBufferRangeEXT(arg0, arg1, arg2, arg3, arg4, arg5);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTextureImage2DMultisampleCoverageNV(
@@ -4833,35 +4632,17 @@ public class GL3Debug implements GL3 {
 
    public void glTextureStorage1D(
       int arg0, int arg1, int arg2, int arg3, int arg4) {
-      System.out.println(
-         "glTextureStorage1D(" + arg0 + "," + arg1 + "," + arg2 + "," + arg3
-            + "," + arg4 + ")");
-      gl.glTextureStorage1D(arg0, arg1, arg2, arg3, arg4);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTextureStorage2D(
       int arg0, int arg1, int arg2, int arg3, int arg4, int arg5) {
-      System.out.println(
-         "glTextureStorage2D(" + arg0 + "," + arg1 + "," + arg2 + "," + arg3
-            + "," + arg4 + "," + arg5 + ")");
-      gl.glTextureStorage2D(arg0, arg1, arg2, arg3, arg4, arg5);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTextureStorage3D(
       int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6) {
-      System.out.println(
-         "glTextureStorage3D(" + arg0 + "," + arg1 + "," + arg2 + "," + arg3
-            + "," + arg4 + "," + arg5 + "," + arg6 + ")");
-      gl.glTextureStorage3D(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glTransformFeedbackVaryings(
@@ -5470,65 +5251,32 @@ public class GL3Debug implements GL3 {
       System.out.println(
          "glVertexArrayBindVertexBufferEXT(" + arg0 + "," + arg1 + "," + arg2
             + "," + arg3 + "," + arg4 + ")");
-      gl.glVertexArrayBindVertexBufferEXT(arg0, arg1, arg2, arg3, arg4);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexArrayVertexAttribBindingEXT(
       int arg0, int arg1, int arg2) {
-      System.out.println(
-         "glVertexArrayVertexAttribBindingEXT(" + arg0 + "," + arg1 + "," + arg2
-            + ")");
-      gl.glVertexArrayVertexAttribBindingEXT(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexArrayVertexAttribFormatEXT(
       int arg0, int arg1, int arg2, int arg3, boolean arg4, int arg5) {
-      System.out.println(
-         "glVertexArrayVertexAttribFormatEXT(" + arg0 + "," + arg1 + "," + arg2
-            + "," + arg3 + "," + arg4 + "," + arg5 + ")");
-      gl.glVertexArrayVertexAttribFormatEXT(arg0, arg1, arg2, arg3, arg4, arg5);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexArrayVertexAttribIFormatEXT(
       int arg0, int arg1, int arg2, int arg3, int arg4) {
-      System.out.println(
-         "glVertexArrayVertexAttribIFormatEXT(" + arg0 + "," + arg1 + "," + arg2
-            + "," + arg3 + "," + arg4 + ")");
-      gl.glVertexArrayVertexAttribIFormatEXT(arg0, arg1, arg2, arg3, arg4);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexArrayVertexAttribLFormatEXT(
       int arg0, int arg1, int arg2, int arg3, int arg4) {
-      System.out.println(
-         "glVertexArrayVertexAttribLFormatEXT(" + arg0 + "," + arg1 + "," + arg2
-            + "," + arg3 + "," + arg4 + ")");
-      gl.glVertexArrayVertexAttribLFormatEXT(arg0, arg1, arg2, arg3, arg4);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexArrayVertexBindingDivisorEXT(
       int arg0, int arg1, int arg2) {
-      System.out.println(
-         "glVertexArrayVertexBindingDivisorEXT(" + arg0 + "," + arg1 + ","
-            + arg2 + ")");
-      gl.glVertexArrayVertexBindingDivisorEXT(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexAttrib1d(int arg0, double arg1) {
@@ -6525,87 +6273,43 @@ public class GL3Debug implements GL3 {
    }
 
    public void glVertexP2ui(int arg0, int arg1) {
-      System.out.println("glVertexP2ui(" + arg0 + "," + arg1 + ")");
-      gl.glVertexP2ui(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexP2uiv(int arg0, int[] arg1, int arg2) {
-      System.out
-         .println("glVertexP2uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glVertexP2uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexP2uiv(int arg0, IntBuffer arg1) {
-      System.out.println("glVertexP2uiv(" + arg0 + "," + arg1 + ")");
-      gl.glVertexP2uiv(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexP3ui(int arg0, int arg1) {
-      System.out.println("glVertexP3ui(" + arg0 + "," + arg1 + ")");
-      gl.glVertexP3ui(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexP3uiv(int arg0, int[] arg1, int arg2) {
-      System.out
-         .println("glVertexP3uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glVertexP3uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexP3uiv(int arg0, IntBuffer arg1) {
-      System.out.println("glVertexP3uiv(" + arg0 + "," + arg1 + ")");
-      gl.glVertexP3uiv(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexP4ui(int arg0, int arg1) {
-      System.out.println("glVertexP4ui(" + arg0 + "," + arg1 + ")");
-      gl.glVertexP4ui(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexP4uiv(int arg0, int[] arg1, int arg2) {
-      System.out
-         .println("glVertexP4uiv(" + arg0 + "," + arg1 + "," + arg2 + ")");
-      gl.glVertexP4uiv(arg0, arg1, arg2);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glVertexP4uiv(int arg0, IntBuffer arg1) {
-      System.out.println("glVertexP4uiv(" + arg0 + "," + arg1 + ")");
-      gl.glVertexP4uiv(arg0, arg1);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glViewport(int arg0, int arg1, int arg2, int arg3) {
-      System.out.println(
-         "glViewport(" + arg0 + "," + arg1 + "," + arg2 + "," + arg3 + ")");
-      gl.glViewport(arg0, arg1, arg2, arg3);
-      if (checkForErrors) {
-         GLSupport.checkAndPrintGLError(gl);
-      }
+      // XXX not implemented
    }
 
    public void glWaitSync(long arg0, int arg1, long arg2) {
@@ -6918,6 +6622,1262 @@ public class GL3Debug implements GL3 {
 
    public boolean glIsVBOElementArrayBound() {
       return false;
+   }
+
+   public void glActiveShaderProgram(int arg0, int arg1) {
+      gl.glActiveShaderProgram(arg0, arg1);
+   }
+
+   public void glApplyFramebufferAttachmentCMAAINTEL() {
+      gl.glApplyFramebufferAttachmentCMAAINTEL();
+   }
+
+   public void glBeginQueryIndexed(int arg0, int arg1, int arg2) {
+      gl.glBeginQueryIndexed(arg0, arg1, arg2);
+   }
+
+   public void glBindImageTexture(
+      int arg0, int arg1, int arg2, boolean arg3, int arg4, int arg5,
+      int arg6) {
+      gl.glBindImageTexture(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+   }
+
+   public void glBindProgramPipeline(int arg0) {
+      gl.glBindProgramPipeline(arg0);
+   }
+
+   public void glBindTransformFeedback(int arg0, int arg1) {
+      gl.glBindTransformFeedback(arg0, arg1);
+   }
+
+   public void glBindVertexBuffer(int arg0, int arg1, long arg2, int arg3) {
+      gl.glBindVertexBuffer(arg0, arg1, arg2, arg3);
+   }
+
+   public void glBlendBarrier() {
+      gl.glBlendBarrier();
+   }
+
+   public void glBlendEquationSeparatei(int arg0, int arg1, int arg2) {
+      gl.glBlendEquationSeparatei(arg0, arg1, arg2);
+   }
+
+   public void glBlendEquationi(int arg0, int arg1) {
+      gl.glBlendEquationi(arg0, arg1);
+   }
+
+   public void glBlendFuncSeparatei(
+      int arg0, int arg1, int arg2, int arg3, int arg4) {
+      gl.glBlendFuncSeparatei(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glBlendFunci(int arg0, int arg1, int arg2) {
+      gl.glBlendFunci(arg0, arg1, arg2);
+   }
+
+   public void glBufferPageCommitmentARB(
+      int arg0, long arg1, long arg2, boolean arg3) {
+      gl.glBufferPageCommitmentARB(arg0, arg1, arg2, arg3);
+   }
+
+   public void glClearBufferData(
+      int arg0, int arg1, int arg2, int arg3, Buffer arg4) {
+      gl.glClearBufferData(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glClearBufferSubData(
+      int arg0, int arg1, long arg2, long arg3, int arg4, int arg5,
+      Buffer arg6) {
+      gl.glClearBufferSubData(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+   }
+
+   public void glCopyImageSubData(
+      int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6,
+      int arg7, int arg8, int arg9, int arg10, int arg11, int arg12, int arg13,
+      int arg14) {
+      gl.glCopyImageSubData(
+         arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10,
+         arg11, arg12, arg13, arg14);
+   }
+
+   public int glCreateShaderProgramv(int arg0, int arg1, String[] arg2) {
+      return gl.glCreateShaderProgramv(arg0, arg1, arg2);
+   }
+
+   public void glDeleteProgramPipelines(int arg0, int[] arg1, int arg2) {
+      gl.glDeleteProgramPipelines(arg0, arg1, arg2);
+   }
+
+   public void glDeleteProgramPipelines(int arg0, IntBuffer arg1) {
+      gl.glDeleteProgramPipelines(arg0, arg1);
+   }
+
+   public void glDeleteTransformFeedbacks(int arg0, int[] arg1, int arg2) {
+      gl.glDeleteTransformFeedbacks(arg0, arg1, arg2);
+   }
+
+   public void glDeleteTransformFeedbacks(int arg0, IntBuffer arg1) {
+      gl.glDeleteTransformFeedbacks(arg0, arg1);
+   }
+
+   public void glDepthRangeArrayv(int arg0, int arg1, double[] arg2, int arg3) {
+      gl.glDepthRangeArrayv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glDepthRangeArrayv(int arg0, int arg1, DoubleBuffer arg2) {
+      gl.glDepthRangeArrayv(arg0, arg1, arg2);
+   }
+
+   public void glDepthRangeIndexed(int arg0, double arg1, double arg2) {
+      gl.glDepthRangeIndexed(arg0, arg1, arg2);
+   }
+
+   public void glDispatchCompute(int arg0, int arg1, int arg2) {
+      gl.glDispatchCompute(arg0, arg1, arg2);
+   }
+
+   public void glDispatchComputeIndirect(long arg0) {
+      gl.glDispatchComputeIndirect(arg0);
+   }
+
+   public void glDrawArraysIndirect(int arg0, Buffer arg1) {
+      gl.glDrawArraysIndirect(arg0, arg1);
+   }
+
+   public void glDrawArraysIndirect(int arg0, long arg1) {
+      gl.glDrawArraysIndirect(arg0, arg1);
+   }
+
+   public void glDrawArraysInstancedBaseInstance(
+      int arg0, int arg1, int arg2, int arg3, int arg4) {
+      gl.glDrawArraysInstancedBaseInstance(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glDrawElementsBaseVertex(
+      int arg0, int arg1, int arg2, Buffer arg3, int arg4) {
+      gl.glDrawElementsBaseVertex(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glDrawElementsIndirect(int arg0, int arg1, Buffer arg2) {
+      gl.glDrawElementsIndirect(arg0, arg1, arg2);
+   }
+
+   public void glDrawElementsIndirect(int arg0, int arg1, long arg2) {
+      gl.glDrawElementsIndirect(arg0, arg1, arg2);
+   }
+
+   public void glDrawElementsInstancedBaseInstance(
+      int arg0, int arg1, int arg2, long arg3, int arg4, int arg5) {
+      gl.glDrawElementsInstancedBaseInstance(
+         arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glDrawElementsInstancedBaseVertex(
+      int arg0, int arg1, int arg2, Buffer arg3, int arg4, int arg5) {
+      gl.glDrawElementsInstancedBaseVertex(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glDrawElementsInstancedBaseVertexBaseInstance(
+      int arg0, int arg1, int arg2, long arg3, int arg4, int arg5, int arg6) {
+      gl.glDrawElementsInstancedBaseVertexBaseInstance(
+         arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+   }
+
+   public void glDrawRangeElementsBaseVertex(
+      int arg0, int arg1, int arg2, int arg3, int arg4, Buffer arg5, int arg6) {
+      gl.glDrawRangeElementsBaseVertex(
+         arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+   }
+
+   public void glDrawTransformFeedback(int arg0, int arg1) {
+      gl.glDrawTransformFeedback(arg0, arg1);
+   }
+
+   public void glDrawTransformFeedbackInstanced(int arg0, int arg1, int arg2) {
+      gl.glDrawTransformFeedbackInstanced(arg0, arg1, arg2);
+   }
+
+   public void glDrawTransformFeedbackStream(int arg0, int arg1, int arg2) {
+      gl.glDrawTransformFeedbackStream(arg0, arg1, arg2);
+   }
+
+   public void glDrawTransformFeedbackStreamInstanced(
+      int arg0, int arg1, int arg2, int arg3) {
+      gl.glDrawTransformFeedbackStreamInstanced(arg0, arg1, arg2, arg3);
+   }
+
+   public void glEndQueryIndexed(int arg0, int arg1) {
+      gl.glEndQueryIndexed(arg0, arg1);
+   }
+
+   public void glFramebufferParameteri(int arg0, int arg1, int arg2) {
+      gl.glFramebufferParameteri(arg0, arg1, arg2);
+   }
+
+   public void glFramebufferTextureEXT(int arg0, int arg1, int arg2, int arg3) {
+      gl.glFramebufferTextureEXT(arg0, arg1, arg2, arg3);
+   }
+
+   public void glGenProgramPipelines(int arg0, int[] arg1, int arg2) {
+      gl.glGenProgramPipelines(arg0, arg1, arg2);
+   }
+
+   public void glGenProgramPipelines(int arg0, IntBuffer arg1) {
+      gl.glGenProgramPipelines(arg0, arg1);
+   }
+
+   public void glGenTransformFeedbacks(int arg0, int[] arg1, int arg2) {
+      gl.glGenTransformFeedbacks(arg0, arg1, arg2);
+   }
+
+   public void glGenTransformFeedbacks(int arg0, IntBuffer arg1) {
+      gl.glGenTransformFeedbacks(arg0, arg1);
+   }
+
+   public void glGetActiveAtomicCounterBufferiv(
+      int arg0, int arg1, int arg2, int[] arg3, int arg4) {
+      gl.glGetActiveAtomicCounterBufferiv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glGetActiveAtomicCounterBufferiv(
+      int arg0, int arg1, int arg2, IntBuffer arg3) {
+      gl.glGetActiveAtomicCounterBufferiv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glGetActiveSubroutineName(
+      int arg0, int arg1, int arg2, int arg3, int[] arg4, int arg5, byte[] arg6,
+      int arg7) {
+      gl.glGetActiveSubroutineName(
+         arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+   }
+
+   public void glGetActiveSubroutineName(
+      int arg0, int arg1, int arg2, int arg3, IntBuffer arg4, ByteBuffer arg5) {
+      gl.glGetActiveSubroutineName(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glGetActiveSubroutineUniformName(
+      int arg0, int arg1, int arg2, int arg3, int[] arg4, int arg5, byte[] arg6,
+      int arg7) {
+      gl.glGetActiveSubroutineUniformName(
+         arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+   }
+
+   public void glGetActiveSubroutineUniformName(
+      int arg0, int arg1, int arg2, int arg3, IntBuffer arg4, ByteBuffer arg5) {
+      gl.glGetActiveSubroutineUniformName(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glGetActiveSubroutineUniformiv(
+      int arg0, int arg1, int arg2, int arg3, int[] arg4, int arg5) {
+      gl.glGetActiveSubroutineUniformiv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glGetActiveSubroutineUniformiv(
+      int arg0, int arg1, int arg2, int arg3, IntBuffer arg4) {
+      gl.glGetActiveSubroutineUniformiv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glGetDoublei_v(int arg0, int arg1, double[] arg2, int arg3) {
+      gl.glGetDoublei_v(arg0, arg1, arg2, arg3);
+   }
+
+   public void glGetDoublei_v(int arg0, int arg1, DoubleBuffer arg2) {
+      gl.glGetDoublei_v(arg0, arg1, arg2);
+   }
+
+   public void glGetFloati_v(int arg0, int arg1, float[] arg2, int arg3) {
+      gl.glGetFloati_v(arg0, arg1, arg2, arg3);
+   }
+
+   public void glGetFloati_v(int arg0, int arg1, FloatBuffer arg2) {
+      gl.glGetFloati_v(arg0, arg1, arg2);
+   }
+
+   public void glGetFramebufferParameteriv(
+      int arg0, int arg1, int[] arg2, int arg3) {
+      gl.glGetFramebufferParameteriv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glGetFramebufferParameteriv(int arg0, int arg1, IntBuffer arg2) {
+      gl.glGetFramebufferParameteriv(arg0, arg1, arg2);
+   }
+
+   public void glGetInternalformati64v(
+      int arg0, int arg1, int arg2, int arg3, long[] arg4, int arg5) {
+      gl.glGetInternalformati64v(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glGetInternalformati64v(
+      int arg0, int arg1, int arg2, int arg3, LongBuffer arg4) {
+      gl.glGetInternalformati64v(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glGetProgramInterfaceiv(
+      int arg0, int arg1, int arg2, int[] arg3, int arg4) {
+      gl.glGetProgramInterfaceiv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glGetProgramInterfaceiv(
+      int arg0, int arg1, int arg2, IntBuffer arg3) {
+      gl.glGetProgramInterfaceiv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glGetProgramPipelineInfoLog(
+      int arg0, int arg1, int[] arg2, int arg3, byte[] arg4, int arg5) {
+      gl.glGetProgramPipelineInfoLog(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glGetProgramPipelineInfoLog(
+      int arg0, int arg1, IntBuffer arg2, ByteBuffer arg3) {
+      gl.glGetProgramPipelineInfoLog(arg0, arg1, arg2, arg3);
+   }
+
+   public void glGetProgramPipelineiv(
+      int arg0, int arg1, int[] arg2, int arg3) {
+      gl.glGetProgramPipelineiv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glGetProgramPipelineiv(int arg0, int arg1, IntBuffer arg2) {
+      gl.glGetProgramPipelineiv(arg0, arg1, arg2);
+   }
+
+   public int glGetProgramResourceIndex(
+      int arg0, int arg1, byte[] arg2, int arg3) {
+      return gl.glGetProgramResourceIndex(arg0, arg1, arg2, arg3);
+   }
+
+   public int glGetProgramResourceIndex(int arg0, int arg1, ByteBuffer arg2) {
+      return gl.glGetProgramResourceIndex(arg0, arg1, arg2);
+   }
+
+   public int glGetProgramResourceLocation(
+      int arg0, int arg1, byte[] arg2, int arg3) {
+      return gl.glGetProgramResourceLocation(arg0, arg1, arg2, arg3);
+   }
+
+   public int glGetProgramResourceLocation(
+      int arg0, int arg1, ByteBuffer arg2) {
+      return gl.glGetProgramResourceLocation(arg0, arg1, arg2);
+   }
+
+   public void glGetProgramResourceName(
+      int arg0, int arg1, int arg2, int arg3, int[] arg4, int arg5, byte[] arg6,
+      int arg7) {
+      gl.glGetProgramResourceName(
+         arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+   }
+
+   public void glGetProgramResourceName(
+      int arg0, int arg1, int arg2, int arg3, IntBuffer arg4, ByteBuffer arg5) {
+      gl.glGetProgramResourceName(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glGetProgramResourceiv(
+      int arg0, int arg1, int arg2, int arg3, int[] arg4, int arg5, int arg6,
+      int[] arg7, int arg8, int[] arg9, int arg10) {
+      gl.glGetProgramResourceiv(
+         arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
+   }
+
+   public void glGetProgramResourceiv(
+      int arg0, int arg1, int arg2, int arg3, IntBuffer arg4, int arg5,
+      IntBuffer arg6, IntBuffer arg7) {
+      gl.glGetProgramResourceiv(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+   }
+
+   public void glGetProgramStageiv(
+      int arg0, int arg1, int arg2, int[] arg3, int arg4) {
+      gl.glGetProgramStageiv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glGetProgramStageiv(
+      int arg0, int arg1, int arg2, IntBuffer arg3) {
+      gl.glGetProgramStageiv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glGetQueryIndexediv(
+      int arg0, int arg1, int arg2, int[] arg3, int arg4) {
+      gl.glGetQueryIndexediv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glGetQueryIndexediv(
+      int arg0, int arg1, int arg2, IntBuffer arg3) {
+      gl.glGetQueryIndexediv(arg0, arg1, arg2, arg3);
+   }
+
+   public int glGetSubroutineIndex(int arg0, int arg1, String arg2) {
+      return gl.glGetSubroutineIndex(arg0, arg1, arg2);
+   }
+
+   public int glGetSubroutineUniformLocation(int arg0, int arg1, String arg2) {
+      return gl.glGetSubroutineUniformLocation(arg0, arg1, arg2);
+   }
+
+   public void glGetUniformSubroutineuiv(
+      int arg0, int arg1, int[] arg2, int arg3) {
+      gl.glGetUniformSubroutineuiv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glGetUniformSubroutineuiv(int arg0, int arg1, IntBuffer arg2) {
+      gl.glGetUniformSubroutineuiv(arg0, arg1, arg2);
+   }
+
+   public void glGetUniformdv(int arg0, int arg1, double[] arg2, int arg3) {
+      gl.glGetUniformdv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glGetUniformdv(int arg0, int arg1, DoubleBuffer arg2) {
+      gl.glGetUniformdv(arg0, arg1, arg2);
+   }
+
+   public void glGetVertexAttribLdv(
+      int arg0, int arg1, double[] arg2, int arg3) {
+      gl.glGetVertexAttribLdv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glGetVertexAttribLdv(int arg0, int arg1, DoubleBuffer arg2) {
+      gl.glGetVertexAttribLdv(arg0, arg1, arg2);
+   }
+
+   public void glInvalidateBufferData(int arg0) {
+      gl.glInvalidateBufferData(arg0);
+   }
+
+   public void glInvalidateBufferSubData(int arg0, long arg1, long arg2) {
+      gl.glInvalidateBufferSubData(arg0, arg1, arg2);
+   }
+
+   public void glInvalidateFramebuffer(
+      int arg0, int arg1, int[] arg2, int arg3) {
+      gl.glInvalidateFramebuffer(arg0, arg1, arg2, arg3);
+   }
+
+   public void glInvalidateFramebuffer(int arg0, int arg1, IntBuffer arg2) {
+      gl.glInvalidateFramebuffer(arg0, arg1, arg2);
+   }
+
+   public void glInvalidateSubFramebuffer(
+      int arg0, int arg1, int[] arg2, int arg3, int arg4, int arg5, int arg6,
+      int arg7) {
+      gl.glInvalidateSubFramebuffer(
+         arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+   }
+
+   public void glInvalidateSubFramebuffer(
+      int arg0, int arg1, IntBuffer arg2, int arg3, int arg4, int arg5,
+      int arg6) {
+      gl.glInvalidateSubFramebuffer(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+   }
+
+   public void glInvalidateTexImage(int arg0, int arg1) {
+      gl.glInvalidateTexImage(arg0, arg1);
+   }
+
+   public void glInvalidateTexSubImage(
+      int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6,
+      int arg7) {
+      gl.glInvalidateTexSubImage(
+         arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+   }
+
+   public boolean glIsProgramPipeline(int arg0) {
+      return gl.glIsProgramPipeline(arg0);
+   }
+
+   public boolean glIsTransformFeedback(int arg0) {
+      return gl.glIsTransformFeedback(arg0);
+   }
+
+   public void glMemoryBarrier(int arg0) {
+      gl.glMemoryBarrier(arg0);
+   }
+
+   public void glMemoryBarrierByRegion(int arg0) {
+      gl.glMemoryBarrierByRegion(arg0);
+   }
+
+   public void glMinSampleShading(float arg0) {
+      gl.glMinSampleShading(arg0);
+   }
+
+   public void glMultiDrawArraysIndirect(
+      int arg0, long arg1, int arg2, int arg3) {
+      gl.glMultiDrawArraysIndirect(arg0, arg1, arg2, arg3);
+   }
+
+   public void glMultiDrawElementsIndirect(
+      int arg0, int arg1, Buffer arg2, int arg3, int arg4) {
+      gl.glMultiDrawElementsIndirect(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glNamedBufferPageCommitmentARB(
+      int arg0, long arg1, long arg2, boolean arg3) {
+      gl.glNamedBufferPageCommitmentARB(arg0, arg1, arg2, arg3);
+   }
+
+   public void glNamedBufferPageCommitmentEXT(
+      int arg0, long arg1, long arg2, boolean arg3) {
+      gl.glNamedBufferPageCommitmentEXT(arg0, arg1, arg2, arg3);
+   }
+
+   public void glPatchParameterfv(int arg0, float[] arg1, int arg2) {
+      gl.glPatchParameterfv(arg0, arg1, arg2);
+   }
+
+   public void glPatchParameterfv(int arg0, FloatBuffer arg1) {
+      gl.glPatchParameterfv(arg0, arg1);
+   }
+
+   public void glPatchParameteri(int arg0, int arg1) {
+      gl.glPatchParameteri(arg0, arg1);
+   }
+
+   public void glPauseTransformFeedback() {
+      gl.glPauseTransformFeedback();
+   }
+
+   public void glPrimitiveBoundingBox(
+      float arg0, float arg1, float arg2, float arg3, float arg4, float arg5,
+      float arg6, float arg7) {
+      gl.glPrimitiveBoundingBox(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+   }
+
+   public void glProgramParameteri(int arg0, int arg1, int arg2) {
+      gl.glProgramParameteri(arg0, arg1, arg2);
+   }
+
+   public void glProgramUniform1d(int arg0, int arg1, double arg2) {
+      gl.glProgramUniform1d(arg0, arg1, arg2);
+   }
+
+   public void glProgramUniform1dv(
+      int arg0, int arg1, int arg2, double[] arg3, int arg4) {
+      gl.glProgramUniform1dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform1dv(
+      int arg0, int arg1, int arg2, DoubleBuffer arg3) {
+      gl.glProgramUniform1dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform1f(int arg0, int arg1, float arg2) {
+      gl.glProgramUniform1f(arg0, arg1, arg2);
+   }
+
+   public void glProgramUniform1fv(
+      int arg0, int arg1, int arg2, float[] arg3, int arg4) {
+      gl.glProgramUniform1fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform1fv(
+      int arg0, int arg1, int arg2, FloatBuffer arg3) {
+      gl.glProgramUniform1fv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform1i(int arg0, int arg1, int arg2) {
+      gl.glProgramUniform1i(arg0, arg1, arg2);
+   }
+
+   public void glProgramUniform1iv(
+      int arg0, int arg1, int arg2, int[] arg3, int arg4) {
+      gl.glProgramUniform1iv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform1iv(
+      int arg0, int arg1, int arg2, IntBuffer arg3) {
+      gl.glProgramUniform1iv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform1ui(int arg0, int arg1, int arg2) {
+      gl.glProgramUniform1ui(arg0, arg1, arg2);
+   }
+
+   public void glProgramUniform1uiv(
+      int arg0, int arg1, int arg2, int[] arg3, int arg4) {
+      gl.glProgramUniform1uiv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform1uiv(
+      int arg0, int arg1, int arg2, IntBuffer arg3) {
+      gl.glProgramUniform1uiv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform2d(
+      int arg0, int arg1, double arg2, double arg3) {
+      gl.glProgramUniform2d(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform2dv(
+      int arg0, int arg1, int arg2, double[] arg3, int arg4) {
+      gl.glProgramUniform2dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform2dv(
+      int arg0, int arg1, int arg2, DoubleBuffer arg3) {
+      gl.glProgramUniform2dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform2f(int arg0, int arg1, float arg2, float arg3) {
+      gl.glProgramUniform2f(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform2fv(
+      int arg0, int arg1, int arg2, float[] arg3, int arg4) {
+      gl.glProgramUniform2fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform2fv(
+      int arg0, int arg1, int arg2, FloatBuffer arg3) {
+      gl.glProgramUniform2fv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform2i(int arg0, int arg1, int arg2, int arg3) {
+      gl.glProgramUniform2i(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform2iv(
+      int arg0, int arg1, int arg2, int[] arg3, int arg4) {
+      gl.glProgramUniform2iv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform2iv(
+      int arg0, int arg1, int arg2, IntBuffer arg3) {
+      gl.glProgramUniform2iv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform2ui(int arg0, int arg1, int arg2, int arg3) {
+      gl.glProgramUniform2ui(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform2uiv(
+      int arg0, int arg1, int arg2, int[] arg3, int arg4) {
+      gl.glProgramUniform2uiv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform2uiv(
+      int arg0, int arg1, int arg2, IntBuffer arg3) {
+      gl.glProgramUniform2uiv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform3d(
+      int arg0, int arg1, double arg2, double arg3, double arg4) {
+      gl.glProgramUniform3d(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform3dv(
+      int arg0, int arg1, int arg2, double[] arg3, int arg4) {
+      gl.glProgramUniform3dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform3dv(
+      int arg0, int arg1, int arg2, DoubleBuffer arg3) {
+      gl.glProgramUniform3dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform3f(
+      int arg0, int arg1, float arg2, float arg3, float arg4) {
+      gl.glProgramUniform3f(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform3fv(
+      int arg0, int arg1, int arg2, float[] arg3, int arg4) {
+      gl.glProgramUniform3fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform3fv(
+      int arg0, int arg1, int arg2, FloatBuffer arg3) {
+      gl.glProgramUniform3fv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform3i(
+      int arg0, int arg1, int arg2, int arg3, int arg4) {
+      gl.glProgramUniform3i(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform3iv(
+      int arg0, int arg1, int arg2, int[] arg3, int arg4) {
+      gl.glProgramUniform3iv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform3iv(
+      int arg0, int arg1, int arg2, IntBuffer arg3) {
+      gl.glProgramUniform3iv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform3ui(
+      int arg0, int arg1, int arg2, int arg3, int arg4) {
+      gl.glProgramUniform3ui(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform3uiv(
+      int arg0, int arg1, int arg2, int[] arg3, int arg4) {
+      gl.glProgramUniform3uiv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform3uiv(
+      int arg0, int arg1, int arg2, IntBuffer arg3) {
+      gl.glProgramUniform3uiv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform4d(
+      int arg0, int arg1, double arg2, double arg3, double arg4, double arg5) {
+      gl.glProgramUniform4d(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniform4dv(
+      int arg0, int arg1, int arg2, double[] arg3, int arg4) {
+      gl.glProgramUniform4dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform4dv(
+      int arg0, int arg1, int arg2, DoubleBuffer arg3) {
+      gl.glProgramUniform4dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform4f(
+      int arg0, int arg1, float arg2, float arg3, float arg4, float arg5) {
+      gl.glProgramUniform4f(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniform4fv(
+      int arg0, int arg1, int arg2, float[] arg3, int arg4) {
+      gl.glProgramUniform4fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform4fv(
+      int arg0, int arg1, int arg2, FloatBuffer arg3) {
+      gl.glProgramUniform4fv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform4i(
+      int arg0, int arg1, int arg2, int arg3, int arg4, int arg5) {
+      gl.glProgramUniform4i(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniform4iv(
+      int arg0, int arg1, int arg2, int[] arg3, int arg4) {
+      gl.glProgramUniform4iv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform4iv(
+      int arg0, int arg1, int arg2, IntBuffer arg3) {
+      gl.glProgramUniform4iv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniform4ui(
+      int arg0, int arg1, int arg2, int arg3, int arg4, int arg5) {
+      gl.glProgramUniform4ui(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniform4uiv(
+      int arg0, int arg1, int arg2, int[] arg3, int arg4) {
+      gl.glProgramUniform4uiv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniform4uiv(
+      int arg0, int arg1, int arg2, IntBuffer arg3) {
+      gl.glProgramUniform4uiv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glProgramUniformMatrix2dv(
+      int arg0, int arg1, int arg2, boolean arg3, double[] arg4, int arg5) {
+      gl.glProgramUniformMatrix2dv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix2dv(
+      int arg0, int arg1, int arg2, boolean arg3, DoubleBuffer arg4) {
+      gl.glProgramUniformMatrix2dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix2fv(
+      int arg0, int arg1, int arg2, boolean arg3, float[] arg4, int arg5) {
+      gl.glProgramUniformMatrix2fv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix2fv(
+      int arg0, int arg1, int arg2, boolean arg3, FloatBuffer arg4) {
+      gl.glProgramUniformMatrix2fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix2x3dv(
+      int arg0, int arg1, int arg2, boolean arg3, double[] arg4, int arg5) {
+      gl.glProgramUniformMatrix2x3dv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix2x3dv(
+      int arg0, int arg1, int arg2, boolean arg3, DoubleBuffer arg4) {
+      gl.glProgramUniformMatrix2x3dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix2x3fv(
+      int arg0, int arg1, int arg2, boolean arg3, float[] arg4, int arg5) {
+      gl.glProgramUniformMatrix2x3fv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix2x3fv(
+      int arg0, int arg1, int arg2, boolean arg3, FloatBuffer arg4) {
+      gl.glProgramUniformMatrix2x3fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix2x4dv(
+      int arg0, int arg1, int arg2, boolean arg3, double[] arg4, int arg5) {
+      gl.glProgramUniformMatrix2x4dv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix2x4dv(
+      int arg0, int arg1, int arg2, boolean arg3, DoubleBuffer arg4) {
+      gl.glProgramUniformMatrix2x4dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix2x4fv(
+      int arg0, int arg1, int arg2, boolean arg3, float[] arg4, int arg5) {
+      gl.glProgramUniformMatrix2x4fv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix2x4fv(
+      int arg0, int arg1, int arg2, boolean arg3, FloatBuffer arg4) {
+      gl.glProgramUniformMatrix2x4fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix3dv(
+      int arg0, int arg1, int arg2, boolean arg3, double[] arg4, int arg5) {
+      gl.glProgramUniformMatrix3dv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix3dv(
+      int arg0, int arg1, int arg2, boolean arg3, DoubleBuffer arg4) {
+      gl.glProgramUniformMatrix3dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix3fv(
+      int arg0, int arg1, int arg2, boolean arg3, float[] arg4, int arg5) {
+      gl.glProgramUniformMatrix3fv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix3fv(
+      int arg0, int arg1, int arg2, boolean arg3, FloatBuffer arg4) {
+      gl.glProgramUniformMatrix3fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix3x2dv(
+      int arg0, int arg1, int arg2, boolean arg3, double[] arg4, int arg5) {
+      gl.glProgramUniformMatrix3x2dv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix3x2dv(
+      int arg0, int arg1, int arg2, boolean arg3, DoubleBuffer arg4) {
+      gl.glProgramUniformMatrix3x2dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix3x2fv(
+      int arg0, int arg1, int arg2, boolean arg3, float[] arg4, int arg5) {
+      gl.glProgramUniformMatrix3x2fv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix3x2fv(
+      int arg0, int arg1, int arg2, boolean arg3, FloatBuffer arg4) {
+      gl.glProgramUniformMatrix3x2fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix3x4dv(
+      int arg0, int arg1, int arg2, boolean arg3, double[] arg4, int arg5) {
+      gl.glProgramUniformMatrix3x4dv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix3x4dv(
+      int arg0, int arg1, int arg2, boolean arg3, DoubleBuffer arg4) {
+      gl.glProgramUniformMatrix3x4dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix3x4fv(
+      int arg0, int arg1, int arg2, boolean arg3, float[] arg4, int arg5) {
+      gl.glProgramUniformMatrix3x4fv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix3x4fv(
+      int arg0, int arg1, int arg2, boolean arg3, FloatBuffer arg4) {
+      gl.glProgramUniformMatrix3x4fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix4dv(
+      int arg0, int arg1, int arg2, boolean arg3, double[] arg4, int arg5) {
+      gl.glProgramUniformMatrix4dv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix4dv(
+      int arg0, int arg1, int arg2, boolean arg3, DoubleBuffer arg4) {
+      gl.glProgramUniformMatrix4dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix4fv(
+      int arg0, int arg1, int arg2, boolean arg3, float[] arg4, int arg5) {
+      gl.glProgramUniformMatrix4fv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix4fv(
+      int arg0, int arg1, int arg2, boolean arg3, FloatBuffer arg4) {
+      gl.glProgramUniformMatrix4fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix4x2dv(
+      int arg0, int arg1, int arg2, boolean arg3, double[] arg4, int arg5) {
+      gl.glProgramUniformMatrix4x2dv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix4x2dv(
+      int arg0, int arg1, int arg2, boolean arg3, DoubleBuffer arg4) {
+      gl.glProgramUniformMatrix4x2dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix4x2fv(
+      int arg0, int arg1, int arg2, boolean arg3, float[] arg4, int arg5) {
+      gl.glProgramUniformMatrix4x2fv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix4x2fv(
+      int arg0, int arg1, int arg2, boolean arg3, FloatBuffer arg4) {
+      gl.glProgramUniformMatrix4x2fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix4x3dv(
+      int arg0, int arg1, int arg2, boolean arg3, double[] arg4, int arg5) {
+      gl.glProgramUniformMatrix4x3dv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix4x3dv(
+      int arg0, int arg1, int arg2, boolean arg3, DoubleBuffer arg4) {
+      gl.glProgramUniformMatrix4x3dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glProgramUniformMatrix4x3fv(
+      int arg0, int arg1, int arg2, boolean arg3, float[] arg4, int arg5) {
+      gl.glProgramUniformMatrix4x3fv(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glProgramUniformMatrix4x3fv(
+      int arg0, int arg1, int arg2, boolean arg3, FloatBuffer arg4) {
+      gl.glProgramUniformMatrix4x3fv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glResumeTransformFeedback() {
+      gl.glResumeTransformFeedback();
+   }
+
+   public void glScissorArrayv(int arg0, int arg1, int[] arg2, int arg3) {
+      gl.glScissorArrayv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glScissorArrayv(int arg0, int arg1, IntBuffer arg2) {
+      gl.glScissorArrayv(arg0, arg1, arg2);
+   }
+
+   public void glScissorIndexed(
+      int arg0, int arg1, int arg2, int arg3, int arg4) {
+      gl.glScissorIndexed(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glScissorIndexedv(int arg0, int[] arg1, int arg2) {
+      gl.glScissorIndexedv(arg0, arg1, arg2);
+   }
+
+   public void glScissorIndexedv(int arg0, IntBuffer arg1) {
+      gl.glScissorIndexedv(arg0, arg1);
+   }
+
+   public void glTexBufferRange(
+      int arg0, int arg1, int arg2, long arg3, long arg4) {
+      gl.glTexBufferRange(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glTexPageCommitmentARB(
+      int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6,
+      int arg7, boolean arg8) {
+      gl.glTexPageCommitmentARB(
+         arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+   }
+
+   public void glTexStorage2DMultisample(
+      int arg0, int arg1, int arg2, int arg3, int arg4, boolean arg5) {
+      gl.glTexStorage2DMultisample(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glTexStorage3DMultisample(
+      int arg0, int arg1, int arg2, int arg3, int arg4, int arg5,
+      boolean arg6) {
+      gl.glTexStorage3DMultisample(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+   }
+
+   public void glTextureStorage1DEXT(
+      int arg0, int arg1, int arg2, int arg3, int arg4) {
+      gl.glTextureStorage1DEXT(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glTextureStorage2DEXT(
+      int arg0, int arg1, int arg2, int arg3, int arg4, int arg5) {
+      gl.glTextureStorage2DEXT(arg0, arg1, arg2, arg3, arg4, arg5);
+   }
+
+   public void glTextureStorage3DEXT(
+      int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6) {
+      gl.glTextureStorage3DEXT(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+   }
+
+   public void glUniform1d(int arg0, double arg1) {
+      gl.glUniform1d(arg0, arg1);
+   }
+
+   public void glUniform1dv(int arg0, int arg1, double[] arg2, int arg3) {
+      gl.glUniform1dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniform1dv(int arg0, int arg1, DoubleBuffer arg2) {
+      gl.glUniform1dv(arg0, arg1, arg2);
+   }
+
+   public void glUniform2d(int arg0, double arg1, double arg2) {
+      gl.glUniform2d(arg0, arg1, arg2);
+   }
+
+   public void glUniform2dv(int arg0, int arg1, double[] arg2, int arg3) {
+      gl.glUniform2dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniform2dv(int arg0, int arg1, DoubleBuffer arg2) {
+      gl.glUniform2dv(arg0, arg1, arg2);
+   }
+
+   public void glUniform3d(int arg0, double arg1, double arg2, double arg3) {
+      gl.glUniform3d(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniform3dv(int arg0, int arg1, double[] arg2, int arg3) {
+      gl.glUniform3dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniform3dv(int arg0, int arg1, DoubleBuffer arg2) {
+      gl.glUniform3dv(arg0, arg1, arg2);
+   }
+
+   public void glUniform4d(
+      int arg0, double arg1, double arg2, double arg3, double arg4) {
+      gl.glUniform4d(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glUniform4dv(int arg0, int arg1, double[] arg2, int arg3) {
+      gl.glUniform4dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniform4dv(int arg0, int arg1, DoubleBuffer arg2) {
+      gl.glUniform4dv(arg0, arg1, arg2);
+   }
+
+   public void glUniformMatrix2dv(
+      int arg0, int arg1, boolean arg2, double[] arg3, int arg4) {
+      gl.glUniformMatrix2dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glUniformMatrix2dv(
+      int arg0, int arg1, boolean arg2, DoubleBuffer arg3) {
+      gl.glUniformMatrix2dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniformMatrix2x3dv(
+      int arg0, int arg1, boolean arg2, double[] arg3, int arg4) {
+      gl.glUniformMatrix2x3dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glUniformMatrix2x3dv(
+      int arg0, int arg1, boolean arg2, DoubleBuffer arg3) {
+      gl.glUniformMatrix2x3dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniformMatrix2x4dv(
+      int arg0, int arg1, boolean arg2, double[] arg3, int arg4) {
+      gl.glUniformMatrix2x4dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glUniformMatrix2x4dv(
+      int arg0, int arg1, boolean arg2, DoubleBuffer arg3) {
+      gl.glUniformMatrix2x4dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniformMatrix3dv(
+      int arg0, int arg1, boolean arg2, double[] arg3, int arg4) {
+      gl.glUniformMatrix3dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glUniformMatrix3dv(
+      int arg0, int arg1, boolean arg2, DoubleBuffer arg3) {
+      gl.glUniformMatrix3dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniformMatrix3x2dv(
+      int arg0, int arg1, boolean arg2, double[] arg3, int arg4) {
+      gl.glUniformMatrix3x2dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glUniformMatrix3x2dv(
+      int arg0, int arg1, boolean arg2, DoubleBuffer arg3) {
+      gl.glUniformMatrix3x2dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniformMatrix3x4dv(
+      int arg0, int arg1, boolean arg2, double[] arg3, int arg4) {
+      gl.glUniformMatrix3x4dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glUniformMatrix3x4dv(
+      int arg0, int arg1, boolean arg2, DoubleBuffer arg3) {
+      gl.glUniformMatrix3x4dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniformMatrix4dv(
+      int arg0, int arg1, boolean arg2, double[] arg3, int arg4) {
+      gl.glUniformMatrix4dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glUniformMatrix4dv(
+      int arg0, int arg1, boolean arg2, DoubleBuffer arg3) {
+      gl.glUniformMatrix4dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniformMatrix4x2dv(
+      int arg0, int arg1, boolean arg2, double[] arg3, int arg4) {
+      gl.glUniformMatrix4x2dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glUniformMatrix4x2dv(
+      int arg0, int arg1, boolean arg2, DoubleBuffer arg3) {
+      gl.glUniformMatrix4x2dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniformMatrix4x3dv(
+      int arg0, int arg1, boolean arg2, double[] arg3, int arg4) {
+      gl.glUniformMatrix4x3dv(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glUniformMatrix4x3dv(
+      int arg0, int arg1, boolean arg2, DoubleBuffer arg3) {
+      gl.glUniformMatrix4x3dv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniformSubroutinesuiv(
+      int arg0, int arg1, int[] arg2, int arg3) {
+      gl.glUniformSubroutinesuiv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glUniformSubroutinesuiv(int arg0, int arg1, IntBuffer arg2) {
+      gl.glUniformSubroutinesuiv(arg0, arg1, arg2);
+   }
+
+   public void glUseProgramStages(int arg0, int arg1, int arg2) {
+      gl.glUseProgramStages(arg0, arg1, arg2);
+   }
+
+   public void glValidateProgramPipeline(int arg0) {
+      gl.glValidateProgramPipeline(arg0);
+   }
+
+   public void glVertexAttribBinding(int arg0, int arg1) {
+      gl.glVertexAttribBinding(arg0, arg1);
+   }
+
+   public void glVertexAttribFormat(
+      int arg0, int arg1, int arg2, boolean arg3, int arg4) {
+      gl.glVertexAttribFormat(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glVertexAttribIFormat(int arg0, int arg1, int arg2, int arg3) {
+      gl.glVertexAttribIFormat(arg0, arg1, arg2, arg3);
+   }
+
+   public void glVertexAttribL1d(int arg0, double arg1) {
+      gl.glVertexAttribL1d(arg0, arg1);
+   }
+
+   public void glVertexAttribL1dv(int arg0, double[] arg1, int arg2) {
+      gl.glVertexAttribL1dv(arg0, arg1, arg2);
+   }
+
+   public void glVertexAttribL1dv(int arg0, DoubleBuffer arg1) {
+      gl.glVertexAttribL1dv(arg0, arg1);
+   }
+
+   public void glVertexAttribL2d(int arg0, double arg1, double arg2) {
+      gl.glVertexAttribL2d(arg0, arg1, arg2);
+   }
+
+   public void glVertexAttribL2dv(int arg0, double[] arg1, int arg2) {
+      gl.glVertexAttribL2dv(arg0, arg1, arg2);
+   }
+
+   public void glVertexAttribL2dv(int arg0, DoubleBuffer arg1) {
+      gl.glVertexAttribL2dv(arg0, arg1);
+   }
+
+   public void glVertexAttribL3d(
+      int arg0, double arg1, double arg2, double arg3) {
+      gl.glVertexAttribL3d(arg0, arg1, arg2, arg3);
+   }
+
+   public void glVertexAttribL3dv(int arg0, double[] arg1, int arg2) {
+      gl.glVertexAttribL3dv(arg0, arg1, arg2);
+   }
+
+   public void glVertexAttribL3dv(int arg0, DoubleBuffer arg1) {
+      gl.glVertexAttribL3dv(arg0, arg1);
+   }
+
+   public void glVertexAttribL4d(
+      int arg0, double arg1, double arg2, double arg3, double arg4) {
+      gl.glVertexAttribL4d(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glVertexAttribL4dv(int arg0, double[] arg1, int arg2) {
+      gl.glVertexAttribL4dv(arg0, arg1, arg2);
+   }
+
+   public void glVertexAttribL4dv(int arg0, DoubleBuffer arg1) {
+      gl.glVertexAttribL4dv(arg0, arg1);
+   }
+
+   public void glVertexAttribLPointer(
+      int arg0, int arg1, int arg2, int arg3, long arg4) {
+      gl.glVertexAttribLPointer(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glVertexBindingDivisor(int arg0, int arg1) {
+      gl.glVertexBindingDivisor(arg0, arg1);
+   }
+
+   public void glViewportArrayv(int arg0, int arg1, float[] arg2, int arg3) {
+      gl.glViewportArrayv(arg0, arg1, arg2, arg3);
+   }
+
+   public void glViewportArrayv(int arg0, int arg1, FloatBuffer arg2) {
+      gl.glViewportArrayv(arg0, arg1, arg2);
+   }
+
+   public void glViewportIndexedf(
+      int arg0, float arg1, float arg2, float arg3, float arg4) {
+      gl.glViewportIndexedf(arg0, arg1, arg2, arg3, arg4);
+   }
+
+   public void glViewportIndexedfv(int arg0, float[] arg1, int arg2) {
+      gl.glViewportIndexedfv(arg0, arg1, arg2);
+   }
+
+   public void glViewportIndexedfv(int arg0, FloatBuffer arg1) {
+      gl.glViewportIndexedfv(arg0, arg1);
+   }
+
+   public boolean isGLES31Compatible() {
+      return gl.isGLES31Compatible();
+   }
+
+   public boolean isGLES32Compatible() {
+      return gl.isGLES32Compatible();
    }
 
 }

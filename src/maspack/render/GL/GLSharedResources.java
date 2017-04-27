@@ -6,17 +6,16 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
-import javax.media.nativewindow.WindowClosingProtocol.WindowClosingMode;
-import javax.media.opengl.GL;
-import javax.media.opengl.GL2;
-import javax.media.opengl.GL2GL3;
-import javax.media.opengl.GL3;
-import javax.media.opengl.GLAutoDrawable;
-import javax.media.opengl.GLCapabilities;
-import javax.media.opengl.GLDrawableFactory;
-import javax.media.opengl.GLEventListener;
-import javax.media.opengl.GLProfile;
-import javax.media.opengl.awt.GLCanvas;
+import com.jogamp.opengl.GL;
+import com.jogamp.opengl.GL2;
+import com.jogamp.opengl.GL2GL3;
+import com.jogamp.opengl.GL3;
+import com.jogamp.opengl.GLAutoDrawable;
+import com.jogamp.opengl.GLCapabilities;
+import com.jogamp.opengl.GLDrawableFactory;
+import com.jogamp.opengl.GLEventListener;
+import com.jogamp.opengl.GLProfile;
+import com.jogamp.opengl.awt.GLCanvas;
 
 import maspack.render.TextureContent;
 import maspack.render.TextureContent.ContentFormat;
@@ -173,7 +172,6 @@ public abstract class GLSharedResources implements GLEventListener, GLGarbageSou
       maybeCreateMaster();
       GLCanvas canvas = new GLCanvas (glCapabilities);
       canvas.setSharedAutoDrawable (masterDrawable);
-      canvas.setDefaultCloseOperation (WindowClosingMode.DISPOSE_ON_CLOSE);
       return canvas;
    }
    
@@ -188,7 +186,6 @@ public abstract class GLSharedResources implements GLEventListener, GLGarbageSou
       maybeCreateMaster();
       GLJPanel panel = new GLJPanel (glCapabilities);
       panel.setSharedAutoDrawable (masterDrawable);
-      panel.setDefaultCloseOperation (WindowClosingMode.DISPOSE_ON_CLOSE);
       return panel;
    }
    
