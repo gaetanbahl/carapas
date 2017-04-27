@@ -3,7 +3,7 @@ package maspack.render.GL;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import com.jogamp.opengl.GL;
+import javax.media.opengl.GL;
 
 public class GLResourceList<T extends GLResource> implements GLGarbageSource {
    

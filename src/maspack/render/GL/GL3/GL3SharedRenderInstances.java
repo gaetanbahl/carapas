@@ -2,7 +2,7 @@ package maspack.render.GL.GL3;
 
 import java.nio.ByteBuffer;
 
-import com.jogamp.opengl.GL3;
+import javax.media.opengl.GL3;
 
 import maspack.matrix.AffineTransform3d;
 import maspack.matrix.Matrix3d;
