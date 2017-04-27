@@ -11,7 +11,6 @@ import javax.media.opengl.GLAutoDrawable;
 import javax.media.opengl.GLCapabilities;
 import javax.media.opengl.GLEventListener;
 import javax.media.opengl.GLProfile;
-import javax.media.opengl.awt.GLJPanel;
 
 import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.util.FPSAnimator;
@@ -27,6 +26,7 @@ import maspack.render.GL.GL3.GL3VertexAttributeInfo;
 import maspack.render.GL.GL3.GL3VertexAttributeMap;
 import maspack.render.GL.GL3.GLSLGenerator;
 import maspack.render.GL.GL3.GLSLGenerator.StringIntPair;
+import maspack.render.GL.jogl.GLJPanel;
 import maspack.util.Logger;
 
 public class GL3JPanelTest implements GLEventListener {

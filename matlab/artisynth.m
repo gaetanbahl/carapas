@@ -6,12 +6,12 @@ if (isempty(getenv('ARTISYNTH_HOME')))
     return
 end
 AH = getenv('ARTISYNTH_HOME');
-AP = getenv('ARTISYNTH_PATH');
-if (isempty(AP))
+setArtisynthClasspath (AH);
+if (isempty(getenv('ARTISYNTH_PATH')))
     % set up an appropriate default ARTISYNTH_PATH
     psep = char(java.lang.System.getProperty ('path.separator'));
     AP = [ '.', psep ];
-    if (~isempty(getenv('HOME')))
+    if (isempty(getenv('HOME')) == 0)
        AP = [ AP , getenv('HOME'), psep ];
     end
     AP = [ AP, AH ];

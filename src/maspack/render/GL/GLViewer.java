@@ -13,7 +13,6 @@ import java.awt.Rectangle;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseWheelListener;
 import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -3096,39 +3095,9 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
     */
    public abstract void setupScreenShot (
       int w, int h, int samples, File file, String format);
-  
-   
-   /**
-    * Callback function for screenshot being captured
-    */
-   public static interface ScreenShotCallback {
-      public void screenshot(BufferedImage image);
-   }
 
-   public void setupScreenShot(int w, int h, File file, String format) {
-      setupScreenShot(w, h, -1, file, format);
-   }   
-
-   public abstract boolean grabPending();
-
-   public abstract void cleanupScreenShots();
-   
-   /**
-    * Wait until all screenshots are complete
-    */
    public abstract void awaitScreenShotCompletion();
 
-   /**
-    * Setup for a screenshot during the next render cycle
-    * @param w width of shot
-    * @param h height of shot
-    * @param samples number of samples to use for the
-    *        multisample FBO (does antialiasing)
-    * @param callback notified when screenshot is complete
-    */
-   public abstract void setupScreenShot(int w, int h, int nsamples, 
-      ScreenShotCallback callback);
-   
    /**
     * Allows you to explicitly enable or disable resizing of viewer
     * (may want to disable while recording video or while selecting)
@@ -3165,6 +3134,11 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
    public boolean isAutoViewportEnabled() {
       return autoViewportEnabled;
    }
+
+   public abstract void setupScreenShot (
+      int w, int h, File file, String format);
+
+   public abstract boolean grabPending();
 
    public void setRotationMode (RotationMode mode) {
       if (myRotationMode != mode) {
@@ -3348,6 +3322,8 @@ public abstract class GLViewer implements GLEventListener, GLRenderer,
       canvas.addMouseMotionListener (myMouseHandler);
 
    }
+
+   public abstract void cleanupScreenShots();
 
    protected void setRenderingProgramMode(RenderingMode mode) {
       myProgramInfo.setMode (mode);

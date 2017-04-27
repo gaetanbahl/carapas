@@ -15,8 +15,8 @@ import java.awt.event.MouseWheelListener;
 import javax.media.opengl.GLAutoDrawable;
 import javax.media.opengl.GLEventListener;
 import javax.media.opengl.awt.GLCanvas;
-import javax.media.opengl.awt.GLJPanel;
 
+import maspack.render.GL.jogl.GLJPanel;
 
 
 /**
