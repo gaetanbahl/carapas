@@ -10,7 +10,13 @@
 # forwhich the library is required. Libraries without a system specifier are
 # assumed to be required on all systems. The system specifier must match the
 # name of one of the enumerated types defined by NativeLibraryManager.SystemType,
-# located in maspack.fileutil.
+# located in maspack.fileutil.  Additionally, Libraries may be followed with a
+# destination file-name.  For example,
+#
+#    Windows64 custom_library_1.2.1.jar custom_library.jar
+#
+# will download "custom_library_1.2.1.jar" to custom_library.jar on 64-bit
+# windows systems.
 #
 # Names ending in .jar are assumed to be jar files. Other names are assumed to
 # indicate native libraries. Jar files are typically required on all systems,
@@ -40,12 +46,10 @@
 # specified for different systems.
 #
 argparser.jar
-jogl2-gluegen-rt.jar
 jass.jar
 javaosc.jar
 jipopt.jar
 jmf.jar
-jogl2-all.jar
 jython.jar
 looks.jar
 quickhull3d.jar
@@ -53,15 +57,17 @@ vclipx.jar
 vfs2.jar
 matlabcontrol-4.1.0.jar
 # JOGL native libraries are bundled into jar files that are extracted
-# into and loaded from a temporary directory:
-Linux64 jogl2-gluegen-rt-natives-linux-amd64.jar
-Linux64 jogl2-all-natives-linux-amd64.jar
-MacOS jogl2-gluegen-rt-natives-macosx-universal.jar
-MacOS jogl2-all-natives-macosx-universal.jar
-Windows32 jogl2-gluegen-rt-natives-windows-i586.jar
-Windows32 jogl2-all-natives-windows-i586.jar
-Windows64 jogl2-gluegen-rt-natives-windows-amd64.jar
-Windows64 jogl2-all-natives-windows-amd64.jar
+# into and loaded from a temporary directory
+gluegen-rt-2.1.5.jar jogl2-gluegen-rt.jar
+jogl-all-2.1.5.jar	jogl2-all.jar
+Linux64 gluegen-rt-2.1.5-natives-linux-amd64.jar jogl2-gluegen-rt-natives-linux-amd64.jar
+Linux64 jogl-all-2.1.5-natives-linux-amd64.jar jogl2-all-natives-linux-amd64.jar
+MacOS gluegen-rt-2.1.5-natives-macosx-universal.jar jogl2-gluegen-rt-natives-macosx-universal.jar
+MacOS jogl-all-2.1.5-natives-macosx-universal.jar jogl2-all-natives-macosx-universal.jar
+Windows32 gluegen-rt-2.1.5-natives-windows-i586.jar jogl2-gluegen-rt-natives-windows-i586.jar
+Windows32 jogl-all-2.1.5-natives-windows-i586.jar jogl2-all-natives-windows-i586.jar
+Windows64 gluegen-rt-2.1.5-natives-windows-amd64.jar jogl2-gluegen-rt-natives-windows-amd64.jar
+Windows64 jogl-all-2.1.5-natives-windows-amd64.jar jogl2-all-natives-windows-amd64.jar
 PardisoJNI.11.1.2.1
 RobustPreds.1.1
 TetgenJNI.1.5.1.0
