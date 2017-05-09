@@ -730,7 +730,7 @@ public class FemFactory {
    public static FemModel3d createPartialHexWedgeCylinder(
       FemModel3d model, double l, double r, double theta,
       int nl, int nr, int ntheta) {
-
+ 
       if (model == null) {
          model = new FemModel3d();
       }
@@ -1142,14 +1142,6 @@ public class FemFactory {
          nl++;
       }
 
-      // round nt and nl up to even to allow proper tesselation
-      if ((nt % 2) == 1) {
-         nt++;
-      }
-      if ((nl % 2) == 1) {
-         nl++;
-      }
-
       double dT = 2 * Math.PI / nl;
       double dt = 2 * Math.PI / nt;
       double dr = (rout - rin) / (nr - 1);
@@ -1293,7 +1285,7 @@ public class FemFactory {
       FemModel3d model,
       double l, double rin, double rout, int nt, int nl, int nr, 
       boolean useHexes) {
-
+      
       // round nt up to even to allow proper tesselation
       if ((nt % 2) == 1) {
          nt++;
@@ -1805,7 +1797,7 @@ public class FemFactory {
    public static FemModel3d createQuadtetExtrusion(
       FemModel3d model, 
       int n, double d, double zOffset, PolygonalMesh surface) {
-
+      
       FemModel3d tetmod = new FemModel3d();
       createTetExtrusion(tetmod, n, d, zOffset, surface);
       createQuadraticModel(model, tetmod);
@@ -1903,7 +1895,7 @@ public class FemFactory {
    public static FemModel3d createQuadhexExtrusion(
       FemModel3d model, 
       int n, double d, double zOffset, PolygonalMesh surface) {
-
+      
       FemModel3d hexmod = new FemModel3d();
       createHexExtrusion(hexmod, n, d, zOffset, surface);
       createQuadraticModel(model, hexmod);
@@ -1920,7 +1912,7 @@ public class FemFactory {
    public static FemModel3d createQuadwedgeExtrusion(
       FemModel3d model, 
       int n, double d, double zOffset, PolygonalMesh surface) {
-
+      
       FemModel3d wedgemod = new FemModel3d();
       createWedgeExtrusion(wedgemod, n, d, zOffset, surface);
       createQuadraticModel(model, wedgemod);
@@ -2398,8 +2390,8 @@ public class FemFactory {
       Point3d newpnt = new Point3d();
       for (int i=0; i<surface.numVertices(); i++) {
          Vertex3d v = surface.getVertex(i);
-         newpnt.scaledAdd(d, normals[i], v.pnt);
-         model.addNode(new FemNode3d(newpnt));
+         FemNode3d newnode = new FemNode3d(v.pnt);
+         model.addNode(newnode);
       }
 
       
@@ -2407,7 +2399,8 @@ public class FemFactory {
          for (int j=0; j < surface.numVertices(); j++) {
             Vertex3d v = surface.getVertex(j);
             newpnt.scaledAdd((i + 1) * d + zOffset, normals[j], v.pnt);
-            model.addNode(new FemNode3d(newpnt));
+            FemNode3d newnode = new FemNode3d(newpnt);
+            model.addNode(newnode);
          }
 
          for (Face f : surface.getFaces()) {
@@ -2428,6 +2421,15 @@ public class FemFactory {
                nodes[cnt++] = model.getNode(idx + i * surface.numVertices());
             }
 
+            // hex and wedge have different winding order, swap around
+            if (numv != 4) {
+               FemNode3d tmp;
+               for (int k=0; k<numv; ++k) {
+                  tmp = nodes[k];
+                  nodes[k] = nodes[k+numv];
+                  nodes[k+numv] = tmp;
+               }
+            }
             FemElement3d e = FemElement3d.createElement(nodes);
             model.addElement(e);
 
@@ -2720,7 +2722,7 @@ public class FemFactory {
    public static FemModel3d createExtrusion(
       FemModel3d model, FemElementType type, 
       int n, double d, double zOffset, PolygonalMesh surface) {
-
+      
       switch (type) {
          case Tet:
             return createTetExtrusion(model, n, d, zOffset, surface);
