@@ -1,0 +1,25 @@
+ArtiSynth Notes:
+   
+FemModel
+   particleDamping vs. massDamping vs. pointDamping
+
+FemElement3d
+   density?  Get's confusing and inconsistent
+   Setting FemNode3d's mass and then varying density over-write each other
+   
+FemNode3d
+   pointDamping: is it even used?  seems like value taken from particleDamping
+                 in FemModel3d.updateNodeForces
+                 Should it be removed?
+
+   setRestPosition(...) notify fem so that if need be it can invalidate
+                 nodal rest volumes.
+                 <maybe should use better method>
+
+
+TrackingController
+   Remove PID stuff, make a new controller
+   Excessive object references, e.g. myRegularizationTerm (forced to be L2RegularizationTerm?)
+
+FemMaterial
+   computeStress(...)  is it actually computeStrain(...)?

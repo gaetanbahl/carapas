@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- enable this demos menu with the command-line option "-demosMenu models.xml" -->
+<ModelMenu xmlns="http://www.artisynth.org" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.artisynth.org src/artisynth/core/modelmenu/modelmenu.xsd">
+
+	<menu text="Collisions">
+		<package source="artisynth.models.collision" view="flat"
+			compact="2" fontstyle="bold" />
+	</menu>
+	<menu text="Sandbox">
+		<package source="artisynth.sandbox" view="hierarchical" compact="1"
+			fontstyle="bold" />
+	</menu>
+	<hidden>
+	<menu text="Models">
+	   <package source="artisynth.models" view="hierarchical" compact="1"
+            fontstyle="bold" />
+    </menu>
+    </hidden>
+    <menu text="Demos">
+	   <package source="artisynth.demos" view="hierarchical" compact="1"
+            fontstyle="bold" />
+	</menu>
+	<separator />
+	<menu text="Distribution" icon="src/artisynth/core/gui/icon/artisynth16.gif">
+		<!-- loads a regular .demoModes file and places models in the current submenu -->
+		<demosFile file=".demoModels" />
+	</menu>
+	<separator />
+	<menu text="Parametric Human">
+		<package source="artisynth.models.phuman" view="flat" compact="2"
+			fontstyle="bold" />
+	</menu>
+	<menu text="Joints">
+		<package source="artisynth.models.jointExperiments" view="flat"
+			compact="2" fontstyle="bold" />
+		<model text="Spherical RPY Test " class="artisynth.models.phuman.BadSphericalJointDemo" />
+	</menu>
+	<separator />
+	<package source="artisynth.models.phuman.femreg" view="flat"
+			compact="2" fontstyle="bold" />
+	<hidden>
+	<model text="Fem Fixer" class="artisynth.models.exReader.tests.FemFixTest" />
+	<model text="Fem Generator"
+		class="artisynth.models.toolbox.femtool.InteractiveFemCreator" />
+	<model text="Jointed Arm" class="artisynth.models.phuman.JointedArm" />
+	<model text="Gimbal Locking" class="artisynth.models.phuman.BadSphericalJointDemo" />
+	<model text="Custom Joint" class="artisynth.models.jointExperiments.CustomJointTest" />
+	</hidden>
+
+</ModelMenu>
