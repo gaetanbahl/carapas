@@ -5,7 +5,8 @@ setlocal EnableDelayedExpansion
 set FAST=no
 set HELP=no
 set SILENT=no
-set JAVA_OPTS=-Xms200M -Xmx6G -Xmn100M
+@rem -Xmx6G
+set JAVA_OPTS=-Xms200M -Xmn100M  
 set BATCHFILE=%~f0
 
 set COUNT=0
