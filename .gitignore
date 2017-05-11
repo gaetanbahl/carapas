@@ -92,3 +92,10 @@ scripts/*.ref
 # Temporary backup directories
 .git_backup
 .git_old
+
+# Personal files
+/artisynth_notes.txt
+/support/eclipse/artisynthCodeFormatNew.xml
+/scripts/loopscript.py
+/mymodels.xml
+
