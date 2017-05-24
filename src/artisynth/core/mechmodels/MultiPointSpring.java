@@ -37,6 +37,10 @@ import artisynth.core.materials.LinearAxialMaterial;
 import artisynth.core.modelbase.*;
 import artisynth.core.util.*;
 
+/**
+ * Multi-segment point-based spring that supports wrapping of selected
+ * segments.
+ */
 public class MultiPointSpring extends PointSpringBase
    implements ScalableUnits, TransformableGeometry,
               CopyableComponent, RequiresPrePostAdvance,
@@ -99,21 +103,32 @@ public class MultiPointSpring extends PointSpringBase
       myDnrmGain = dnrmGain;
    }
 
+   /**
+    * Stores information for a single knot point in a wrappable segment.
+    */
    public class WrapKnot {
-      public Point3d myPos;
-      public Vector3d myForce;
-      Vector3d myNrml;
-      Matrix3d myDnrm;
-      double myDist;
-      Wrappable myWrappable;
+      public Point3d myPos;         // knot position 
+      public Point3d myLocPos;      // local position wrt wrappble if in contact 
+      public Vector3d myForce;      // first-order force on the knot
+ 
+      // attributes used if the knot is is contact with a wrappable:
+      Vector3d myNrml;              // contact normal
+      Matrix3d myDnrm;              // derivative of normal wrt knot position
+      double myDist;                // distance to surface
+      public Wrappable myWrappable; // wrappable knot is in contact with
+      
+      // attributes used to store knot's components in the block triadiagonal
+      // stiffness/force system
       Matrix3d myBmat;
       Matrix3d myBinv;
       Matrix3d myCinv;
       Vector3d myDvec;
-      float[] myRenderPos;
+      
+      float[] myRenderPos;          // knot position used for rendering
 
       WrapKnot () {
          myPos = new Point3d();
+         myLocPos = new Point3d();
          myForce = new Vector3d();
          myNrml = new Vector3d();
          myDnrm = new Matrix3d();
@@ -132,17 +147,25 @@ public class MultiPointSpring extends PointSpringBase
       }
    }
 
-   private class Segment {
+   /**
+    * Stores information for an individual segment of this spring.  This
+    * includes both segments between fixed via-points, and subsegments within
+    * a wrappable segments.
+    */
+   public class Segment {
 
-      Point myPntB; // first point in the segment
-      Point myPntA; // second point in the segment
-      Vector3d mydFdxB;
-      Vector3d mydFdxA;
-      boolean myPassiveP = false;
+      public Point myPntB; // end-point B
+      public Point myPntA; // end-point A
+      Vector3d mydFdxB;    // derivative of tension force F wrt point B
+      Vector3d mydFdxA;    // derivative of tension force F wrt point A
+      
+      // passiveP, if true, means segment does not contribute to overall
+      // "length" of its MultiPointSpring
+      boolean myPassiveP = false; 
 
-      Matrix3d myP;
-      Vector3d myUvec;
-      double myLength;
+      Vector3d myUvec;     // unit vector in direction of segment
+      Matrix3d myP;        // (I - uvec uvec^T)
+      double myLength;     // length of the segment
 
       Segment() {
          myP = new Matrix3d();
@@ -151,7 +174,10 @@ public class MultiPointSpring extends PointSpringBase
          mydFdxA = new Vector3d();
       }
 
-      // assumes that uvec is up to date
+      /**
+       * Applies the tension of this segment to the forces of its
+       * end-points. Assumes that uvec is up to date.
+       */
       void applyForce (double F) {
          Vector3d f = new Vector3d();
          f.scale (F, myUvec);
@@ -159,6 +185,9 @@ public class MultiPointSpring extends PointSpringBase
          myPntA.subForce (f);
       }
 
+      /**
+       * Updates the unit vector and length of this segment.
+       */
       double updateU () {
          myUvec.sub (myPntA.getPosition(), myPntB.getPosition());
          myLength = myUvec.norm();
@@ -168,7 +197,10 @@ public class MultiPointSpring extends PointSpringBase
          return myLength;
       }
 
-      // assumes that uvec is up to date
+      /**
+       * Computes the derivative of the length of this segment.
+       * Assumes that uvec is up to date.
+       */
       double getLengthDot () {
          Vector3d velA = myPntA.getVelocity();
          Vector3d velB = myPntB.getVelocity();
@@ -178,7 +210,13 @@ public class MultiPointSpring extends PointSpringBase
          return myUvec.x*dvx + myUvec.y*dvy + myUvec.z*dvz;
       } 
 
-      // assumes that uvec is up to date
+      /**
+       * Update the P matrix of this segment, defined as
+       * <pre>
+       * I - u u^T
+       * </pre>
+       * where u is the segment unit vector. Assumes that uvec is up to date.
+       */
       void updateP () {
          myP.outerProduct (myUvec, myUvec);
          myP.negate();
@@ -187,7 +225,10 @@ public class MultiPointSpring extends PointSpringBase
          myP.m22 += 1;
       }
 
-      // assumes that uvec and P are up to date
+      /**
+       * Updates the derivatives of the tension force F with respect to changes
+       * in end-points A and B. Assumes that uvec and P are both up to date.
+       */
       void updateDfdx (double dFdl, double dFdldot) {
          if (!myPassiveP) {
             mydFdxA.scale (dFdl, myUvec);
@@ -206,18 +247,34 @@ public class MultiPointSpring extends PointSpringBase
          }
       }
 
-      SubSegment firstSubSegment() {
+      /**
+       * If this segment has subsegments, return the first subsegment.
+       * Otherwise, return <code>null</code>.
+       */
+      public SubSegment firstSubSegment() {
          return null;
       }
 
-      SubSegment lastSubSegment() {
+      /**
+       * If this segment has subsegments, return the last subsegment.
+       * Otherwise, return <code>null</code>.
+       */
+      public SubSegment lastSubSegment() {
          return null;
       }
 
-      boolean hasSubSegments() {
+      /**
+       * Queries whether this segment has subsegments.
+       * @return <code>true</code> if this segment has subsegments.
+       */
+      public boolean hasSubSegments() {
          return false;
       }
 
+      /**
+       * Scan attributes of this segment from a ReaderTokenizer. Used to
+       * implement scanning for the MultiPointSpring.
+       */
       boolean scanItem (ReaderTokenizer rtok, Deque<ScanToken> tokens)
          throws IOException {
 
@@ -236,6 +293,10 @@ public class MultiPointSpring extends PointSpringBase
          return false;
       }
 
+      /**
+       * Postscans end-point information for this segment. Used to implement
+       * postscan for the MultiPointSpring.
+       */
       boolean postscanItem (
          Deque<ScanToken> tokens, CompositeComponent ancestor)
          throws IOException {
@@ -252,6 +313,10 @@ public class MultiPointSpring extends PointSpringBase
          return false;         
       }
 
+      /**
+       * Writes attributes of this segment to a PrintWriter. Used to implement
+       * writing for the MultiPointSpring.
+       */
       void writeItems (
          PrintWriter pw, NumberFormat fmt, CompositeComponent ancestor)
          throws IOException {
@@ -263,26 +328,51 @@ public class MultiPointSpring extends PointSpringBase
          pw.println ("passive=" + myPassiveP);
       }
 
+      /**
+       * Applies distance scaling to this segment.
+       */
       void scaleDistance (double s) {
       }
 
+      /**
+       * Transforms the geometry of this segment.
+       */
       public void transformGeometry (GeometryTransformer gtr) {
       }
    }
 
-   private class SubSegment extends Segment {
-      PointAttachment myAttachmentB;
-      PointAttachment myAttachmentA;
+   /**
+    * Contains subsegment information. If a wrappable segment is in contact
+    * with one or more wrappables, it is divided into subsegments, which
+    * connect the A/B points of different wrappables to either each other, or
+    * to the terminating via points.
+    */   
+   public class SubSegment extends Segment {
 
-      Wrappable myWrappableB;
-      Wrappable myWrappableA;
+      // The end points A and B of a subsegment are either a fixed via point of
+      // the MultiPointSpring, or the A/B points of a wrappable. In the latter
+      // case, an attachment is assigned to transmit the sub-segment forces to
+      // the wrappable.
+      public Wrappable myWrappableB; // possible wrappable associated with B
+      public Wrappable myWrappableA; // possible wrappable associated with A
+      PointAttachment myAttachmentB; // possible attachment for B
+      PointAttachment myAttachmentA; // possible attachment for A
 
+      // Link to the next subsegment
       SubSegment myNext;
 
       SubSegment() {
          super();
       }
 
+      public SubSegment getNext() {
+         return myNext;
+      }
+
+      /**
+       * Applies the tension F in this subsegment to the via points or
+       * wrappables associated with its end-points.
+       */
       void applyForce (double F) {
          if (myAttachmentB != null) {
             myPntB.zeroForces();
@@ -299,7 +389,10 @@ public class MultiPointSpring extends PointSpringBase
          }
       }
 
-      // assumes that uvec is up to date
+      /**
+       * Computes the derivative of the length of this subsegment.
+       * Assumes that uvec is up to date.
+       */
       double getLengthDot () {
          if (myAttachmentB != null) {
             myAttachmentB.updateVelStates();
@@ -314,19 +407,30 @@ public class MultiPointSpring extends PointSpringBase
          double dvz = velA.z-velB.z;
          return myUvec.x*dvx + myUvec.y*dvy + myUvec.z*dvz;
       } 
-
-
    }
 
-   private class WrapSegment extends Segment {
-      int myNumKnots;
-      WrapKnot[] myKnots;
-      ArrayList<float[]> myRenderPoints;
-      ArrayList<float[]> myRenderABPoints;
-      Point3d[] myInitialPnts;
+   /**
+    * Implements a wrappable segment. This is done by dividing the segment into
+    * a fixed number of "knots", which are attracted to each other and out of
+    * the interior of "wrappable" objects using linear elastic forces. Once per
+    * time step, these forces are used to iteratively update the knot positions
+    * so as to "shrink wrap" the segment around whatever wrappables it is
+    * associated with. The physics used to do this is first-order, and
+    * independent of the second order physics of the overall simulation.
+    */
+   public class WrapSegment extends Segment {
+      int myNumKnots;                       // number of knot points
+      WrapKnot[] myKnots;                   // list of knot points
 
-      SubSegment mySubSegHead;
-      SubSegment mySubSegTail;
+      ArrayList<float[]> myRenderPoints;    // rendering positions for knots
+      ArrayList<float[]> myRenderABPoints;  // rendering positions for A/B points
+
+      // Optional list of points that are used to help provide an initial
+      // "path" for the segment
+      Point3d[] myInitialPnts;             
+
+      SubSegment mySubSegHead; // first subsegment
+      SubSegment mySubSegTail; // last subsegment
 
       WrapSegment () {
          this (0, null);
@@ -383,11 +487,13 @@ public class MultiPointSpring extends PointSpringBase
          seg.myNext = null;
       }
 
+
+      /**
+       * initialize the knots in the strand so that they are distributed evenly
+       * along the piecewise-linear path specified by the start and end points
+       * and any initialization points that may have been specified.
+       */      
       void initializeStrand (Point3d[] initialPnts) {
-         // initialize the knots in the strand so that they are distributed
-         // evenly along the piecewise-linear path specified by the start and
-         // end points and any initialization points that may have been 
-         // specified.
          
          // create the piece-wise path
          ArrayList<Point3d> pnts = new ArrayList<Point3d>();
@@ -430,8 +536,40 @@ public class MultiPointSpring extends PointSpringBase
          myLength = computeLength();
       }
 
+      void updateContactingKnotPositions() {
+         int cnt = 0;
+         for (int k=0; k<myNumKnots; k++) {
+            WrapKnot knot = myKnots[k];
+            Wrappable wrappable = knot.myWrappable;
+            if (wrappable != null) {
+               knot.myPos.transform (wrappable.getPose(), knot.myLocPos);
+               cnt++;
+            }
+         }
+      }
+      
+      void saveContactingKnotPositions() {
+         int cnt = 0;
+         for (int k=0; k<myNumKnots; k++) {
+            WrapKnot knot = myKnots[k];
+            Wrappable wrappable = knot.myWrappable;
+            if (wrappable != null) {
+               knot.myLocPos.inverseTransform (wrappable.getPose(), knot.myPos);
+               cnt++;
+            }
+         }
+      }
+      
+      /**
+       * Checks each knot in this segment to see if it is intersecting any
+       * wrappables, and if so, computes the contact normal and distance. If a
+       * knot intersects multiple wrappables, then the one with the deepest
+       * penetration is used.
+       *
+       * <p>This method returns <code>true</code> if the contact configuration
+       * has changed.
+       */
       boolean updateContacts (IntHolder numc) {
-
          int nc = 0;
          boolean changed = false;
          double mind = 0;
@@ -472,6 +610,10 @@ public class MultiPointSpring extends PointSpringBase
          return changed;
       }
 
+      /**
+       * Projects knots which are penetrating a wrappable onto the surface of
+       * that wrappable.
+       */
       void projectContacts () {
 
          double ptol = myMaxWrapDisplacement/10;
@@ -485,6 +627,11 @@ public class MultiPointSpring extends PointSpringBase
          }
       }
 
+      /**
+       * Updates the forces on each knot point. These forces are the sum of the
+       * tension between adjacent knots, plus the repulsion forces pushing
+       * knots out of any wrappable which it is penetrating.
+       */
       void updateForces() {
 
          for (int k=0; k<myNumKnots; k++) {
@@ -514,6 +661,14 @@ public class MultiPointSpring extends PointSpringBase
          }
       }        
 
+      /**
+       * Updates the stiffness matrix terms associated with each knot point.
+       * These give the force derivatives with respect to changes in knot
+       * position. The stiffness matrix structure is block-tridiagonal, where
+       * the diagonal blocks account for self-motion and changes wrappable
+       * repulsion forces, while the off-diagonal blocks account for the
+       * coupling between adjacent blocks.
+       */
       protected void updateStiffness (double dnrmGain) {
          double stiffness = myWrapStiffness;
          double cstiffness = myContactStiffness;
@@ -540,24 +695,38 @@ public class MultiPointSpring extends PointSpringBase
          }
       }
 
+      /**
+       * Collects the forces of all knots into a single vector <code>f</code>.
+       */
       private void getForces (VectorNd f) {
          for (int k=0; k<myNumKnots; k++) {         
             f.setSubVector (k*3, myKnots[k].myForce);
          }
       }
 
+      /**
+       * Collects the positions of all knots into a single vector
+       * <code>q</code>.
+       */
       private void getPositions (VectorNd q) {
          for (int k=0; k<myNumKnots; k++) {         
             q.setSubVector (k*3, myKnots[k].myPos);
          }
       }
 
+      /**
+       * Sets the positions of all knots from a single vector <code>q</code>.
+       */
       private void setPositions (VectorNd q) {
          for (int k=0; k<myNumKnots; k++) {         
             q.getSubVector (k*3, myKnots[k].myPos);
          }
       }
 
+      /**
+       * Uses numerical differentiation to estimate the stiffness
+       * matrix for all the knots. Used for debugging.
+       */
       protected MatrixNd computeNumericStiffness() {
 
          int numk = myNumKnots;
@@ -600,23 +769,43 @@ public class MultiPointSpring extends PointSpringBase
       }
 
       //
-      // Factor and solve the spring system using the block tridiagonal
+      // Computes the required displacements d_i for each knot point
+      // resulting from solving the block tridiagonal spring system
+      //
+      // [ B_0 C_0                 0    ] [   x_0   ]   [   f_0   ]
+      // [                              ] [         ]   [         ]
+      // [ A_1 B_1 C_1                  ] [   x_1   ]   [   f_1   ]
+      // [                              ] [         ]   [         ]
+      // [     A_2 B_2   ...            ] [   x_2   ] = [   f_2   ]
+      // [                              ] [         ]   [         ]
+      // [         ...   ...     C_{n-2}] [         ]   [         ]
+      // [                              ] [         ]   [         ]
+      // [  0           A_{n-1}  B_{n-1}] [ x_{n-1} ]   [ f_{n-1} ]
+      //
+      // that results from first order physics. e use the block tridiagonal
       // matrix algorithm:
       //
-      //         { inv(B_i) C_i                                   i = 1
+      //         { inv(B_i) C_i                                   i = 0
       //  C'_i = {
-      //         { inv(B_i - A_i*C'_{i-1}) C_i                    i = 2, 3, ...
+      //         { inv(B_i - A_i*C'_{i-1}) C_i                    i = 1, 2, ...
       //
-      //         { inv(B_i) d_i                                   i = 1
-      //  d'_i = {
-      //         { inv(B_i - A_i*C'_{i-1}) (d_i - A_i d'_{i-1})   i > 1
+      //         { inv(B_i) f_i                                   i = 0
+      //  d_i =  {
+      //         { inv(B_i - A_i*C'_{i-1}) (f_i - A_i d_{i-1})   i > 0
       //
-      //  x_n  = d'_n
+      //  x_n  = d_n
       //
-      //  x_i  = d'_i - C'_i x_{i+1}    i = n-1, ... 1
+      //  x_i  = d_i - C'_i x_{i+1}    i = n-2, ... 0
       //
-      // We also exploit the fact that the C_i and A_i matrices are block
-      // diagonal, so their multiplications can be done by simple scaling.
+      // We also exploit the fact that all C_i and A_i matrices are given by
+      //
+      // C_i = A_i = wrapStiffness I,
+      //
+      // where I is the 3x3 identity matrix, so their multiplications can be
+      // done by simple scaling.
+      //
+      // For each knot, B_i, inv(B_i), C'_i, f_i and d_i are stored in the
+      // myBmat, myBinv, myCinv, myForce and myDvec fields.
       //
       void factorAndSolve () {
          double c = -myWrapStiffness;
@@ -716,6 +905,14 @@ public class MultiPointSpring extends PointSpringBase
          return Math.sqrt(dot);
       }
 
+      double forceNorm() {
+         double sumSqr = 0;
+         for (int i=0; i<myNumKnots; i++) {
+            sumSqr += myKnots[i].myForce.normSquared();
+         }
+         return Math.sqrt(sumSqr);
+      }
+
       double maxContactScaling () {
          double maxs = 0;
          for (int i=0; i<myNumKnots; i++) {
@@ -795,16 +992,25 @@ public class MultiPointSpring extends PointSpringBase
          System.out.println ("Enorm=" + E.frobeniusNorm());
       }         
 
+      /**
+       * Updates the knot points in this wrappable segment. This is done by
+       * iterating until the first order physics resulting from the attractive
+       * forces between adjacent knots and repulsive forces from contacting
+       * wrappables results in a stable configuration.
+       */
       void updateWrapStrand (int maxIter) {
          int icnt = 0;
          boolean converged = false;
 
          IntHolder numc = new IntHolder();
          int noContactChangeCnt = 0;
-         boolean contactChanged = updateContacts(numc);
+         updateContactingKnotPositions();
+         boolean contactChanged = updateContacts(numc); 
+         //System.out.println ("updateWrapStrand");
          do {
             double prevLength = myLength;
             updateForces();
+            //System.out.println ("force=" + forceNorm());
             double dnrmGain = (noContactChangeCnt >= 2 ? myDnrmGain : 0);
             updateStiffness(dnrmGain);
             factorAndSolve();
@@ -820,7 +1026,7 @@ public class MultiPointSpring extends PointSpringBase
                noContactChangeCnt++;
             }
             //System.out.println (
-            //"numc=" + numc.value+" oldc="+oldc+" changed=" + contactChanged);
+            // "numc=" + numc.value+" oldc="+oldc+" changed=" + contactChanged);
             if (numc.value == 0 && oldc > 0) {
                //System.out.println ("break contact scale");
                if (0.9 < alpha) {
@@ -847,6 +1053,8 @@ public class MultiPointSpring extends PointSpringBase
             }
             
             double ltol = myLength*myLengthConvTol;
+            // check for convergence - at moment, this is when the knots stop
+            // moving.
             if (!contactChanged) {
                double maxDisp = maxLateralDisplacement();
                if (maxDisp/myLength < 1e-4 &&
@@ -856,6 +1064,7 @@ public class MultiPointSpring extends PointSpringBase
             }
          }
          while (++icnt < maxIter && !converged);
+         saveContactingKnotPositions();
          //checkStiffness();
          totalIterations += icnt;
          totalCalls++;
@@ -875,6 +1084,11 @@ public class MultiPointSpring extends PointSpringBase
          }
       }
 
+      /**
+       * Returns the position for knot k. If k < 0, returns the position of the
+       * initial via point. If k >= numKnots, returns the position of the
+       * final via point.
+       */
       Point3d getKnotPos (int k) {
          if (k < 0) {
             if (k == -1) {
@@ -897,6 +1111,34 @@ public class MultiPointSpring extends PointSpringBase
          }
       }               
 
+      public int numKnots() {
+         return myNumKnots;
+      }
+
+      public WrapKnot getKnot(int idx) {
+         return myKnots[idx];
+      }
+
+      public void setKnotPositions (Point3d[] plist) {
+         if (plist.length < myNumKnots) {
+            throw new IllegalArgumentException (
+               "Number of positions "+plist.length+
+               " less than number of knots");
+         }
+         for (int i=0; i<myNumKnots; i++) {
+            myKnots[i].myPos.set (plist[i]);
+         }
+      }
+
+      /**
+       * Computes a normal for the plane containing the three knot points
+       * <code>p0</code>, <code>pk</code>, and <code>p1</code>.  This plane can
+       * be used to help compute the A/B points on the wrappable surface.
+       *
+       * <p>If the three knots are colinear, knots past <code>p1</code> are
+       * searched (starting at index <code>k1</code> and advancing in the
+       * direction <code>kinc</code>) until a non-colinear one is found.
+       */
       void computeSideNormal (
          Vector3d sideNrm, Point3d p0, Point3d pk, Point3d p1, 
          int k1, int kinc) {
@@ -935,6 +1177,24 @@ public class MultiPointSpring extends PointSpringBase
          return pnt;
       }
 
+      /**
+       * Creates a subsegment between two knots indexed by kb and ka. The
+       * information is stored in <code>sugseg</code>, unless
+       * <code>sugseg</code> is <code>null</code>, in which case a new
+       * subsegment object is created and addded.
+       *
+       *<p> kb is the index of the last knot contacting the previous wrappable,
+       * unless kb = -1, in which case the subsegment is formed between knot ka
+       * and the initial via point. If knot kb is contacting a wrappable, an
+       * exit point B is determined on that wrappable by computing the surface
+       * tangent associated with knots ka and kb-1.
+       *
+       * <p> ka is the index of the first knot contacting the next wrappable,
+       * unless ka = numKnots, in which case the subsegment is formed between
+       * knot kb and the final via point. If knot ka is contacting a wrappable,
+       * an exit point A is determined on that wrappable by computing the
+       * surface tangent associated with knots kb and ka+1.
+       */
       SubSegment addOrUpdateSubSegment (int ka, int kb, SubSegment subseg) {
 
          Wrappable wrappableA = null;
@@ -1017,6 +1277,13 @@ public class MultiPointSpring extends PointSpringBase
          return subseg.myNext;
       }
 
+      /**
+       * Updates the subsegments associated with this wrappable segment.
+       * Assumes that updateWrapStrand() has already been called. If any knots
+       * are in contact with wrappables, subsegments are created between (a)
+       * the initial via point and the first wrappable, (b) each distinct
+       * wrappable, and (c) the last wrappable and the final via point.
+       */
       void updateSubSegments() {
          Wrappable wrappable = null;
          SubSegment subseg = mySubSegHead;
@@ -1040,25 +1307,46 @@ public class MultiPointSpring extends PointSpringBase
          }
       }
 
-      SubSegment firstSubSegment() {
+      /**
+       * If this segment has subsegments, return the first subsegment.
+       * Otherwise, return <code>null</code>.
+       */
+      public SubSegment firstSubSegment() {
          return mySubSegHead;
       }
 
-      SubSegment lastSubSegment() {
+      /**
+       * If this segment has subsegments, return the last subsegment.
+       * Otherwise, return <code>null</code>.
+       */
+      public SubSegment lastSubSegment() {
          return mySubSegTail;
       }
 
-      boolean hasSubSegments() {
+       /**
+       * Queries whether this segment has subsegments.
+       * @return <code>true</code> if this segment has subsegments.
+       */
+     public boolean hasSubSegments() {
          return mySubSegHead != null;
       }
 
+      // Begin methods to save and restore auxiliary state.
+      //
+      // Auxiliary state for a wrappable segment consists of the positions of
+      // all the knot points.
+
       void skipAuxState (DataBuffer data) {
-         data.dskip (3*myNumKnots);
+         data.dskip (6*myNumKnots);
       }
 
       void getAuxState (DataBuffer data) {
          for (int k=0; k<myNumKnots; k++) {
             Point3d pos = myKnots[k].myPos;
+            data.dput (pos.x);
+            data.dput (pos.y);
+            data.dput (pos.z);
+            pos = myKnots[k].myLocPos;
             data.dput (pos.x);
             data.dput (pos.y);
             data.dput (pos.z);
@@ -1070,7 +1358,7 @@ public class MultiPointSpring extends PointSpringBase
             getAuxState (newData);
          }
          else {
-            newData.putData (oldData, 3*myNumKnots, 0);
+            newData.putData (oldData, 6*myNumKnots, 0);
          }
       }
 
@@ -1080,11 +1368,21 @@ public class MultiPointSpring extends PointSpringBase
             pos.x = data.dget();
             pos.y = data.dget();
             pos.z = data.dget();
+            pos = myKnots[k].myLocPos;
+            pos.x = data.dget();
+            pos.y = data.dget();
+            pos.z = data.dget();
          }
          updateContacts(null);
          updateSubSegments();
       }
 
+      // End methods to save and restore auxiliary state.
+
+      /**
+       * Scan attributes of this wrappable segment from a ReaderTokenizer. Used
+       * to implement scanning for the MultiPointSpring.
+       */
       boolean scanItem (ReaderTokenizer rtok, Deque<ScanToken> tokens)
          throws IOException {
 
@@ -1112,6 +1410,10 @@ public class MultiPointSpring extends PointSpringBase
          return super.scanItem (rtok, tokens);
       }
 
+      /**
+       * Writes attributes of this wrappable segment to a PrintWriter. Used to
+       * implement writing for the MultiPointSpring.
+       */
       void writeItems (
          PrintWriter pw, NumberFormat fmt, CompositeComponent ancestor)
          throws IOException {
@@ -1131,12 +1433,18 @@ public class MultiPointSpring extends PointSpringBase
          }
       }
 
+      /**
+       * Applies distance scaling to this wrappable segment.
+       */      
       void scaleDistance (double s) {
          for (int k=0; k<myNumKnots; k++) {
             myKnots[k].myPos.scale (s);
          }
       }
 
+      /**
+       * Transforms the geometry of this wrappable segment.
+       */      
       public void transformGeometry (GeometryTransformer gtr) {
          for (int k=0; k<myNumKnots; k++) {
             gtr.transformPnt (myKnots[k].myPos);
@@ -1146,11 +1454,12 @@ public class MultiPointSpring extends PointSpringBase
    }
 
    private void updateABRenderProps() {
-      RenderProps props = new PointRenderProps();
-      props.setPointColor (Color.CYAN);
-      props.setPointStyle (myRenderProps.getPointStyle());
-      props.setPointRadius (myRenderProps.getPointRadius());
-      myABRenderProps = props;
+      if (myABRenderProps == null) {
+         myABRenderProps = new PointRenderProps();
+      }
+      myABRenderProps.setPointColor (Color.CYAN);
+      myABRenderProps.setPointStyle (myRenderProps.getPointStyle());
+      myABRenderProps.setPointRadius (myRenderProps.getPointRadius());
    }
 
    public double getWrapStiffness () {
@@ -1640,9 +1949,7 @@ public class MultiPointSpring extends PointSpringBase
    }
 
    public void prerender (RenderList list) {
-      if (myABRenderProps == null) {
-         updateABRenderProps();
-      }
+      updateABRenderProps();
       for (int i=0; i<numSegments(); i++) {
          Segment seg = mySegments.get(i);
          if (seg instanceof WrapSegment) {
@@ -2401,6 +2708,10 @@ public class MultiPointSpring extends PointSpringBase
       return mySegments.size();
    }
 
+   public Segment getSegment(int idx) {
+      return mySegments.get(idx);
+   }
+
    public int indexOfPoint (Point pnt) {
       for (int i=0; i<mySegments.size(); i++) {
          Segment seg = mySegments.get(i);
@@ -2478,6 +2789,21 @@ public class MultiPointSpring extends PointSpringBase
       Segment seg = mySegments.get (segIdx);
       if (seg instanceof WrapSegment) {
          ((WrapSegment)seg).initializeStrand (initialPnts);
+      }
+   }
+
+   public void setKnotPositions (int segIdx, Point3d[] plist) {
+      if (segIdx >= mySegments.size()) {
+         throw new IllegalArgumentException (
+            "Segment "+segIdx+" does not exist");
+      }
+      Segment seg = mySegments.get (segIdx);
+      if (seg instanceof WrapSegment) {
+         ((WrapSegment)seg).setKnotPositions (plist);
+      }
+      else {
+         throw new IllegalArgumentException (
+            "Segment "+segIdx+" is not a wrappable segment");
       }
    }
 
