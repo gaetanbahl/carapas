@@ -67,7 +67,7 @@ public class MechSystemSolver {
    private int myInverseMassVersion = -1;
    private double myInverseMassTime = -1;
    private boolean myMassConstantP = true;
-   private SparseNumberedBlockMatrix myMass;    
+   private SparseNumberedBlockMatrix myMass;  
    private VectorNd myMassForces;
    private SparseNumberedBlockMatrix myInverseMass;
    private VectorNd myBf = new VectorNd();
@@ -127,6 +127,7 @@ public class MechSystemSolver {
 
    private SparseNumberedBlockMatrix mySolveMatrix;
    private int mySolveMatrixVersion = -1;
+
    //private SparseNumberedBlockMatrix myKKTSolveMatrix;
    //private int myKKTSolveMatrixVersion = -1;
 
@@ -187,14 +188,17 @@ public class MechSystemSolver {
       BackwardEuler,
       ConstrainedBackwardEuler,
       FullBackwardEuler,
-      Trapezoidal
+      Trapezoidal,
       //      BridsonMarino
+      Trapezoidal2
    }
 
    private boolean integratorIsImplicit (Integrator integrator) {
       return (integrator == Integrator.BackwardEuler ||
          integrator == Integrator.ConstrainedBackwardEuler ||
-         integrator == Integrator.Trapezoidal);
+         integrator == Integrator.Trapezoidal ||
+         integrator == Integrator.Trapezoidal2
+         );
    }
 
    /** 
@@ -261,6 +265,7 @@ public class MechSystemSolver {
          mySys.getMassMatrix (myMass, myMassForces, t);
          myMassVersion = version;
          myMassTime = t;
+
       }
       else if (t == -1 || myMassTime != t) {
          mySys.getMassMatrix (myMass, myMassForces, t);
@@ -394,6 +399,7 @@ public class MechSystemSolver {
             break;
          }
          case Trapezoidal:
+         case Trapezoidal2:
          case FullBackwardEuler:
          case ConstrainedBackwardEuler: {
             if (solver != MatrixSolver.Pardiso) {
@@ -446,6 +452,7 @@ public class MechSystemSolver {
       switch (integrator) {
          case ConstrainedBackwardEuler:
          case Trapezoidal:
+         case Trapezoidal2:
          case FullBackwardEuler: {
             myComplianceSupported = true;
             break;
@@ -698,6 +705,10 @@ public class MechSystemSolver {
             trapezoidal (t0, t1, stepAdjust);
             break;
          }
+         case Trapezoidal2: {
+            trapezoidal2(t0, t1, stepAdjust);
+            break;
+         }
          default: {
             throw new UnsupportedOperationException ("Integrator "
                + myIntegrator + " not supported");
@@ -744,88 +755,88 @@ public class MechSystemSolver {
 
       applyPosCorrection (myQ, myUtmp, t1, stepAdjust);
    }
-   
+
    //return constraint forces
    public VectorNd getLambda()
    {
-    return myLam;  
+      return myLam;  
    }
 
    double maxErr = 0;
 
-//   private void debugMessagesForArticulatedDeformableBody1() {
-//
-//      RigidBody bod = getBody ();
-//      BodyConnector con = getConnector ();
-//      DeformableBody defbod = null;
-//      if (bod instanceof DeformableBody) {
-//         defbod = (DeformableBody)bod;
-//      }
-//      RigidTransform3d XCA0 = new RigidTransform3d ();
-//      RigidTransform3d TGA = new RigidTransform3d ();
-//      PolarDecomposition3d polar = new PolarDecomposition3d();
-//      Twist cvel = new Twist();
-//
-//      if (bod != null) {
-//         if (con != null) {         
-//            TGA.set (con.getTGA());
-//         }
-//         if (defbod != null) {
-//            defbod.computeUndeformedFrame (XCA0, polar, TGA);
-//         }
-//         System.out.println ("bodyVelA=" + bod.getVelocity().toString("%13.9f"));
-//         if (defbod != null) {
-//            System.out.println ("elasVelA=" + defbod.getElasticVel().toString("%13.9f"));
-//         }
-//         //System.out.println ("TGA=\n" + TGA.toString ("%13.9f"));
-//         bod.getBodyVelocity (cvel);
-//         cvel.inverseTransform (TGA);
-//         if (defbod != null) {
-//            Twist velx = new Twist(); 
-//            defbod.computeDeformedFrameVel (velx, polar, TGA);
-//            System.out.println ("velx=" + velx.toString ("%13.9f"));
-//            cvel.add (velx);
-//         }
-//         System.out.println ("velA=" + cvel.toString ("%13.9f"));
-//      }
-//   }
+   //   private void debugMessagesForArticulatedDeformableBody1() {
+   //
+   //      RigidBody bod = getBody ();
+   //      BodyConnector con = getConnector ();
+   //      DeformableBody defbod = null;
+   //      if (bod instanceof DeformableBody) {
+   //         defbod = (DeformableBody)bod;
+   //      }
+   //      RigidTransform3d XCA0 = new RigidTransform3d ();
+   //      RigidTransform3d TGA = new RigidTransform3d ();
+   //      PolarDecomposition3d polar = new PolarDecomposition3d();
+   //      Twist cvel = new Twist();
+   //
+   //      if (bod != null) {
+   //         if (con != null) {         
+   //            TGA.set (con.getTGA());
+   //         }
+   //         if (defbod != null) {
+   //            defbod.computeUndeformedFrame (XCA0, polar, TGA);
+   //         }
+   //         System.out.println ("bodyVelA=" + bod.getVelocity().toString("%13.9f"));
+   //         if (defbod != null) {
+   //            System.out.println ("elasVelA=" + defbod.getElasticVel().toString("%13.9f"));
+   //         }
+   //         //System.out.println ("TGA=\n" + TGA.toString ("%13.9f"));
+   //         bod.getBodyVelocity (cvel);
+   //         cvel.inverseTransform (TGA);
+   //         if (defbod != null) {
+   //            Twist velx = new Twist(); 
+   //            defbod.computeDeformedFrameVel (velx, polar, TGA);
+   //            System.out.println ("velx=" + velx.toString ("%13.9f"));
+   //            cvel.add (velx);
+   //         }
+   //         System.out.println ("velA=" + cvel.toString ("%13.9f"));
+   //      }
+   //   }
 
-//   private void debugMessagesForArticulatedDeformableBody2() {
-//
-//      RigidBody bod = getBody ();
-//      BodyConnector con = getConnector ();
-//      DeformableBody defbod = null;
-//      if (bod instanceof DeformableBody) {
-//         defbod = (DeformableBody)bod;
-//      }
-//      RigidTransform3d XCA0 = new RigidTransform3d ();
-//      RigidTransform3d TGA = new RigidTransform3d ();
-//      PolarDecomposition3d polar = new PolarDecomposition3d();
-//      Twist cvel = new Twist();
-//
-//      // begin deformable body constraint debug 
-//      if (bod != null) {
-//         if (con != null) {         
-//            TGA.set (con.getTGA());
-//         }
-//         if (defbod != null) {
-//            defbod.computeUndeformedFrame (XCA0, polar, TGA);
-//         }
-//         System.out.println ("bodyVelB=" + bod.getVelocity().toString("%13.9f"));
-//         if (defbod != null) {
-//            System.out.println ("elasVelB=" + defbod.getElasticVel().toString("%13.9f"));
-//         }
-//         bod.getBodyVelocity (cvel);
-//         cvel.inverseTransform (TGA);
-//         if (defbod != null) {
-//            Twist velx = new Twist(); 
-//            defbod.computeDeformedFrameVel (velx, polar, TGA);
-//            cvel.add (velx);
-//         }
-//         System.out.println ("velB=" + cvel.toString ("%13.9f"));
-//      }
-//      // end deformable body constraint debug 
-//   }
+   //   private void debugMessagesForArticulatedDeformableBody2() {
+   //
+   //      RigidBody bod = getBody ();
+   //      BodyConnector con = getConnector ();
+   //      DeformableBody defbod = null;
+   //      if (bod instanceof DeformableBody) {
+   //         defbod = (DeformableBody)bod;
+   //      }
+   //      RigidTransform3d XCA0 = new RigidTransform3d ();
+   //      RigidTransform3d TGA = new RigidTransform3d ();
+   //      PolarDecomposition3d polar = new PolarDecomposition3d();
+   //      Twist cvel = new Twist();
+   //
+   //      // begin deformable body constraint debug 
+   //      if (bod != null) {
+   //         if (con != null) {         
+   //            TGA.set (con.getTGA());
+   //         }
+   //         if (defbod != null) {
+   //            defbod.computeUndeformedFrame (XCA0, polar, TGA);
+   //         }
+   //         System.out.println ("bodyVelB=" + bod.getVelocity().toString("%13.9f"));
+   //         if (defbod != null) {
+   //            System.out.println ("elasVelB=" + defbod.getElasticVel().toString("%13.9f"));
+   //         }
+   //         bod.getBodyVelocity (cvel);
+   //         cvel.inverseTransform (TGA);
+   //         if (defbod != null) {
+   //            Twist velx = new Twist(); 
+   //            defbod.computeDeformedFrameVel (velx, polar, TGA);
+   //            cvel.add (velx);
+   //         }
+   //         System.out.println ("velB=" + cvel.toString ("%13.9f"));
+   //      }
+   //      // end deformable body constraint debug 
+   //   }
 
    protected void symplecticEuler (
       double t0, double t1, StepAdjustment stepAdjust) {
@@ -1165,7 +1176,7 @@ public class MechSystemSolver {
 
       mySys.setActiveVelState (myU); 
       mySys.updateConstraints (t1, null, MechSystem.UPDATE_CONTACTS);
-        
+
       applyVelCorrection (myU, t0, t1);
 
       mySys.getActivePosState (myQ);
@@ -1224,7 +1235,7 @@ public class MechSystemSolver {
       myGT = new SparseNumberedBlockMatrix ();
       mySys.getBilateralConstraints (myGT, myGdot);
       //myGT.checkConsistency();      
-      
+
       if (oldStructure == null || !myGT.blockStructureEquals (oldStructure)) {
          myGTVersion++;
       }
@@ -1416,7 +1427,7 @@ public class MechSystemSolver {
          myKKTSolveMatrixVersion = mySolveMatrixVersion;
          analyze = true;
       }
-      
+
       SparseNumberedBlockMatrix S = mySolveMatrix;      
 
       S.setZero();
@@ -1553,7 +1564,7 @@ public class MechSystemSolver {
                vel, myLam, myThe, bf, myBg, myBn);
             System.out.println (
                "vel residual ("+velSize+","+myGT.colSize()+","+
-               myNT.colSize()+"): " + res);
+                  myNT.colSize()+"): " + res);
          }
          //System.out.println ("bg=" + myBg);
          //System.out.println ("S=\n" + S);
@@ -1576,6 +1587,316 @@ public class MechSystemSolver {
          }
       }
 
+      mySys.setBilateralImpulses (myLam, h);
+      mySys.setUnilateralImpulses (myThe, h);
+      if (myUpdateForcesAtStepEnd) {
+         if (myGsize > 0) {
+            myGT.mulAdd (myFcon, myLam, velSize, myGsize);
+         }
+         if (myNsize > 0) {
+            myNT.mulAdd (myFcon, myThe, velSize, myNsize);
+         }
+      }
+
+
+      if (myLogWriter != null) {
+         try {
+            NumberFormat fmt = new NumberFormat("%g");
+            myLogWriter.println ("M("+velSize+"x"+velSize+")=[");
+            S.write (myLogWriter, fmt, Matrix.WriteFormat.SYMMETRIC_CRS,
+               velSize, velSize);
+            myLogWriter.println ("];");
+            myLogWriter.println ("GT("+velSize+"x"+myGT.colSize()+")=[");
+            myGT.write (myLogWriter, fmt, Matrix.WriteFormat.CRS,
+               velSize, myGT.colSize()); 
+            myLogWriter.println ("];");
+            myLogWriter.println ("NT("+velSize+"x"+myNT.colSize()+")=[");
+            myNT.write (myLogWriter, fmt, Matrix.WriteFormat.CRS,
+               velSize, myNT.colSize());
+            myLogWriter.println ("];");
+            myLogWriter.println ("bf=[");
+            bf.write (myLogWriter, fmt);
+            myLogWriter.println ("];");
+            myLogWriter.println ("myBg=[");
+            myBg.write (myLogWriter, fmt);
+            myLogWriter.println ("];");
+            myLogWriter.println ("myBn=[");
+            myBn.write (myLogWriter, fmt);
+            myLogWriter.println ("];");
+            myLogWriter.println ("vel=[");
+            vel.write (myLogWriter, fmt);
+            myLogWriter.println ("];");
+            myLogWriter.println ("myLam=[");
+            myLam.write (myLogWriter, fmt);
+            myLogWriter.println ("];");
+            myLogWriter.println ("myThe=[");
+            myThe.write (myLogWriter, fmt);
+            myLogWriter.println ("];");
+            myLogWriter.println ("");        
+            myLogWriter.flush();
+            System.out.println ("logging");
+         }
+         catch (IOException e) {
+            e.printStackTrace();
+            myLogWriter = null;
+         }
+      }
+   }
+
+   /** 
+    * Solves a KKT system in which the Jacobian augmented M matrix and
+    * and force vectors are given by
+    * <pre>
+    * M' = M + a0 df/dv + a1 df/dx 
+    *
+    * bf' = bf + (a2 df/dv + a3 df/dx) vel0
+    * </pre>
+    * It is assumed that a0 and a1 are both non-zero. It is also assumed that
+    * the a0 = -alpha h, where h is the step size and alpha indicates the
+    * propertion of implicitness for the solve; i.e., for regular backward
+    * euler, alpha=1, while for trapezoidal solves, alpha = 0.5;
+    *
+    * When used to solve for velocities in an implicit integrator, then
+    * on input, bf is assumed to be given by
+    * <pre>
+    * bf = M vel0 + h f
+    * </pre>
+    * where h is the time step and f is the generalized forces, while
+    * on output bf is modified to include the Jacobian terms described
+    * above.
+    * 
+    * @param vel returns the computed velocity
+    * @param fpar if useFictitousJacobianForces is true, returns fictitious 
+    * Jacobian forces for parametric components
+    * @param bf right side offset
+    * @param btmp temporary vector
+    * @param vel0 right side velocity
+    * @param h interval time step - used to scale constraint offsets and 
+    * impulses
+    * @param alpha implicit fraction, alpha=0 explicit, alpha=0.5 is trapezoidal, alpha=1 implicit
+    */
+   public void KKTFactorAndSolve2 (
+      VectorNd vel, VectorNd fpar, VectorNd bf, VectorNd btmp, VectorNd vel0,
+      double h, double alpha) {
+
+      // assumes that updateMassMatrix() has been called
+      updateStateSizes();
+
+      double a0 = -alpha*h;
+      double a1 = -alpha*alpha*h*h;
+      double a2 = -alpha*h;
+      double a3 = alpha*(1-alpha)*h*h; 
+
+      int velSize = myActiveVelSize;
+
+      boolean analyze = false;
+
+      updateSolveMatrixStructure();
+      if (myKKTSolveMatrixVersion != mySolveMatrixVersion) {
+         myKKTSolveMatrixVersion = mySolveMatrixVersion;
+         analyze = true;
+      }
+
+      SparseNumberedBlockMatrix S = mySolveMatrix;      
+
+      S.setZero();
+      myC.setSize (S.rowSize());
+      myC.setZero();
+      mySys.addVelJacobian (S, myC, a0);
+      //System.out.println ("myC=" + myC);
+      if (useFictitousJacobianForces) {
+         bf.scaledAdd (-a0, myC);
+         if (fpar != null && myParametricVelSize > 0) {
+            setSubVector (fpar, myC, velSize, myParametricVelSize);
+         }
+      }
+      if (vel0 != null) {
+         double aa = a2/a0 - a3/a1;
+         S.mul (btmp, vel0, velSize, velSize);
+         bf.scaledAdd (aa, btmp);
+      }
+      myC.setZero();
+      mySys.addPosJacobian (S, myC, a1);
+      if (useFictitousJacobianForces) {
+         bf.scaledAdd (-a0, myC);
+         if (fpar != null && myParametricVelSize > 0) {
+            addSubVector (fpar, myC, velSize, myParametricVelSize);
+         }
+      }
+      if (vel0 != null && a3 != 0) {
+         double beta = a3/a1;
+         S.mul (btmp, vel0, velSize, velSize);
+         bf.scaledAdd (beta, btmp);
+      }
+
+      addActiveMassMatrix (mySys, S);
+
+      if (velSize > 0 && myParametricVelSize > 0) {
+         S.mulTranspose (
+            btmp, myUpar, 0, velSize, velSize, myParametricVelSize);
+         bf.sub (btmp);
+      }
+
+      if (myKKTSolver == null) {
+         myKKTSolver = new KKTSolver();
+      }
+
+      updateBilateralConstraints ();
+      if (myKKTGTVersion != myGTVersion) {
+         analyze = true;
+         myKKTGTVersion = myGTVersion;
+      }
+
+      if (myGsize > 0 && myParametricVelSize > 0) {
+         myGT.mulTranspose (
+            myBg, myUpar, 0, myGsize, velSize, myParametricVelSize);
+         myBg.negate(); // move to rhs
+      }
+      else {
+         myBg.setZero();
+      }
+
+   
+      // a0 is assumed to be negative, which moves myGdot over to the rhs
+      // myBg.scaledAdd (a0, myGdot);
+      setBilateralOffsets (h, h);
+      // XXX
+      // Bg = G_k v_k
+      if (myGsize > 0) {
+//         myBg.setZero();
+         // myGT.mulTransposeAdd(myBg, vel0, 0, myGsize, 0, velSize);
+         // myBg.negate();
+//         mySys.getBilateralForces (myLam);
+//         
+//         if (alpha < 1) {
+//            myLam.scale(1-alpha); 
+//            myGT.mulAdd(myB, myLam, 0, velSize, 0, myGsize);
+//            myLam.scale(1.0/(1-alpha));
+//         }
+      }
+      
+      updateUnilateralConstraints ();
+
+      if (myNsize > 0 && myParametricVelSize > 0) {
+         myNT.mulTranspose (
+            myBn, myUpar, 0,myNsize, velSize, myParametricVelSize);
+         myBn.negate(); // move to rhs
+      }
+      else {
+         myBn.setZero();
+      }
+
+//      // XXX
+//      //Ng = N_kv_k+4/h*n_k
+//      if (myNsize > 0) {
+//         myNT.mulTransposeAdd(myBn, myU, 0, myNsize, 0, velSize);
+//         mySys.getUnilateralInfo (myNInfo);
+//         double[] nbuf = myBn.getBuffer();
+//         for (int i=0; i<myNsize; i++) {
+//            nbuf[i] -= 4*myNInfo[i].dist/h;
+//         }
+//         
+//         mySys.getUnilateralForces(myThe);
+////         if (alpha < 1) {
+////            myThe.scale((1-alpha));
+////            myNT.mulAdd(myB, myThe, 0, velSize, 0, myNsize);
+////            myThe.scale(1.0/(1-alpha));
+////         }
+//      }
+
+      // a0 is assumed to be negative, which moves myNdot over to the rhs
+      setUnilateralOffsets (h, -a0); // -a0);
+
+      // get these in case we are doing hybrid solves and they are needed to
+      // help with a warm start
+            mySys.getBilateralImpulses (myLam);
+            mySys.getUnilateralImpulses (myThe);
+//      myLam.scale(alpha*h);  // adjust for new time-step
+//      myThe.scale(alpha*h);
+      
+      if (!solveModePrinted) {
+         String msg = (myHybridSolveP ? "hybrid solves" : "direct solves");
+         if (mySys.getSolveMatrixType() == Matrix.INDEFINITE) {
+            msg += ", unsymmetric matrix";
+         }
+         else {
+            msg += ", symmetric matrix";
+         }
+         System.out.println (msg);
+         solveModePrinted = true;
+      }            
+
+      if (crsWriter == null && crsFileName != null) {
+         try {
+            crsWriter = ArtisynthIO.newIndentingPrintWriter (crsFileName);
+         }
+         catch (Exception e) {
+            crsFileName = null;
+         }
+      }
+
+      if (velSize != 0) {
+         if (vel0 != null) {
+            // set vel to vel0 in case the solver needs a warm start
+            vel.set (vel0);
+         }
+         if (analyze) {
+            myKKTSolver.analyze (
+               S, velSize, myGT, myRg, mySys.getSolveMatrixType());
+         }
+         if (myHybridSolveP && !analyze && myNT.colSize() == 0) {
+            if (profileKKTSolveTime) {
+               timerStart();
+            }
+            myKKTSolver.factorAndSolve (
+               S, velSize, myGT, myRg, vel, myLam, bf, myBg, myHybridSolveTol);
+            if (profileKKTSolveTime) {
+               timerStop ("KKTsolve(hybrid)");
+            }
+         }
+         else {
+            if (profileKKTSolveTime) {
+               timerStart();
+            }
+            myKKTSolver.factor (S, velSize, myGT, myRg, myNT, myRn);
+            myKKTSolver.solve (vel, myLam, myThe, bf, myBg, myBn);
+            if (profileKKTSolveTime) {
+               timerStop ("KKTsolve");
+            }
+         }
+         if (computeKKTResidual) {
+            double res = myKKTSolver.residual (
+               S, velSize, myGT, myRg, myNT, myRn, 
+               vel, myLam, myThe, bf, myBg, myBn);
+            System.out.println (
+               "vel residual ("+velSize+","+myGT.colSize()+","+
+                  myNT.colSize()+"): " + res);
+         }
+         //System.out.println ("bg=" + myBg);
+         //System.out.println ("S=\n" + S);
+
+         if (crsWriter != null) {
+            String msg = 
+               "# KKTsolve M="+velSize+" G="+myGT.colSize()+
+               " N="+myNT.colSize()+(analyze ? " ANALYZE" : "");
+            System.out.println (msg);
+            try {
+               crsWriter.println (msg);
+               myKKTSolver.printLinearProblem (
+                  crsWriter, bf, myBg, "%g", crsOmitDiag);
+            }
+            catch (Exception e) {
+               e.printStackTrace(); 
+               crsWriter = null;
+               crsFileName = null;
+            }
+         }
+      }
+
+      // adjust constraint forces based on alpha?
+      myLam.scale(1.0/alpha);
+      myThe.scale(1.0/alpha);
+      
       mySys.setBilateralImpulses (myLam, h);
       mySys.setUnilateralImpulses (myThe, h);
       if (myUpdateForcesAtStepEnd) {
@@ -1915,7 +2236,7 @@ public class MechSystemSolver {
             vel, myLam, myThe, myBf, myBg, myBn);
          System.out.println (
             "vel cor residual ("+velSize+","+myGT.colSize()+","+
-            myNT.colSize()+"): " + res);
+               myNT.colSize()+"): " + res);
       }
       //vel.set (myVel);
       mySys.setBilateralImpulses (myLam, h);
@@ -2016,7 +2337,7 @@ public class MechSystemSolver {
             vel, myLam, myThe, myBf, myBg, myBn);
          System.out.println (
             "vel cor residual ("+velSize+","+myGT.colSize()+","+
-            myNT.colSize()+"): " + res);
+               myNT.colSize()+"): " + res);
       }
       //vel.set (myVel);
       mySys.setBilateralImpulses (myLam, h);
@@ -2111,7 +2432,7 @@ public class MechSystemSolver {
             vel, myLam, myThe, myBf, myBg, myBn);
          System.out.println (
             "mass pos cor residual ("+velSize+","+myGT.colSize()+","+
-            myNT.colSize()+"): " + res);
+               myNT.colSize()+"): " + res);
       }
    }
 
@@ -2153,7 +2474,7 @@ public class MechSystemSolver {
             vel, myLam, myThe, myBf, myBg, myBn);
          System.out.println (
             "stiffness pos cor residual ("+velSize+","+myGT.colSize()+","+
-            myNT.colSize()+"): " + res);
+               myNT.colSize()+"): " + res);
       }
    }
 
@@ -2204,7 +2525,7 @@ public class MechSystemSolver {
       }
       updateBilateralConstraints ();
       updateUnilateralConstraints ();
-      
+
       // myVel.setSize (velSize);
       if (myGsize > 0 || myNsize > 0) {
          boolean allConstraintsCompliant = true;
@@ -2669,6 +2990,75 @@ public class MechSystemSolver {
          h, -h/2, -h*h/4, -h/2, h*h/4);
 
       //mySys.getActivePosDerivative (dxdtVec0, t0, 0);
+
+      mySys.setActiveVelState (myUtmp);
+      if (useGlobalFriction) {
+         projectFrictionConstraints (myUtmp, t1);
+         mySys.setActiveVelState (myUtmp);
+      }
+      //      else {
+      //         mySys.projectVelConstraints (t0, t1);
+      //      }
+
+      // back solve for parametric forces
+      //computeImplicitParametricForces (myUtmp, myFparC);
+
+      mySys.getActivePosState (myQ);
+      //mySys.getActivePosDerivative (dxdtVec, t1, 0);
+      //xVec.scaledAdd (h/2, dxdtVec0, xVec);
+      //xVec.scaledAdd (h/2, dxdtVec, xVec);
+      mySys.addActivePosImpulse (myQ, h/2, myUtmp);
+      mySys.addActivePosImpulse (myQ, h/2, myU);
+      mySys.setActivePosState (myQ);
+
+      applyPosCorrection (myQ, myUtmp, t1, stepAdjust);
+   }
+
+   public void trapezoidal2 (double t0, double t1, StepAdjustment stepAdjust) {
+      if (myMatrixSolver == MatrixSolver.None) {
+         throw new UnsupportedOperationException (
+            "MatrixSolver cannot be 'None' for this integrator");
+      }
+      double h = t1 - t0;
+
+      int velSize = myActiveVelSize;
+      int posSize = myActivePosSize;
+
+      myB.setSize (velSize);
+      myUtmp.setSize (velSize);
+      myF.setSize (velSize);
+      myU.setSize (velSize);
+      myQ.setSize (posSize);
+      myFparC.setSize (myParametricVelSize);
+      //dxdtVec.setSize (posSize);
+      //dxdtVec0.setSize (posSize);
+
+      mySys.updateConstraints (t1, null, MechSystem.UPDATE_CONTACTS);
+      mySys.updateForces (t1);
+
+      // b = M v
+      mySys.getActiveVelState (myU);
+      mulActiveInertias (myB, myU);
+      mySys.getActiveForces (myF);
+      myF.add (myMassForces);
+      myB.scaledAdd (h, myF, myB);
+
+      //      updateBilateralConstraints();      
+      //      if (myGsize > 0) {
+      //         mySys.getBilateralForces(myLam);
+      //         myGT.mul(myF, myLam, 0, velSize, 0, myGsize);
+      //         myB.scaledAdd(h/2, myF);
+      //      }
+      //      updateUnilateralConstraints();
+      //      if (myNsize > 0) {
+      //         mySys.getUnilateralForces(myThe);
+      //         myNT.mul(myF, myThe, 0, velSize, 0, myNsize);
+      //         myB.scaledAdd(h/2, myF);
+      //      }
+      
+      KKTFactorAndSolve (
+         myUtmp, myFparC, myB, /*tmp=*/myF, myU, 
+         h, -h, -h*h, -h, h*h);
 
       mySys.setActiveVelState (myUtmp);
       if (useGlobalFriction) {

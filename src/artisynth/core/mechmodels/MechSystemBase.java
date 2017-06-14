@@ -339,7 +339,12 @@ public abstract class MechSystemBase extends RenderableModelBase
       updateForceComponentList();
       getBilateralImpulses (lam, 0);
    }
-
+   
+   public void getBilateralForces(VectorNd lam) {
+      getBilateralImpulses(lam);
+      lam.scale(1.0/myLastBilateralH);
+   }
+   
    public int getBilateralImpulses (VectorNd lam, int idx) {
       for (int i=0; i<myConstrainers.size(); i++) {
          idx = myConstrainers.get(i).getBilateralImpulses (lam, idx);
@@ -372,6 +377,11 @@ public abstract class MechSystemBase extends RenderableModelBase
       updateForceComponentList();
       getUnilateralImpulses (the, 0);
    }         
+   
+   public void getUnilateralForces(VectorNd the) {
+      getUnilateralImpulses(the);
+      the.scale(1.0/myLastUnilateralH);
+   }
 
    public int getUnilateralImpulses (VectorNd the, int idx) {
       for (int i=0; i<myConstrainers.size(); i++) {

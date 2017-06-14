@@ -113,6 +113,10 @@ public class RigidEllipsoid extends RigidBody implements Wrappable {
       
    }
 
+   private final double sqr (double x) {
+      return x*x;
+   }
+
    public double penetrationDistance (Vector3d nrm, Matrix3d dnrm, Point3d p0) {
       double a = myAxisLengths.x;
       double b = myAxisLengths.y;
@@ -120,13 +124,31 @@ public class RigidEllipsoid extends RigidBody implements Wrappable {
 
       Point3d loc0 = new Point3d(p0);
       loc0.inverseTransform (getPose());
-      double d = QuadraticUtils.ellipsoidPenetrationDistance (
-         nrm, loc0, a, b, c);
       if (dnrm != null) {
          dnrm.setZero();
       }
-      nrm.transform (getPose());
-      return d;
+      if (false) {
+         double d = QuadraticUtils.ellipsoidPenetrationDistance (
+            nrm, loc0, a, b, c, 2);
+         nrm.transform (getPose());
+         if (d == QuadraticUtils.OUTSIDE) {
+            return Wrappable.OUTSIDE;
+         }
+         else {
+            return d;
+         }
+      }
+      else {
+         if (sqr(loc0.x/a)+sqr(loc0.y/b)+sqr(loc0.z/c) >= 2) {
+            return Wrappable.OUTSIDE;
+         }
+         Vector3d locn = new Vector3d();
+         double d = QuadraticUtils.nearestPointEllipsoid (locn, a, b, c, loc0);
+         nrm.set (locn.x/(a*a), locn.y/(b*b), locn.z/(c*c));
+         nrm.normalize();
+         nrm.transform (getPose());
+         return d;
+      }
    }
 
    public void transformGeometry (

@@ -543,6 +543,19 @@ public interface MechSystem {
     * Bilateral constraint impulses being returned from the system.
     */
    public void getBilateralImpulses (VectorNd lam);
+   
+   /** 
+    * Returns from the system the most recently computed bilateral constraint
+    * forces.  These are stored in the vector <code>lam</code>, which should
+    * have a size greater or equal to the column size of <code>GT</code>
+    * returned by {@link #getBilateralConstraints getBilateralConstraints()}.  
+    * These should be equal to the last bilateral impulse divided by
+    * the last time step.
+    * 
+    * @param lam
+    * Bilateral constraint forces being returned from the system.
+    */
+   public void getBilateralForces (VectorNd lam);
 
    /** 
     * Obtains the transpose of the current unilateral constraint matrix N for this
@@ -611,6 +624,19 @@ public interface MechSystem {
     * Unilateral constraint impulses being returned from the system.
     */
    public void getUnilateralImpulses (VectorNd the);
+   
+   /** 
+    * Returns from the system the most recently computed unilateral constraint
+    * forces.  These are stored in the vector <code>the</code>, which should
+    * have a size greater or equal to the column size of <code>NT</code>
+    * returned by {@link #getUnilateralConstraints getUnilateralConstraints()}.
+    * This should be equal to the previously set unilateral impulses
+    * divided by the previous time step. 
+    * 
+    * @param the
+    * Unilateral constraint forces being returned from the system.
+    */
+   public void getUnilateralForces (VectorNd the);
 
    /** 
     * Returns that maximum number of friction constraint set that may be added by

@@ -116,15 +116,17 @@ public class RigidBody extends Frame
    static int DEFAULT_DISTANCE_GRID_MAX_DIVS = 20;
    static Vector3i DEFAULT_DISTANCE_GRID_DIVS = new Vector3i(0, 0, 0);
    static boolean DEFAULT_RENDER_DISTANCE_GRID = false;
+   static boolean DEFAULT_RENDER_DISTANCE_SURFACE = false;
    static String DEFAULT_DISTANCE_GRID_RENDER_RANGES = "* * *";
    SignedDistanceGrid mySDGrid = null;
+   PolygonalMesh mySDSurface = null;
    boolean mySDGridValid = false;
    Vector3i myDistanceGridRes = new Vector3i(DEFAULT_DISTANCE_GRID_DIVS);
    int myDistanceGridMaxRes = DEFAULT_DISTANCE_GRID_MAX_DIVS;
    boolean myRenderDistanceGrid = DEFAULT_RENDER_DISTANCE_GRID;
+   boolean myRenderDistanceSurface = DEFAULT_RENDER_DISTANCE_SURFACE;
    String myDistanceGridRenderRanges = DEFAULT_DISTANCE_GRID_RENDER_RANGES;
    double myGridMargin = 0.1;
-   
 
     static {
       myProps.remove ("renderProps");
@@ -159,6 +161,10 @@ public class RigidBody extends Frame
          "renderDistanceGrid", 
          "render the distance grid in the viewer",
          DEFAULT_RENDER_DISTANCE_GRID);
+      myProps.add (
+         "renderDistanceSurface", 
+         "render the iso-surface of the distance grid in the viewer",
+         DEFAULT_RENDER_DISTANCE_SURFACE);
       myProps.add (
          "distanceGridRenderRanges",
          "which part of the distance grid to render", 
@@ -216,7 +222,7 @@ public class RigidBody extends Frame
          doGetInertia (M, S);
       }
    }
-
+   
    public int mulInverseEffectiveMass (
       Matrix M, double[] a, double[] f, int idx) {
       SpatialInertia S = getEffectiveInertia();
@@ -379,6 +385,14 @@ public class RigidBody extends Frame
       return mySpatialInertia.getCenterOfMass();
    }
 
+   /**
+    * Adjusts the pose so that it reflects the rigid body's center of mass
+    */
+   public void centerPoseOnCenterOfMass() {
+      Point3d com = mySpatialInertia.getCenterOfMass();
+      mySpatialInertia.setCenterOfMass(0,0,0);
+      myState.pos.add(com);
+   }
 
    /** 
     * Causes the inertia to be automatically computed from the mesh volume
@@ -715,6 +729,9 @@ public class RigidBody extends Frame
       PolygonalMesh mesh = getMesh();
       if (mesh != null) {
          mesh.setMeshToWorld (myState.XFrameToWorld);
+         if (myRenderDistanceSurface && getDistanceSurface() != null) {
+            getDistanceSurface().setMeshToWorld (myState.XFrameToWorld);
+         }
       }
    }
 
@@ -983,7 +1000,13 @@ public class RigidBody extends Frame
       if (isSelected()) {
          flags |= Renderer.HIGHLIGHT;
       }
-      myMeshInfo.render (renderer, myRenderProps, flags);
+      if (myRenderDistanceSurface && getDistanceSurface() != null) {
+         PolygonalMesh surf = getDistanceSurface();
+         surf.render (renderer, myRenderProps, flags);
+      }
+      else {
+         myMeshInfo.render (renderer, myRenderProps, flags);
+      }
       if (myRenderDistanceGrid && getDistanceGrid() != null) {
          getDistanceGrid().render (renderer, myRenderProps, flags);
       }
@@ -992,7 +1015,13 @@ public class RigidBody extends Frame
    public void prerender (RenderList list) {
       myRenderFrame.set (myState.XFrameToWorld);
       // list.addIfVisible (myMarkers);
-      myMeshInfo.prerender (myRenderProps);      
+      if (myRenderDistanceSurface && getDistanceSurface() != null) {
+         PolygonalMesh surf = getDistanceSurface();
+         surf.prerender (myRenderProps); 
+      }
+      else {
+         myMeshInfo.prerender (myRenderProps);      
+      }
       if (myRenderDistanceGrid && getDistanceGrid() != null) {
          getDistanceGrid().prerender (list);
       }
@@ -1017,6 +1046,8 @@ public class RigidBody extends Frame
          else {
             mesh.setMeshToWorld (myState.XFrameToWorld);
          }
+         mySDGridValid = false;
+         mySDSurface = null;
       }
    }   
 
@@ -1030,6 +1061,8 @@ public class RigidBody extends Frame
       if (mesh != null) {
          mesh.scale (s);
          mesh.setMeshToWorld (myState.XFrameToWorld);
+         mySDGridValid = false;
+         mySDSurface = null;
       }
       
       myDensity /= (s * s * s);
@@ -1515,6 +1548,17 @@ public class RigidBody extends Frame
       return mySDGrid;
    }
 
+   public PolygonalMesh getDistanceSurface() {
+      if (mySDSurface == null) {
+         if (hasDistanceGrid()) {
+            SignedDistanceGrid grid = getDistanceGrid();
+            mySDSurface = grid.computeDistanceSurface();
+            mySDSurface.setMeshToWorld (myState.XFrameToWorld);
+         }
+      }
+      return mySDSurface;
+   }
+
    @Override
    public Collidability getCollidable () {
       getSurfaceMesh(); // build surface mesh if necessary
@@ -1576,6 +1620,7 @@ public class RigidBody extends Frame
          if (myDistanceGridRes.equals (Vector3i.ZERO)) {
             // will need to rebuild grid
             mySDGridValid = false;
+            mySDSurface = null;
          }
          if (max < 0) {
             // MaxDivs == 0 and Divs == (0,0,0) disables grid
@@ -1606,6 +1651,7 @@ public class RigidBody extends Frame
             myDistanceGridRes.set (res);
          }
          mySDGridValid = false; // will need to rebuild grid
+         mySDSurface = null;
          myDistanceGridRenderRanges = DEFAULT_DISTANCE_GRID_RENDER_RANGES;
       }
    }
@@ -1629,6 +1675,32 @@ public class RigidBody extends Frame
     */
    public void setRenderDistanceGrid(boolean enable) {
       myRenderDistanceGrid = enable;
+   }
+
+   /**
+    * Queries whether or not rendering of the distance surface is
+    * enabled.
+    *
+    * @return <code>true</code> if rendering of the distance surface is enabled
+    * @see #setRenderDistanceSurface
+    */
+   public boolean getRenderDistanceSurface() {
+      return myRenderDistanceSurface;
+   }
+
+   /**
+    * Enables or disables rendering of the distance surface. If enabled, then
+    * an approximation of the isosurface for the signed distance grid is
+    * rendered <i>instead</i> of the surface mesh. This can give the user a
+    * better understanding of how the distance grid approximates the associated
+    * mesh.
+    *
+    * @param enable if <code>true</code>, enables rendering of the distance
+    * surface
+    * @see #getRenderDistanceSurface
+    */
+   public void setRenderDistanceSurface(boolean enable) {
+      myRenderDistanceSurface = enable;
    }
 
    /**
