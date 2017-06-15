@@ -497,7 +497,7 @@ public abstract class FemElement3d extends FemElement
 
    public abstract int[] getFaceIndices();
 
-   private IntegrationData3d[] doGetIntegrationData() {
+   protected IntegrationData3d[] doGetIntegrationData() {
       IntegrationData3d[] idata = myIntegrationData;
       if (idata == null) {
          int numPnts = getIntegrationPoints().length;
