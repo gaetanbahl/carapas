@@ -6,6 +6,7 @@
  */
 package artisynth.core.femmodels;
 
+import artisynth.core.materials.TensorUtils;
 import maspack.matrix.*;
 
 /** 
@@ -580,4 +581,108 @@ public class FemUtilities {
       return trif;
    }
 
+   /** 
+    * Add weighted material stiffness for this i,j node neighbor pair
+    * (represented by 3x3 stiffness block), relative to a particular integration
+    * point of the shell element.
+    * 
+    * @param K
+    * 3x3 stiffness block, belonging to i-j node pair, to be increased with 
+    * material stiffness.
+    * 
+    * @param iN
+    * Shape function of i-th node and integration point.
+    * 
+    * @param jN
+    * Shape function of j-th node and integration point.
+    * 
+    * @param idN
+    * Derivative of shape function of i-th node and integration point.
+    * 
+    * @param jdN 
+    * Derivative of shape function of j-th node and integration point.
+    * 
+    * @param dv
+    * Weighted determinant of integration point jacobian.
+    * 
+    * @param t
+    * t-component of (r,s,t) integration point coordinates (i.e. gauss point)
+    * 
+    * @param gct 
+    * Contravariant base vectors of integration point.
+    * 
+    * @param matStress
+    * Material stress of integration point.
+    * 
+    * @param matTangent
+    * Material tangent of integration point.
+    * 
+    * @postcond
+    * K is increased.
+    * 
+    * FEBio Porting Notes:  
+    *   void FEElasticShellDomain::ElementStiffness(int iel, matrix& ke)
+    *   
+    *   TODO: Shell-element in FEBio uses 6 dof (3 for x,y,z displacement, 
+    *         and 3 for x,y,z rotation). Artisynth is only hard coded for 
+    *         3 dof, so individual stiffness block of i,j node pair is only 
+    *         3x3 rather than 6x6. This function was adjusted for 3dof only.
+    *         Not sure if the full 6dof is needed.
+    */
+   public static void addShellMaterialStiffness (
+      Matrix3d K, double iN, double jN, Vector3d idN, Vector3d jdN, double dv,
+      double t, Vector3d[] gct, SymmetricMatrix3d matStress,
+      Matrix6d matTangent) {
+     
+      // Compute gradM for i and j
+      
+      Vector3d iGradM = new Vector3d( gct[0] );
+      iGradM.scale(idN.x);
+      iGradM.scaledAdd(idN.y, gct[1]);
+      
+      Vector3d jGradM = new Vector3d( gct[0] );
+      jGradM.scale(jdN.x);
+      jGradM.scaledAdd(jdN.y, gct[1]);
+      
+      // Compute gradMu for i and j
+      
+      Vector3d iGradMu = new Vector3d( gct[2] );
+      iGradMu.scale(iN);
+      iGradMu.scaledAdd(1+t, iGradM);
+      iGradMu.scale(0.5);
+      
+      Vector3d jGradMu = new Vector3d( gct[2] );
+      jGradMu.scale(jN);
+      jGradMu.scaledAdd(1+t, jGradM);
+      jGradMu.scale(0.5);
+      
+      Matrix3d Kuu = new Matrix3d();
+      TensorUtils.v3DotTens4sDotv3 (/*out=*/Kuu, iGradMu, matTangent, jGradMu);
+      Kuu.scale(dv);
+      
+      // Material component 
+      
+      K.m00 += Kuu.m00;
+      K.m10 += Kuu.m10;
+      K.m20 += Kuu.m20;
+      
+      K.m01 += Kuu.m01;
+      K.m11 += Kuu.m11;
+      K.m21 += Kuu.m21;
+      
+      K.m02 += Kuu.m02;
+      K.m12 += Kuu.m12;
+      K.m22 += Kuu.m22;
+
+      // Stress component 
+      
+      Vector3d sjGradMu = new Vector3d( jGradMu );     
+      matStress.mul (sjGradMu);                        
+      
+      double sKuu = iGradMu.dot(sjGradMu) * dv;
+      
+      K.m00 += sKuu;
+      K.m11 += sKuu;
+      K.m22 += sKuu; 
+   }
 }

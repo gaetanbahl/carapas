@@ -640,7 +640,7 @@ public abstract class FemElement3d extends FemElement
 
    public void connectToHierarchy () {
       super.connectToHierarchy ();
-      
+     
       FemNode3d[] nodes = getNodes();
       for (int i = 0; i < nodes.length; i++) {
          for (int j = 0; j < nodes.length; j++) {

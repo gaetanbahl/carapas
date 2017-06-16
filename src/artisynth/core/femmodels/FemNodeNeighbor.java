@@ -248,4 +248,58 @@ public class FemNodeNeighbor {
       
    }
    
+   /**
+    * Add weighted material stiffness for this i,j node neighbor pair, 
+    * relative to a particular integration point of the shell element.
+    * 
+    * Standard pressure stiffness is added as well (non-shell specific).
+    * 
+    * @param iN
+    * Shape function of i-th node and integration point.
+    * 
+    * @param jN
+    * Shape function of j-th node and integration point.
+    * 
+    * @param idN
+    * Derivative of shape function of i-th node and integration point.
+    * 
+    * @param jdN 
+    * Derivative of shape function of j-th node and integration point.
+    * 
+    * @param dv
+    * Weighted determinant of integration point jacobian.
+    * 
+    * @param t
+    * t-component of (r,s,t) integration point coordinates (i.e. gauss point)
+    * 
+    * @param gct 
+    * Contravariant base vectors of integration point.
+    * 
+    * @param matStress
+    * Material stress of integration point.
+    * 
+    * @param matTangent
+    * Material tangent of integration point.
+    * 
+    * @param gi 
+    * Shape function gradient of i-th node and integration point.
+    * 
+    * @param gj 
+    * Shape function gradient of j-th node and integration point.
+    * 
+    * @param p
+    * Pressure.
+    * 
+    * @postcond
+    * this.myK (3x3 stiffness block for this i-j node pair) is increased.
+    */
+   public void addShellMaterialStiffness(
+      double iN, double jN, Vector3d idN, Vector3d jdN, double dv, double t,
+      Vector3d[] gct, SymmetricMatrix3d matStress, Matrix6d matTangent, 
+      Vector3d gi, Vector3d gj, double p) {
+      FemUtilities.addShellMaterialStiffness(
+         myK, iN, jN, idN, jdN, dv, t, gct, matStress, matTangent);
+      
+      addPressureStiffness(gi, p, gj, dv);
+   }
 }

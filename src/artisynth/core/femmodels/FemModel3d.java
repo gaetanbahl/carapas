@@ -803,7 +803,6 @@ public class FemModel3d extends FemModel
       IntegrationPoint3d wpnt = null;
       LinearMaterial linMat = null;
       if (mat instanceof LinearMaterial) {
-
          linMat = (LinearMaterial)mat;
          corotated = linMat.isCorotated();
          wpnt = e.getWarpingPoint();
@@ -971,6 +970,7 @@ public class FemModel3d extends FemModel
                   aux.computeStress(sigmaAux, def, pt, dt, mat);
                   pt.sigma.add(sigmaAux);
                   if (D != null) {
+                     // DANNY HERE TODO
                      aux.computeTangent(DAux, sigmaAux, def, pt, dt, mat);
                      D.add(DAux);
                   }
@@ -986,6 +986,7 @@ public class FemModel3d extends FemModel
                }
                veb.computeStress(pt.sigma, state);
                if (D != null) {
+                  // DANNY HERE TODO
                   veb.computeTangent(D, state);
                }
             }
@@ -1036,6 +1037,7 @@ public class FemModel3d extends FemModel
                      for (int j = 0; j < e.myNodes.length; j++) {
                         int bj = e.myNodes[j].getSolveIndex();
                         if (!mySolveMatrixSymmetricP || bj >= bi) {
+                           // DANNY HERE TODO
                            e.myNbrs[i][j].addMaterialStiffness(
                               GNx[i], D, p, pt.sigma, GNx[j], dv);
                            if (kp != 0) {
@@ -1356,6 +1358,7 @@ public class FemModel3d extends FemModel
             }
          }
       }
+      
       myStiffnessesValidP = true;
       myStressesValidP = true;
       // timerStop("stressAndStiffness");

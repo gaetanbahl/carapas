@@ -71,6 +71,8 @@ public class ShellFemModel3d extends FemModel3d {
       // Average the directors.
       for (FemNode3d node : myNodes) {
          int numAdjFaces = node.numAdjacentElements ();
+         System.out.println ("node index: " + node.getIndex ());
+         System.out.println ("numAdjFaces: " + numAdjFaces);
          node.myDirector0.scale(1/numAdjFaces);
       }
    }
@@ -346,8 +348,26 @@ public class ShellFemModel3d extends FemModel3d {
                      for (int j = 0; j < e.myNodes.length; j++) {
                         int bj = e.myNodes[j].getSolveIndex();
                         if (!mySolveMatrixSymmetricP || bj >= bi) {
-                           e.myNbrs[i][j].addMaterialStiffness(
-                              GNx[i], D, p, pt.sigma, GNx[j], dv);
+                           
+                           double iN = e.getN(i, pt.coords);
+                           double jN = e.getN(j, pt.coords);
+                           
+                           Vector3d idN = new Vector3d();
+                           e.getdNds(idN, i, pt.coords);
+                           
+                           Vector3d jdN = new Vector3d();
+                           e.getdNds(jdN, j, pt.coords);
+                           
+                           double t = pt.coords.z; 
+                           
+                           Vector3d[] gct = pt.getContraBaseVectors(e);
+                           
+                           e.myNbrs[i][j].addShellMaterialStiffness (
+                              iN, jN, idN, jdN, dv, t, gct, 
+                              /*material stress=*/ pt.sigma, 
+                              /*material tangent=*/ D,
+                              GNx[i], GNx[j], p);
+
                            if (kp != 0) {
                               e.myNbrs[i][j].addDilationalStiffness(
                                  vebTangentScale*kp, GNx[i], GNx[j]);
@@ -420,6 +440,7 @@ public class ShellFemModel3d extends FemModel3d {
          } // end soft elem incompress
       } // end checking if computing tangent
    }
+
    
    @Override 
    protected void computeAvgGNx(FemElement3d ele) {
