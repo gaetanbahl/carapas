@@ -431,7 +431,7 @@ public abstract class MechSystemBase extends RenderableModelBase
          }
       } 
       double penlimit = getPenetrationLimit();
-      if (penlimit > 0 && maxpen > penlimit) {
+      if (penlimit > 0 && maxpen > penlimit && stepAdjust != null) {
          stepAdjust.recommendAdjustment (
             0.5 /*penlimit/maxpen*/, "contact penetration exceeds "+penlimit);
       }
@@ -1468,7 +1468,9 @@ public abstract class MechSystemBase extends RenderableModelBase
       }
       if (f != null) {
          f.setSize (mySystemSize);
-      }           
+      } else {
+         f = new VectorNd(mySystemSize); // XXX it seems some components require it to exist
+      }
       for (int i=0; i<myDynamicComponents.size(); i++) {
          myDynamicComponents.get(i).resetEffectiveMass();
       }      

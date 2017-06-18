@@ -6,19 +6,22 @@
  */
 package artisynth.core.mechmodels;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Arrays;
-import java.util.HashSet;
 
+import artisynth.core.mechmodels.MechSystem.ConstraintInfo;
+import artisynth.core.mechmodels.MechSystem.FrictionInfo;
+import artisynth.core.modelbase.ModelComponent;
+import artisynth.core.modelbase.StepAdjustment;
+import artisynth.core.util.ArtisynthIO;
+import maspack.function.Function1x1;
 import maspack.matrix.Matrix;
-import maspack.matrix.Matrix.Partition;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix3x1;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.MatrixBlock;
 import maspack.matrix.MatrixNd;
-import maspack.matrix.PolarDecomposition3d;
-import maspack.matrix.RigidTransform3d;
 import maspack.matrix.RotationMatrix3d;
 import maspack.matrix.SparseBlockMatrix;
 import maspack.matrix.SparseNumberedBlockMatrix;
@@ -31,15 +34,9 @@ import maspack.solvers.IterativeSolver.ToleranceType;
 import maspack.solvers.KKTSolver;
 import maspack.solvers.PardisoSolver;
 import maspack.solvers.UmfpackSolver;
-import maspack.spatialmotion.Twist;
 import maspack.util.FunctionTimer;
 import maspack.util.InternalErrorException;
 import maspack.util.NumberFormat;
-import artisynth.core.mechmodels.MechSystem.ConstraintInfo;
-import artisynth.core.mechmodels.MechSystem.FrictionInfo;
-import artisynth.core.modelbase.*;
-import artisynth.core.mechmodels.*;
-import artisynth.core.util.*;
 
 /**
  * Implements implicit integration for MechSystem
@@ -147,6 +144,7 @@ public class MechSystemSolver {
    private int myKKTGTVersion = -1;
    private int myConMassVersion = -1;
    private int myConGTVersion = -1;
+   private int myStaticKKTVersion = -1;
 
    public static boolean myDefaultHybridSolveP = false;
    private static int myHybridSolveTol = 10;
@@ -190,14 +188,16 @@ public class MechSystemSolver {
       FullBackwardEuler,
       Trapezoidal,
       //      BridsonMarino
-      Trapezoidal2
+      //      Trapezoidal2,
+      StaticIncrementalStep,
+      StaticIncremental,
+      StaticLineSearch
    }
 
    private boolean integratorIsImplicit (Integrator integrator) {
       return (integrator == Integrator.BackwardEuler ||
          integrator == Integrator.ConstrainedBackwardEuler ||
-         integrator == Integrator.Trapezoidal ||
-         integrator == Integrator.Trapezoidal2
+         integrator == Integrator.Trapezoidal
          );
    }
 
@@ -221,6 +221,7 @@ public class MechSystemSolver {
    UmfpackSolver myUmfpackSolver;
    KKTSolver myKKTSolver;
    KKTSolver myConSolver;
+   KKTSolver myStaticSolver;
 
    MatrixSolver myMatrixSolver = MatrixSolver.None;
    Integrator myIntegrator = Integrator.SymplecticEuler;
@@ -230,6 +231,10 @@ public class MechSystemSolver {
    int myMaxIterations = 20;
    boolean myUseDirectSolver = true;
    PosStabilization myStabilization = PosStabilization.GlobalMass;
+   
+   double myStaticTikhonov = 0;  // tikhonov regularization parameter for static solves
+   double myStaticTol = 1e-8;    // static solver tolerance (small displacement value per element)
+   int myStaticIncrements = 20;  // number of load increments for static solve
 
    public void setParametricTargets (double s, double h) {
       // assumes that updateStateSizes() has been called
@@ -399,7 +404,6 @@ public class MechSystemSolver {
             break;
          }
          case Trapezoidal:
-         case Trapezoidal2:
          case FullBackwardEuler:
          case ConstrainedBackwardEuler: {
             if (solver != MatrixSolver.Pardiso) {
@@ -452,11 +456,15 @@ public class MechSystemSolver {
       switch (integrator) {
          case ConstrainedBackwardEuler:
          case Trapezoidal:
-         case Trapezoidal2:
          case FullBackwardEuler: {
             myComplianceSupported = true;
             break;
          }
+         case StaticIncrementalStep:
+         case StaticIncremental:
+         case StaticLineSearch:
+            myComplianceSupported = false;
+            break;
          default: {
             myComplianceSupported = true;
             break;
@@ -705,8 +713,20 @@ public class MechSystemSolver {
             trapezoidal (t0, t1, stepAdjust);
             break;
          }
-         case Trapezoidal2: {
-            trapezoidal2(t0, t1, stepAdjust);
+         //         case Trapezoidal2: {
+         //            trapezoidal2(t0, t1, stepAdjust);
+         //            break;
+         //         }
+         case StaticIncrementalStep: {
+            staticIncrementalStep(t1, 1.0/myStaticIncrements, stepAdjust);
+            break;
+         }
+         case StaticIncremental: {
+            staticIncremental(t1, myStaticIncrements, stepAdjust);
+            break;
+         }
+         case StaticLineSearch: {
+            staticLineSearch(t1, stepAdjust);
             break;
          }
          default: {
@@ -1209,7 +1229,7 @@ public class MechSystemSolver {
 
    protected void updateSolveMatrixStructure () {
       // assumes that updateStateSizes() has been called
-      if (mySys.getStructureVersion() != mySolveMatrixVersion) {
+      if (mySolveMatrix == null || mySys.getStructureVersion() != mySolveMatrixVersion) {
          mySolveMatrixVersion = mySys.getStructureVersion();
          mySolveMatrix = new SparseNumberedBlockMatrix();
          mySys.buildSolveMatrix (mySolveMatrix);
@@ -1642,7 +1662,242 @@ public class MechSystemSolver {
          }
       }
    }
+   
+   /**
+    * Populates bg with the bilateral constraint deviation, delta_g
+    * Assumes constaints and active position are updated
+    * @param bg
+    */
+   private void getBilateralDeviation(VectorNd bg) {
+      if (myGsize > 0 ) {
+         mySys.getBilateralInfo (myGInfo);
+         bg.setZero();
+         double[] gbuf = bg.getBuffer();
+         for (int i=0; i<myGsize; i++) {
+            gbuf[i] = -myGInfo[i].dist;
+         }
+      }
+   }
 
+   /**
+    * Populates bg with the unilateral constraint deviation, delta_n
+    * Assumes constaints and active position are updated
+    * @param bg
+    */
+   private void getUnilateralDeviation(VectorNd bn) {
+      if (myGsize > 0 ) {
+         mySys.getUnilateralInfo (myNInfo);
+         bn.setZero();
+         double[] gbuf = bn.getBuffer();
+         for (int i=0; i<myNsize; i++) {
+            gbuf[i] = -myNInfo[i].dist;
+         }
+      }
+   }
+   
+   /** 
+    * Solves a static KKT system of the form
+    * <pre>
+    * -df/dx*Delta(x) -G^T*lambda - N^T*theta = f
+    * G*Delta(x) + g = 0, N*Delta(x) +n >= 0
+    * </pre>
+    *
+    * @param u returned displacement Delta(x)
+    * @param bf right-hand side net force
+    * @param ffactor scale factor for any additional forces
+    * @param btmp temporary vector
+    */
+   public void KKTStaticFactorAndSolve (
+      VectorNd u, VectorNd bf, 
+      double ffactor, VectorNd btmp) {
+
+      updateStateSizes();
+
+      int velSize = myActiveVelSize;
+
+      boolean analyze = false;
+
+      updateSolveMatrixStructure();
+      if (myStaticKKTVersion != mySolveMatrixVersion) {
+         myStaticKKTVersion = mySolveMatrixVersion;
+         analyze = true;
+      }
+
+      SparseNumberedBlockMatrix S = mySolveMatrix;      
+
+      S.setZero();
+      
+      // add tikhonov regularization factor
+      if (myStaticTikhonov > 0) {
+         // identity
+         for (int i=0; i<S.numBlockRows(); ++i) {
+            MatrixBlock bi = S.getBlock(i, i);
+            for (int j=0; j<bi.rowSize(); ++j) {
+               bi.set(j,j, myStaticTikhonov);
+            }
+         }
+      }
+      
+      myC.setZero();
+      mySys.addPosJacobian (S, myC, -1);
+      if (useFictitousJacobianForces && ffactor != 0) {
+         bf.scaledAdd (ffactor, myC);
+      }
+
+      if (myStaticSolver == null) {
+         myStaticSolver = new KKTSolver();
+      }
+
+      updateBilateralConstraints ();
+      if (myKKTGTVersion != myGTVersion) {
+         analyze = true;
+         myKKTGTVersion = myGTVersion;
+      }
+      // bilateral offsets
+      // setBilateralOffsets (h, -a0); // -a0);
+      // myVel.setSize (velSize);
+      getBilateralDeviation(myBg);
+      myRg.setZero();
+
+      updateUnilateralConstraints ();
+      getUnilateralDeviation (myBn);
+
+      // get these in case we are doing hybrid solves and they are needed to
+      // help with a warm start
+      mySys.getBilateralImpulses (myLam);
+      mySys.getUnilateralImpulses (myThe);
+
+      if (!solveModePrinted) {
+         String msg = (myHybridSolveP ? "hybrid solves" : "direct solves");
+         if (mySys.getSolveMatrixType() == Matrix.INDEFINITE) {
+            msg += ", unsymmetric matrix";
+         }
+         else {
+            msg += ", symmetric matrix";
+         }
+         System.out.println (msg);
+         solveModePrinted = true;
+      }            
+
+      if (crsWriter == null && crsFileName != null) {
+         try {
+            crsWriter = ArtisynthIO.newIndentingPrintWriter (crsFileName);
+         }
+         catch (Exception e) {
+            crsFileName = null;
+         }
+      }
+
+      if (velSize != 0) {
+         u.setZero();
+         if (analyze) {
+            myStaticSolver.analyze (
+               S, velSize, myGT, myRg, mySys.getSolveMatrixType());
+         }
+         if (myHybridSolveP && !analyze && myNT.colSize() == 0) {
+            if (profileKKTSolveTime) {
+               timerStart();
+            }
+            myStaticSolver.factorAndSolve (
+               S, velSize, myGT, myRg, u, myLam, bf, myBg, myHybridSolveTol);
+            if (profileKKTSolveTime) {
+               timerStop ("KKTsolve(hybrid)");
+            }
+         }
+         else {
+            if (profileKKTSolveTime) {
+               timerStart();
+            }
+            myStaticSolver.factor (S, velSize, myGT, myRg, myNT, myRn);
+            myStaticSolver.solve (u, myLam, myThe, bf, myBg, myBn);
+            if (profileKKTSolveTime) {
+               timerStop ("KKTsolve");
+            }
+         }
+         if (computeKKTResidual) {
+            double res = myStaticSolver.residual (
+               S, velSize, myGT, myRg, myNT, myRn, 
+               u, myLam, myThe, bf, myBg, myBn);
+            System.out.println (
+               "vel residual ("+velSize+","+myGT.colSize()+","+
+                  myNT.colSize()+"): " + res);
+         }
+         //System.out.println ("bg=" + myBg);
+         //System.out.println ("S=\n" + S);
+
+         if (crsWriter != null) {
+            String msg = 
+               "# KKTsolve M="+velSize+" G="+myGT.colSize()+
+               " N="+myNT.colSize()+(analyze ? " ANALYZE" : "");
+            System.out.println (msg);
+            try {
+               crsWriter.println (msg);
+               myStaticSolver.printLinearProblem (
+                  crsWriter, bf, myBg, "%g", crsOmitDiag);
+            }
+            catch (Exception e) {
+               e.printStackTrace(); 
+               crsWriter = null;
+               crsFileName = null;
+            }
+         }
+      }
+
+      mySys.setBilateralImpulses (myLam, 1);
+      mySys.setUnilateralImpulses (myThe, 1);
+      if (myUpdateForcesAtStepEnd) {
+         if (myGsize > 0) {
+            myGT.mulAdd (myFcon, myLam, velSize, myGsize);
+         }
+         if (myNsize > 0) {
+            myNT.mulAdd (myFcon, myThe, velSize, myNsize);
+         }
+      }
+
+      if (myLogWriter != null) {
+         try {
+            NumberFormat fmt = new NumberFormat("%g");
+            myLogWriter.println ("M("+velSize+"x"+velSize+")=[");
+            S.write (myLogWriter, fmt, Matrix.WriteFormat.Dense,
+               velSize, velSize);
+            myLogWriter.println ("];");
+            myLogWriter.println ("GT("+velSize+"x"+myGT.colSize()+")=[");
+            myGT.write (myLogWriter, fmt, Matrix.WriteFormat.Dense,
+               velSize, myGT.colSize()); 
+            myLogWriter.println ("];");
+            myLogWriter.println ("NT("+velSize+"x"+myNT.colSize()+")=[");
+            myNT.write (myLogWriter, fmt, Matrix.WriteFormat.Dense,
+               velSize, myNT.colSize());
+            myLogWriter.println ("];");
+            myLogWriter.println ("bf=[");
+            bf.write (myLogWriter, fmt);
+            myLogWriter.println ("];");
+            myLogWriter.println ("myBg=[");
+            myBg.write (myLogWriter, fmt);
+            myLogWriter.println ("];");
+            myLogWriter.println ("myBn=[");
+            myBn.write (myLogWriter, fmt);
+            myLogWriter.println ("];");
+            myLogWriter.println ("u=[");
+            u.write (myLogWriter, fmt);
+            myLogWriter.println ("];");
+            myLogWriter.println ("myLam=[");
+            myLam.write (myLogWriter, fmt);
+            myLogWriter.println ("];");
+            myLogWriter.println ("myThe=[");
+            myThe.write (myLogWriter, fmt);
+            myLogWriter.println ("];");
+            myLogWriter.println ("");        
+            myLogWriter.flush();
+            System.out.println ("logging");
+         }
+         catch (IOException e) {
+            e.printStackTrace();
+            myLogWriter = null;
+         }
+      }
+   }
+   
    /** 
     * Solves a KKT system in which the Jacobian augmented M matrix and
     * and force vectors are given by
@@ -3013,7 +3268,529 @@ public class MechSystemSolver {
 
       applyPosCorrection (myQ, myUtmp, t1, stepAdjust);
    }
+   
+   /**
+    * Applies Tiknonov regularization for static solves, minimizing
+    * 
+    * <pre>
+    * L(dx) = W(x+dx) + eps*|dx|^2
+    * </pre>
+    * where W is the energy potential function (including constraints) for the
+    * static system.
+    * 
+    * @param eps tikhonov regularization factor
+    */
+   public void setStaticTikhonovFactor(double eps) {
+      myStaticTikhonov = Math.abs(eps);
+   }
 
+   public double getStaticTikhonovFactor() {
+      return myStaticTikhonov;
+   }
+   
+   /**
+    * Sets the number of load increments to use with the {@link Integrator#StaticIncremental}
+    * integrator.
+    * 
+    * @param iters number of load increments
+    */
+   public void setStaticIncrements(int iters) {
+      myStaticIncrements = Math.max(iters, 1);
+   }
+   
+   /**
+    * Returns the number of load increments being used with the {@link Integrator#StaticIncremental}
+    * integrator.
+    * @return
+    */
+   public int getStaticIncrements() {
+      return myStaticIncrements;
+   }
+   
+   public void staticIncrementalStep(double t1, double alpha, StepAdjustment stepAdjust) {
+      if (myMatrixSolver == MatrixSolver.None) {
+         throw new UnsupportedOperationException (
+            "MatrixSolver cannot be 'None' for this integrator");
+      }
+      
+      int velSize = myActiveVelSize;
+      int posSize = myActivePosSize;
+
+      myB.setSize (velSize);
+      myUtmp.setSize (velSize);
+      myF.setSize (velSize);
+      myQ.setSize (posSize);
+      myFx.setSize(myParametricVelSize);
+      myFx.setZero();
+
+
+      // compute our new constraints and forces at time t1
+      myUtmp.setZero();
+      mySys.setActiveVelState(myUtmp);
+      mySys.setParametricVelState(myFx);
+      mySys.updateConstraints (t1, null, MechSystem.UPDATE_CONTACTS);
+      mySys.updateForces (t1);
+
+      // set of forces (mix of internal and external)
+      mySys.getActiveForces (myB);
+      // myB.scale(alpha);
+      
+      KKTStaticFactorAndSolve(myUtmp, myB, 1, /*tmp=*/myF);
+
+      mySys.getActivePosState (myQ);
+      mySys.addActivePosImpulse (myQ, alpha, myUtmp);
+      // mySys.addActivePosImpulse (myQ, 1, myUtmp);
+      mySys.setActivePosState (myQ);
+      
+      // XXX Position correction if alpha is small (and if error is sufficiently large)
+      //     and constraints active
+      mySys.updateConstraints (t1, null, MechSystem.COMPUTE_CONTACTS);
+      if (myGsize > 0 || myNsize > 0) {
+         myB.setZero();  // zero-out forces
+         KKTStaticFactorAndSolve(myUtmp, myB, 0 /*no forces*/, /*tmp=*/myF);
+         
+         // add final position correction
+         mySys.addActivePosImpulse (myQ, 1, myUtmp);
+         mySys.setActivePosState (myQ);
+      }
+   }
+   
+   public void staticIncremental(double t1, int nincrements, StepAdjustment stepAdjust) {
+      if (myMatrixSolver == MatrixSolver.None) {
+         throw new UnsupportedOperationException (
+            "MatrixSolver cannot be 'None' for this integrator");
+      }
+      
+      int velSize = myActiveVelSize;
+      int posSize = myActivePosSize;
+
+      myB.setSize (velSize);
+      myUtmp.setSize (velSize);
+      myF.setSize (velSize);
+      myQ.setSize (posSize);
+      myFx.setSize(myParametricVelSize);
+
+      // zero out velocities
+      myUtmp.setZero();
+      mySys.setActiveVelState(myUtmp);
+      myFx.setZero();
+      mySys.setParametricVelState(myFx);
+   
+      // current state
+      mySys.getActivePosState (myQ);
+      
+      // apply load in increments
+      for (int i=0; i<nincrements; ++i) {
+         double alpha = (i+1)*1.0/nincrements;
+      
+         // compute our new constraints and forces at time t1
+         mySys.updateConstraints (t1, stepAdjust, MechSystem.COMPUTE_CONTACTS);
+         mySys.updateForces (t1);
+         // set of forces (mix of internal and external)
+         mySys.getActiveForces (myB);
+         
+         // scale down residual force
+         myB.scale(alpha);
+         KKTStaticFactorAndSolve(myUtmp, myB, alpha, /*tmp=*/myF);  // enforces constraints for reduced load
+   
+         mySys.addActivePosImpulse (myQ, 1, myUtmp);  // move full amount
+         mySys.setActivePosState (myQ);
+         
+      }
+   }
+   
+   /**
+    * Implementation of Brent's root-finding method, guarantees that the final call
+    * to func is at the root
+    * @param a   left-side of interval
+    * @param fa  function evaluated at a
+    * @param b   right-side of interval
+    * @param fb  function evaluated at b
+    * @param eps  tolerance for interval [a,b]
+    * @param feps tolerance for function value |f|< feps considered root
+    * @param func function to evaluate
+    * @return root
+    */
+   public double brentRootFinder(double a, double fa, double b, double fb, 
+      double eps, double feps, Function1x1 func) {
+      
+      if (fa*fb > 0) {
+         return a-1; // invalid result
+      }
+      
+      double tmp;
+      if (Math.abs(fa) <= Math.abs(fb)) {
+         // swap around
+         tmp = a;
+         a = b;
+         b = tmp;
+         tmp = fa;
+         fa = fb;
+         fb = tmp;
+      }
+      
+      boolean flag = true;
+      
+      double c = a;
+      double fc = fa;
+      double d = 0;
+      
+      // current guess
+      double s = b;
+      double fs = fb;
+      
+      // check for termination
+      if (Math.abs(b-a) <= eps || Math.abs(fs) <= feps) {
+         // call function at b
+         fs = func.eval(b);
+         return b;
+      }
+      
+      do {
+         if (fa != fc && fb != fc) {
+            // inverse quadratic interpolation
+            s = a*fb*fc/(fa-fb)/(fa-fc) + b*fa*fc/(fb-fa)/(fb-fc)+c*fa*fb/(fc-fa)/(fc-fb);
+         } else {
+            // secant
+            s = b-fb*(b-a)/(fb-fa);
+         }
+         
+         double l = (3*a+b)/4;
+         double r = b;
+         if (    (l < r && (s < l || s > r) )   
+              || (l >= r && (s < r || s > l) )               // condition 1, s not between (3a+b)/4 and b
+              || (flag && Math.abs(s-b) >= Math.abs(b-c)/2)  // condition 2
+              || (!flag && Math.abs(s-b) >= Math.abs(c-d)/2) // condition 3
+              || (flag && Math.abs(b-c) < eps)               // condition 4 
+              || (!flag && Math.abs(c-d) < eps)) {           // condition 5
+            s = (a+b)/2;    // bisection
+            flag = true;
+         } else {
+            flag = false;
+         }
+         
+         fs = func.eval(s);
+         d = c;
+         c = b;
+         
+         // next interval
+         if (fa*fs < 0) {
+            b = s;
+            fb = fs;
+         } else {
+            a = s;
+            fa = fs;
+         }
+         
+         // maybe swap a and b
+         if (Math.abs(fa) < Math.abs(fb)) {
+            tmp = a;
+            a = b;
+            b = tmp;
+            tmp = fa;
+            fa = fb;
+            fb = tmp;
+         }
+         
+      } while ( Math.abs(b-a) > eps && Math.abs(fs) > feps);
+      
+      return s;
+   }
+   
+   /**
+    * Implementation of a modified Golden section search for minimizing |f(s)|, 
+    * guaranteeing that the final call to func is at the returned minimum 
+    * 
+    * @param a   left-side of search interval
+    * @param fa  f(a)
+    * @param b   right-side of search interval
+    * @param fb  f(b)
+    * @param eps   tolerance for interval [a,b]
+    * @param feps  tolerance for function evaluation, |f(s)| < feps considered a root
+    * @param func  function to evaluate
+    * @return function minimizer
+    */
+   public double modifiedGoldenSection(double a, double fa, double b, double fb, double eps, double feps, Function1x1 func) {
+      
+      // absolute values
+      double afa = Math.abs(fa);
+      double afb = Math.abs(fb);
+      
+      // initial solution guess as minimum of end-points
+      double s;
+      double fs;
+      double afs;
+      if (afa <= afb) {
+         s = a;
+         fs = fa;
+         afs = afa;
+      } else {
+         s = b;
+         fs = fb;
+         afs = afb;
+      }
+      
+      // intermediate values
+      double c, d, fc, fd, afc, afd;
+      final double g = 1.61803398875;   // golden ratio
+      
+      boolean callNeeded = true;        // whether we need to make a final call to the function 
+      
+      while ( b-a > eps && afs > feps) {
+         if (fa*fb <= 0) {
+            return brentRootFinder(a, fa, b, fb, eps, feps, func);
+         }
+         
+         c = b + (a-b)/g;
+         fc = func.eval(c);
+         afc = Math.abs(fc);
+         
+         if ( fc*fa < 0) {
+            return brentRootFinder(a, fa, c, fc, eps, feps, func);
+         } else if (afc >= afa) {
+            if (afa > afb) {
+               // start again in range [c,b]
+               a = c;
+               fa = fc;
+               afa = afc;
+            } else {
+               // start again in range [a,c]
+               b = c;
+               fb = fc;
+               afb = afc;
+            }
+            callNeeded = true;  // c is not minimum
+         } else if (afc >= afb) {
+            // start again in range [c, b]
+            a = c;
+            fa = fc;
+            afa = afc;
+            callNeeded = true;  // c is not minimum
+         } else {
+   
+            // fc guaranteed to be below both fa & fb
+            d = a + (b-a)/g;
+            fd = func.eval(d);
+            afd = Math.abs(fd);
+            
+            if ( fc * fd < 0 ) {
+               return brentRootFinder(c, fc, d, fd, eps, feps, func);
+            } else if ( afc <= afd ) {
+               // c below a and d
+               b = d; 
+               fb = fd;
+               afb = afd;
+               s = c;
+               fs = fc;
+               afs = afc;
+               callNeeded = true;  // will need to re-call at c
+            } else {
+               // d below c and b
+               a = c;
+               fa = fc;
+               afa = afc;
+               s = d;
+               fs = fd;
+               afs = afd;
+               callNeeded = false;  // d is minimum
+            }
+         }
+      }
+      
+      // final function call, if needed
+      if (callNeeded) {
+         fs = func.eval(s);
+      }
+      
+      return s;
+   }
+   
+   /**
+    * Function to evaluate residual energy
+    */
+   private static class ResidualEnergyFunction implements Function1x1 {
+ 
+      double time;
+      double cenergy; // energy from constraints
+      MechSystem sys; // mech system
+      VectorNd q0;    // starting position
+      VectorNd u;     // incremental displacement vector
+      VectorNd qtmp;  // temporary storage for position
+      VectorNd ftmp;  // temporary storage for forces
+      
+      public ResidualEnergyFunction(double time, 
+         MechSystem sys,
+         VectorNd q0, VectorNd u, 
+         VectorNd qtmp, VectorNd ftmp) {
+         this.time = time;
+         this.sys = sys;
+         this.q0 = q0;
+         this.u = u;
+         this.qtmp = qtmp;
+         this.ftmp = ftmp;
+      }
+      
+      public void setConstraintEnergy(double e) {
+         cenergy = e;
+      }
+      
+      @Override
+      public double eval(double alpha) {
+         qtmp.set(q0);
+         sys.addActivePosImpulse (qtmp, alpha, u);
+         sys.setActivePosState(qtmp);
+         sys.updateForces(time);
+         sys.getActiveForces (ftmp);
+
+         return ftmp.dot(u)+alpha*cenergy;  // residual energy
+      }
+      
+   }
+   
+   public void staticLineSearch(double t1, StepAdjustment stepAdjust) {
+      if (myMatrixSolver == MatrixSolver.None) {
+         throw new UnsupportedOperationException (
+            "MatrixSolver cannot be 'None' for this integrator");
+      }
+      
+      int velSize = myActiveVelSize;
+      int posSize = myActivePosSize;
+
+      myB.setSize (velSize);
+      myU.setSize (velSize);
+      myF.setSize (velSize);
+      myQ.setSize (posSize);
+      myQtmp.setSize(posSize);
+      myFx.setSize(myParametricVelSize);
+
+      double FRES_TOL = 1e-8;
+      int MAX_ITER = 100;
+
+      int iter = 0;
+
+      //System.out.println ("vel=" + myUtmp.toString ("%g"));
+      //System.out.printf ("fres[%d]=%g\n", 0, fres);
+
+      // zero-out velocity
+      myU.setZero();
+      mySys.setActiveVelState(myU);
+      myFx.setZero();
+      mySys.setParametricVelState(myFx);
+      
+      boolean first = true;
+      double fres = FRES_TOL+1;
+      double f0 = 1;
+      double utol = -1;
+
+      ResidualEnergyFunction Ra = new ResidualEnergyFunction(t1, mySys, myQtmp, myU, myQ, myF);
+      
+      while (fres > FRES_TOL && iter < MAX_ITER) {
+
+         // compute our new constraints and forces at time t1
+         mySys.updateConstraints (t1, null, MechSystem.UPDATE_CONTACTS);
+         mySys.updateForces (t1);
+   
+         // set of forces (mix of internal and external)
+         mySys.getActiveForces (myB);
+         
+         // original RHS force (for checking convergence)
+         if (first) {
+            f0 = myB.norm();  // original residual force
+         }
+         
+         // solve for direction
+         KKTStaticFactorAndSolve(myU, myB, 1, /*tmp=*/myF);
+         if (first) {
+            // expected norm of converged tolerance
+            utol = myStaticTol*Math.sqrt((double)velSize);
+         }
+            
+         // initial state
+         mySys.getActivePosState (myQtmp);
+         
+         // set state at q + Delta u
+         myQ.set(myQtmp);
+         mySys.addActivePosImpulse(myQ, 1, myU);
+         mySys.setActivePosState(myQ);
+         
+         // check if converged within tolerance
+         if (myU.norm() <= utol) {
+            // compute contacts
+            mySys.updateConstraints (t1, null, MechSystem.COMPUTE_CONTACTS);
+            break;
+         } 
+         
+         // energy due to constraints
+         double cenergy = 0;            
+         myF.setZero();
+         if (myGsize > 0) {
+            mySys.getBilateralImpulses(myLam);
+            myGT.mulAdd(myF, myLam, velSize, myGsize);
+         }
+         if (myNsize > 0) {
+            mySys.getUnilateralImpulses(myThe);
+            myNT.mulAdd(myF, myThe, velSize, myNsize);
+         }
+         cenergy = myF.dot(myU);
+         Ra.setConstraintEnergy(cenergy);
+         
+         // update forces at new position
+         double R0 = myB.dot(myU);          // energy at alpha=0
+         mySys.updateForces (t1);
+         mySys.getActiveForces(myF);        // new forces at alpha=1
+         double R1 = myF.dot(myU)+cenergy;  // energy at alpha=1
+         
+         // use modified Golden section search to find optimal alpha
+         // guaranteed to call Ra last, which will populate myF and myQ
+         double alpha = modifiedGoldenSection(0, R0, 1, R1, 1e-5, 0.75*Math.abs(R0), Ra);
+         
+         if (first) {
+            first = false;
+         }
+         
+         // current active forces now in myF, add constraint forces
+         if (myGsize > 0) {
+            myLam.scale(alpha);
+            myGT.mulAdd (myF, myLam, velSize, myGT.colSize());
+         }
+         if (myNsize > 0) {
+            myThe.scale(alpha);
+            myNT.mulAdd (myF, myThe, velSize, myNT.colSize());
+         }
+         
+         // final norm of residual forces
+         double f1 = myF.norm();
+         if (f1 < 1e-16) {
+            fres = 0;
+         } else {
+            fres = f1/f0;
+         }
+         
+         //         System.out.println("alpha=" + alpha);
+         //         System.out.println("u=" + myU.toString("%.2f"));
+         
+         // XXX Position correction if alpha is small (and if error is sufficiently large)
+         mySys.updateConstraints (t1, null, MechSystem.COMPUTE_CONTACTS);
+         if (myGsize > 0 || myNsize > 0) {
+            myB.setZero();  // zero-out forces
+            KKTStaticFactorAndSolve(myU, myB, 0 /*no forces*/, /*tmp=*/myF);
+            // myU should now move to constraint
+            // add final position correction
+            mySys.addActivePosImpulse (myQ, 1, myU);
+            mySys.setActivePosState (myQ);
+         }
+         ++iter;
+      }
+      
+      // System.out.println("exiting static solve");
+   }
+   
+   /**
+    * Antonio's derivation of trapezoidal rule
+    * @param t0 starting time
+    * @param t1 final time
+    * @param stepAdjust step adjustment
+    */
    public void trapezoidal2 (double t0, double t1, StepAdjustment stepAdjust) {
       if (myMatrixSolver == MatrixSolver.None) {
          throw new UnsupportedOperationException (
@@ -3058,7 +3835,7 @@ public class MechSystemSolver {
       
       KKTFactorAndSolve (
          myUtmp, myFparC, myB, /*tmp=*/myF, myU, 
-         h, -h, -h*h, -h, h*h);
+         h, -h, -h*h/2, -h, h*h/2);
 
       mySys.setActiveVelState (myUtmp);
       if (useGlobalFriction) {
@@ -3128,6 +3905,10 @@ public class MechSystemSolver {
       if (myKKTSolver != null) {
          myKKTSolver.dispose();
          myKKTSolver = null;
+      }
+      if (myStaticSolver != null) {
+         myStaticSolver.dispose();
+         myStaticSolver = null;
       }
       if (myConSolver != null) {
          myConSolver.dispose();

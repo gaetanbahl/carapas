@@ -81,7 +81,7 @@ public class RigidBodySpin extends RootModel {
       cube1.setVelocity(0, 0, 0, 0.2, 0.2, 0);
       
       MechModel mech2 = new MechModel("mech2");
-      mech2.setIntegrator(Integrator.Trapezoidal2);
+      mech2.setIntegrator(Integrator.ConstrainedBackwardEuler);
       addModel(mech2);
       RigidBody cube2 = new RigidBody("bunny2");
       cube2.setMesh(loadStanfordBunny());
