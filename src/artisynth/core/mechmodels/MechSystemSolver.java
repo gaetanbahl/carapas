@@ -189,7 +189,7 @@ public class MechSystemSolver {
       Trapezoidal,
       //      BridsonMarino
       //      Trapezoidal2,
-      StaticIncrementalStep,
+      //      StaticIncrementalStep,
       StaticIncremental,
       StaticLineSearch
    }
@@ -460,7 +460,7 @@ public class MechSystemSolver {
             myComplianceSupported = true;
             break;
          }
-         case StaticIncrementalStep:
+         // case StaticIncrementalStep:
          case StaticIncremental:
          case StaticLineSearch:
             myComplianceSupported = false;
@@ -717,10 +717,10 @@ public class MechSystemSolver {
          //            trapezoidal2(t0, t1, stepAdjust);
          //            break;
          //         }
-         case StaticIncrementalStep: {
-            staticIncrementalStep(t1, 1.0/myStaticIncrements, stepAdjust);
-            break;
-         }
+         //         case StaticIncrementalStep: {
+         //            staticIncrementalStep(t1, 1.0/myStaticIncrements, stepAdjust);
+         //            break;
+         //         }
          case StaticIncremental: {
             staticIncremental(t1, myStaticIncrements, stepAdjust);
             break;
