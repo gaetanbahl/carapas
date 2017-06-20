@@ -6,8 +6,6 @@
  */
 package artisynth.core.modelbase;
 
-import java.util.List;
-
 import maspack.matrix.AffineTransform3dBase;
 import maspack.geometry.GeometryTransformer;
 
@@ -22,17 +20,32 @@ import maspack.geometry.GeometryTransformer;
   */
 public interface TransformableGeometry {
    
-   /*
+   /**
     * Flag indicating that the system is currently simulating.
     */
    public static final int TG_SIMULATING = 0x01;
    
-   /*
+   /**
     * Flag indicating that rigid body articulation constraints should
     * be enforced as the transform proceeds.
     */
    public static final int TG_ARTICULATED = 0x02;
+
+   /**
+    * Flag indicating that topology should be adjusted to preserve orientation
+    * if the GeometryTransformer is reflecting (i.e., {@link
+    * GeometryTransformer#isReflecting} returns <code>true</code>).  For
+    * example, if this flag is set and the transform is reflecting, then the
+    * vertex ordering of faces in a polygon should be reversed.
+    */
+   public static final int TG_PRESERVE_ORIENTATION = 0x04;
    
+   /**
+    * Flag indicating that transform is being applied through the GUI
+    * with use of a dragger, allowing one to filter transforms.
+    */
+   public static final int TG_DRAGGER = 0x08;
+
    /**
     * Applies an affine transformation to the geometry of this component. This
     * method should be equivalent to
