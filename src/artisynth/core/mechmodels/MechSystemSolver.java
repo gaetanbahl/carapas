@@ -232,7 +232,7 @@ public class MechSystemSolver {
    boolean myUseDirectSolver = true;
    PosStabilization myStabilization = PosStabilization.GlobalMass;
    
-   double myStaticTikhonov = 0;  // tikhonov regularization parameter for static solves
+   double myStaticTikhonov = -1;  // tikhonov regularization parameter for static solves
    double myStaticTol = 1e-8;    // static solver tolerance (small displacement value per element)
    int myStaticIncrements = 20;  // number of load increments for static solve
 
@@ -1743,7 +1743,7 @@ public class MechSystemSolver {
       if (useFictitousJacobianForces && ffactor != 0) {
          bf.scaledAdd (ffactor, myC);
       }
-
+      
       if (myStaticSolver == null) {
          myStaticSolver = new KKTSolver();
       }
@@ -1761,6 +1761,25 @@ public class MechSystemSolver {
 
       updateUnilateralConstraints ();
       getUnilateralDeviation (myBn);
+      
+      //      if (myStaticTikhonov < 0) {
+      //         double fn2 = S.frobeniusNormSquared();
+      //         if (myGsize > 0) {
+      //            fn2 += myGT.frobeniusNormSquared();
+      //         }
+      //         if (myNsize > 0) {
+      //            fn2 += myNT.frobeniusNormSquared();
+      //         }
+      //         double eps = Math.sqrt(0.1*Math.sqrt(fn2/velSize));
+      //         // add scaled identity
+      //         for (int i=0; i<S.numBlockRows(); ++i) {
+      //            MatrixBlock bi = S.getBlock(i, i);
+      //            for (int j=0; j<bi.rowSize(); ++j) {
+      //               bi.set(j,j, bi.get(j, j)+eps);
+      //            }
+      //         }
+      //         System.out.println("Tikhonov: " + eps);
+      //      }
 
       // get these in case we are doing hybrid solves and they are needed to
       // help with a warm start
@@ -1809,6 +1828,7 @@ public class MechSystemSolver {
                timerStart();
             }
             myStaticSolver.factor (S, velSize, myGT, myRg, myNT, myRn);
+            // int nperturbed = myStaticSolver.getNumNonZerosInFactors();
             myStaticSolver.solve (u, myLam, myThe, bf, myBg, myBn);
             if (profileKKTSolveTime) {
                timerStop ("KKTsolve");
@@ -3276,12 +3296,13 @@ public class MechSystemSolver {
     * L(dx) = W(x+dx) + eps*|dx|^2
     * </pre>
     * where W is the energy potential function (including constraints) for the
-    * static system.
+    * static system.  If eps is less than zero, then we try to estimate the optimal
+    * parameter based on the Frobenius norm of the stiffness matrix.
     * 
     * @param eps tikhonov regularization factor
     */
    public void setStaticTikhonovFactor(double eps) {
-      myStaticTikhonov = Math.abs(eps);
+      myStaticTikhonov = eps;
    }
 
    public double getStaticTikhonovFactor() {
