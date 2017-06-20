@@ -642,7 +642,7 @@ public class FemModel3d extends FemModel
          }
          fk.set(n.myInternalForce);
          fd.setZero();
-         if (myStiffnessDamping != 0) {
+         if (myStiffnessDamping != 0) {         // SKIPPED
             for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
                nbr.addDampingForce(fd);
             }
@@ -652,7 +652,7 @@ public class FemModel3d extends FemModel
             }
             fd.scale(myStiffnessDamping);
          }
-         if (usingAttachedRelativeFrame()) {
+         if (usingAttachedRelativeFrame()) {    // SKIPPED
             md.scale (myMassDamping * n.getMass(), n.getVelocity());
             n.subForce (md);
             // if (n.isActive()) {
@@ -666,9 +666,9 @@ public class FemModel3d extends FemModel
                //}
          }
          else {
-            fd.scaledAdd(myMassDamping * n.getMass(), n.getVelocity(), fd);
-            n.subForce(fk);
-            n.subForce(fd);
+            fd.scaledAdd(myMassDamping * n.getMass(), n.getVelocity(), fd);     
+            n.subForce(fk);                   
+            n.subForce(fd);                   
          }
       }
    }
@@ -1247,7 +1247,7 @@ public class FemModel3d extends FemModel
 
       IncompMethod softIncomp = getSoftIncompMethod();
 
-      if (softIncomp == IncompMethod.NODAL) {
+      if (softIncomp == IncompMethod.NODAL) {           // SKIPPED
          if (!myNodalRestVolumesValidP) {
             updateNodalRestVolumes();
          }
@@ -1281,7 +1281,7 @@ public class FemModel3d extends FemModel
             }
          }
       }
-      if (softIncomp == IncompMethod.NODAL) {
+      if (softIncomp == IncompMethod.NODAL) {           // SKIPPED
          IncompressibleMaterial imat = (IncompressibleMaterial)myMaterial;
          for (FemNode3d n : myNodes) {
             if (volumeIsControllable(n)) {
@@ -4120,7 +4120,7 @@ public class FemModel3d extends FemModel
           }
       }
 
-      if (myFrameRelativeP) {
+      if (myFrameRelativeP) {           // SKIPPED
 
          Vector3d wbod = new Vector3d(); // angular velocity in body coords
          RotationMatrix3d R = myFrame.getPose().R;

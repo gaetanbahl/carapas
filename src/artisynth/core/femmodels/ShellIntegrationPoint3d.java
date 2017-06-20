@@ -116,10 +116,12 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
          
          Vector3d g1Term = new Vector3d( g0Term );
          
+         // dN
          g0Term.scale( getGNs()[n].x );
          g1Term.scale( getGNs()[n].y );
          
          Vector3d g2Term = new Vector3d( node.myDirector0 );
+         // N
          g2Term.scale( getShapeWeights().get(n) * 0.5 );
          
          g[0].add (g0Term);
@@ -203,7 +205,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * 
     * @param gco 
     * Pre-computed covariant base vectors of this integration point. Otherwise,
-    * pass null to compute it from stratch.
+    * pass null let function compute it from stratch.
     * 
     * @return
     * void. Call getJ() afterwards to retrieve result.

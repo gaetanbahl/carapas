@@ -28,6 +28,9 @@ public class ShellPatch extends RootModel {
    protected ShellTriElement[] m_eles = null;
    protected FemNode3d[] m_nodes = null;
 
+   final double m_density = 10000;
+   final double m_damping = 100;
+   
    public void build (String[] args) {
       m_femShellModel = new ShellFemModel3d();
       
@@ -37,7 +40,7 @@ public class ShellPatch extends RootModel {
       m_nodes[0] = new FemNode3d (0, 0, 0);
       m_nodes[1] = new FemNode3d (1, 0, 0);
       m_nodes[2] = new FemNode3d (1, 1, 0);
-      m_nodes[3] = new FemNode3d (0, 1, 0);          // for 2nd ele 
+      m_nodes[3] = new FemNode3d (0, 1, 0);          // for 2nd ele.
       
       for (int i = 0; i < m_nodes.length; i++) {
          m_nodes[i].setIndex(i);
@@ -53,7 +56,7 @@ public class ShellPatch extends RootModel {
       
       m_femShellModel.addElement(m_eles[0]);
       m_femShellModel.addElement(m_eles[1]);
-     
+      
       m_femShellModel.setSurfaceRendering (SurfaceRender.Shaded);
 
       RenderProps.setFaceColor (m_femShellModel, Color.PINK);
@@ -62,16 +65,7 @@ public class ShellPatch extends RootModel {
       RenderProps.setVisible (m_femShellModel, true);
       RenderProps.setFaceStyle (m_femShellModel, Renderer.FaceStyle.FRONT);
 
-      MooneyRivlinMaterial monMat = new MooneyRivlinMaterial();
-      monMat.setBulkModulus (15000000);
-      monMat.setC10 (150000);
-      monMat.setJLimit (0.2);
-      QLVBehavior qlv = new QLVBehavior();
-      qlv.setTau (0.1, 0.0, 0, 0, 0, 0);
-      qlv.setGamma (4.0, 0, 0, 0, 0, 0);
-      monMat.setViscoBehavior (qlv);
-
-      m_femShellModel.setMaterial (monMat);
+      m_femShellModel.setMaterial (new NeoHookeanMaterial());
 
       m_mechModel = new MechModel ("mech");
       m_mechModel.addModel (m_femShellModel);
@@ -81,8 +75,8 @@ public class ShellPatch extends RootModel {
       RenderProps.setPointRadius (m_femShellModel.getNodes(), 0.05);
 
       m_femShellModel.setGravity (0, 0, 0);
-      m_femShellModel.setDensity (10000);
-      m_femShellModel.setParticleDamping (0);
+      m_femShellModel.setDensity (m_density);
+      m_femShellModel.setParticleDamping (m_damping);
 
       m_mechModel.setProfiling (true);
       

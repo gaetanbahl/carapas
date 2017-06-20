@@ -99,13 +99,13 @@ public class ShellFemModel3d extends FemModel3d {
 
       ViscoelasticBehavior veb = mat.getViscoBehavior();
       double vebTangentScale = 1;
-      if (veb != null) {
+      if (veb != null) {                // SKIPPED
          vebTangentScale = veb.getTangentScale();
       }
 
       SymmetricMatrix3d sigmaAux = null;
       Matrix6d DAux = null;
-      if (e.numAuxiliaryMaterials() > 0) {
+      if (e.numAuxiliaryMaterials() > 0) {              // SKIPPED
          sigmaAux = new SymmetricMatrix3d();
          DAux = new Matrix6d();
       }
@@ -114,13 +114,13 @@ public class ShellFemModel3d extends FemModel3d {
       boolean corotated = false;
       ShellIntegrationPoint3d wpnt = null;
       LinearMaterial linMat = null;
-      if (mat instanceof LinearMaterial) {
+      if (mat instanceof LinearMaterial) {      // SKIPPED with neoHook material
 
          linMat = (LinearMaterial)mat;
          corotated = linMat.isCorotated();
          wpnt = e.getWarpingPoint();
          ShellIntegrationData3d data = e.getWarpingData();
-         wpnt.computeJacobianAndGradient(e);            // DANNY HERE
+         wpnt.computeJacobianAndGradient(e);       
          wpnt.sigma.setZero();
          if (corotated) {
             e.computeWarping(wpnt.F, myEps);
@@ -136,6 +136,7 @@ public class ShellFemModel3d extends FemModel3d {
 
       e.setInverted(false); // will check this below
       vol = e.getVolume();
+      // SKIPPED
       if (mat.isIncompressible() && softIncomp != IncompMethod.NODAL) {
          imat = (IncompressibleMaterial)mat;
          if (softIncomp == IncompMethod.ELEMENT) {
@@ -150,6 +151,7 @@ public class ShellFemModel3d extends FemModel3d {
             restVol = e.getRestVolume();
          }
       }
+      // SKIPPED
       else if (softIncomp == IncompMethod.NODAL) {
          if (e instanceof ShellQuadTetElement) {
             ((ShellQuadTetElement)e).getAreaWeightedNormals(myNodalConstraints);
@@ -165,6 +167,7 @@ public class ShellFemModel3d extends FemModel3d {
 
       }
 
+      // SKIPPED
       if (linMat != null) {
          for (int i = 0; i < nodes.length; i++) {
             int bi = nodes[i].getSolveIndex();
@@ -183,6 +186,7 @@ public class ShellFemModel3d extends FemModel3d {
          }
       }
 
+      // SKIPPED
       if (myComputeNodalStress || myComputeNodalStrain) {
          nodalExtrapMat = e.getNodalExtrapolationMatrix();
          if (linMat != null) {
@@ -217,6 +221,7 @@ public class ShellFemModel3d extends FemModel3d {
                myMinDetJ = detJ;
                myMinDetJElement = e;
             }
+            // SKIPPED
             if (detJ <= 0 && !e.materialsAreInvertible()) {
                e.setInverted(true);
                // TODO DANNY: problem here
@@ -235,6 +240,7 @@ public class ShellFemModel3d extends FemModel3d {
                   pressure += H[l] * pbuf[l];
                }
             }
+            // SKIPPED
             else if (softIncomp == IncompMethod.NODAL) {
                if (e instanceof ShellQuadTetElement) {
                   // use the average pressure for all nodes
@@ -248,6 +254,7 @@ public class ShellFemModel3d extends FemModel3d {
                   pressure = nodes[k].myPressure;
                }
             }
+            // SKIPPED
             else if (softIncomp == IncompMethod.FULL && imat != null) {
                pressure = imat.getEffectivePressure(detJ / dt.getDetJ0());
             }
@@ -257,6 +264,7 @@ public class ShellFemModel3d extends FemModel3d {
             pt.avgp = pressure;
             def.setAveragePressure(pressure);
             double scaling = dt.myScaling;
+            // SKIPPED
             if (linMat != null) {
                pt.sigma.setZero();
                if (D != null) {
@@ -264,11 +272,13 @@ public class ShellFemModel3d extends FemModel3d {
                }
             } else {
                mat.computeStress(pt.sigma, def, Q, null);
+               // SKIPPED
                if (scaling != 1) {
                   pt.sigma.scale (scaling);
                }
                if (D != null) {
                   mat.computeTangent(D, pt.sigma, def, Q, null);
+                  // SKIPPED
                   if (scaling != 1) {
                      D.scale (scaling);
                   }
@@ -278,6 +288,7 @@ public class ShellFemModel3d extends FemModel3d {
             // reset pressure to zero for auxiliary
             pt.avgp = 0;
             def.setAveragePressure(0);
+            // SKIPPED
             if (e.numAuxiliaryMaterials() > 0) {
                for (AuxiliaryMaterial aux : e.myAuxMaterials) {
                   aux.computeStress(sigmaAux, def, pt, dt, mat);
@@ -290,6 +301,7 @@ public class ShellFemModel3d extends FemModel3d {
             }
             pt.avgp = pressure; // bring back pressure term
             def.setAveragePressure(pressure);
+            // SKIPPED
             if (veb != null) {
                ViscoelasticState state = idata[k].getViscoState();
                if (state == null) {
@@ -313,12 +325,15 @@ public class ShellFemModel3d extends FemModel3d {
             for (int i = 0; i < e.myNodes.length; i++) {
                FemNode3d nodei = e.myNodes[i];
                int bi = nodei.getSolveIndex();
-               FemUtilities.addStressForce(
-                  nodei.myInternalForce, GNx[i], pt.sigma, dv);
+               
+               // Add stress (pt.sigma) to node force
+               FemUtilities.addShellStressForce(
+                  nodei.myInternalForce, pt.sigma, dv, i, pt, e);
 
                if (D != null) {
                   double p = 0;
                   double kp = 0;
+                  // SKIPPED
                   if (mat.isIncompressible() &&
                       softIncomp != IncompMethod.NODAL) {
                      if (softIncomp == IncompMethod.ELEMENT) {
@@ -331,6 +346,7 @@ public class ShellFemModel3d extends FemModel3d {
                      }
                      p = pressure;
                   }
+                  // SKIPPED
                   else if (softIncomp == IncompMethod.NODAL) {
                      if (e.integrationPointsMapToNodes()) {
                         myNodalConstraints[i].scale(dv, GNx[i]);
@@ -368,7 +384,10 @@ public class ShellFemModel3d extends FemModel3d {
                               /*material tangent=*/ D,
                               GNx[i], GNx[j], p);
 
-                           if (kp != 0) {
+                           // NEW
+                           
+                           
+                           if (kp != 0) {               // SKIPPED
                               e.myNbrs[i][j].addDilationalStiffness(
                                  vebTangentScale*kp, GNx[i], GNx[j]);
                            }
@@ -376,7 +395,7 @@ public class ShellFemModel3d extends FemModel3d {
                      }
                   }
                }
-               if (nodalExtrapMat != null) {
+               if (nodalExtrapMat != null) {    // SKIPPED
                   if (myComputeNodalStress) {
                      double a = nodalExtrapMat[i * ipnts.length + k];
                      if (a != 0) {
@@ -399,6 +418,7 @@ public class ShellFemModel3d extends FemModel3d {
                   }
                }
             }
+            // SKIPPED
             if (D != null &&
             softIncomp == IncompMethod.NODAL &&
             e.integrationPointsMapToNodes()) {
@@ -411,6 +431,7 @@ public class ShellFemModel3d extends FemModel3d {
             }
          }
       }
+      // SKIPPED
       if (D != null) {
          if (mat.isIncompressible() && softIncomp == IncompMethod.ELEMENT) {
             boolean kpIsNonzero = false;

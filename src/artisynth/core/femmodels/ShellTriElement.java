@@ -309,8 +309,7 @@ public class ShellTriElement extends ShellFemElement3d {
    /**
     * Compute shape function of particular node.
     * 
-    * FEBio Porting Notes: Equivalent to computing H in
-    * FEShellQuad4G8::FEShellQuad4G8()
+    * FEBio: FEShellTri3G9::FEShellTri3G9()
     * 
     * @param n
     * Node index
@@ -341,8 +340,7 @@ public class ShellTriElement extends ShellFemElement3d {
    /**
     * Compute 1st derivative of shape function of particular node.
     * 
-    * FEBio Porting Notes: Equivalent to computing Hr and Hs in
-    * FEShellQuad4G8::FEShellQuad4G8()
+    * FEBi: FEShellTri3G9::FEShellTri3G9()
     */
    @Override
    public void getdNds (Vector3d dNds, int n, Vector3d rst) {

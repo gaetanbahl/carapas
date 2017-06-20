@@ -6,6 +6,8 @@
  */
 package artisynth.core.femmodels;
 
+import javax.swing.plaf.synth.SynthSplitPaneUI;
+
 import artisynth.core.materials.TensorUtils;
 import maspack.matrix.*;
 
@@ -581,6 +583,10 @@ public class FemUtilities {
       return trif;
    }
 
+   
+   /* --- SHELL-SPECIFIC METHODS --- */
+   
+   
    /** 
     * Add weighted material stiffness for this i,j node neighbor pair
     * (represented by 3x3 stiffness block), relative to a particular integration
@@ -620,8 +626,7 @@ public class FemUtilities {
     * @postcond
     * K is increased.
     * 
-    * FEBio Porting Notes:  
-    *   void FEElasticShellDomain::ElementStiffness(int iel, matrix& ke)
+    * FEBio: FEElasticShellDomain::ElementStiffness
     *   
     *   TODO: Shell-element in FEBio uses 6 dof (3 for x,y,z displacement, 
     *         and 3 for x,y,z rotation). Artisynth is only hard coded for 
@@ -636,24 +641,24 @@ public class FemUtilities {
      
       // Compute gradM for i and j
       
-      Vector3d iGradM = new Vector3d( gct[0] );
-      iGradM.scale(idN.x);
+      Vector3d iGradM = new Vector3d();
+      iGradM.scaledAdd(idN.x, gct[0]);
       iGradM.scaledAdd(idN.y, gct[1]);
       
-      Vector3d jGradM = new Vector3d( gct[0] );
-      jGradM.scale(jdN.x);
+      Vector3d jGradM = new Vector3d();
+      jGradM.scaledAdd(jdN.x, gct[0]);
       jGradM.scaledAdd(jdN.y, gct[1]);
       
       // Compute gradMu for i and j
       
-      Vector3d iGradMu = new Vector3d( gct[2] );
-      iGradMu.scale(iN);
+      Vector3d iGradMu = new Vector3d();
       iGradMu.scaledAdd(1+t, iGradM);
+      iGradMu.scaledAdd(iN, gct[2]);
       iGradMu.scale(0.5);
       
-      Vector3d jGradMu = new Vector3d( gct[2] );
-      jGradMu.scale(jN);
+      Vector3d jGradMu = new Vector3d();
       jGradMu.scaledAdd(1+t, jGradM);
+      jGradMu.scaledAdd(jN, gct[2]);
       jGradMu.scale(0.5);
       
       Matrix3d Kuu = new Matrix3d();
@@ -684,5 +689,74 @@ public class FemUtilities {
       K.m00 += sKuu;
       K.m11 += sKuu;
       K.m22 += sKuu; 
+   }
+   
+   
+   /** 
+    * Adds the force on a node resulting from a given stress at a given 
+    * integration point. This only applies to shell elements.
+    * 
+    * @param f
+    * Force vector of node to modify
+    * 
+    * @param sig
+    * Computed material stress
+    * 
+    * @param dv
+    * 3D displacement increment. detJ * integrationPt.weight
+    * 
+    * @param n
+    * Node index
+    * 
+    * @param pt 
+    * Integration point 
+    * 
+    * @param el 
+    * Integration point's shell element
+    * 
+    * FEBio: FEElasticShellDomain::ElementInternalForce
+    */
+   public static void addShellStressForce (
+      Vector3d f, SymmetricMatrix3d sig, double dv, int n, 
+      ShellIntegrationPoint3d pt, ShellFemElement3d el) {
+      
+      double t = pt.coords.z;
+      double N = pt.getShapeWeights ().get(n);
+      double dNdr = pt.getShapeGradient ()[n].x;
+      double dNds = pt.getShapeGradient ()[n].y;
+      
+      Vector3d[] gct = pt.getContraBaseVectors (el);
+      
+      Vector3d gradM = new Vector3d();
+      gradM.scaledAdd(dNdr, gct[0]);
+      gradM.scaledAdd(dNds, gct[1]);
+      
+      Vector3d gradMu = new Vector3d();
+      gradMu.scaledAdd (1+t, gradM);
+      gradMu.scaledAdd (N, gct[2]);
+      gradMu.scale (0.5);
+      
+//      Vector3d gradMd = new Vector3d();
+//      gradMd.scaledAdd (1-t, gradM);
+//      gradMd.scaledAdd (-N, gct[2]);
+//      gradMd.scale (0.5);
+      
+      Vector3d fu = new Vector3d(gradMu);
+      sig.mul(fu);
+      
+//      Vector3d fd = new Vector3d(gradMd);
+//      sig.mul(fd);
+      
+      // Increment displacement force. In FEBio, force is subtracted here.
+      // Artisynth does this subtraction later in
+      // FemModel3d.updateNodeForces().
+      f.x += fu.x*dv;
+      f.y += fu.y*dv;
+      f.z += fu.z*dv;
+      
+      // Increment angular force (not supported by Artisynth). TODO
+//      += fd.x*dv;
+//      += fd.y*dv;
+//      += fd.z*dv;
    }
 }
