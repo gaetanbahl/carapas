@@ -77,6 +77,7 @@ import artisynth.core.modelbase.HasCoordinateFrame;
 import artisynth.core.modelbase.Model;
 import artisynth.core.modelbase.ModelComponent;
 import artisynth.core.modelbase.ModelComponentBase;
+import artisynth.core.modelbase.OrientedTransformableGeometry;
 import artisynth.core.modelbase.PropertyChangeEvent;
 import artisynth.core.modelbase.ScanWriteUtils;
 import artisynth.core.modelbase.StructureChangeEvent;
@@ -2758,7 +2759,12 @@ public class Main implements DriverInterface, ComponentChangeListener {
                rerender();
             }
          }
-         if (invalidateWaypoints && !myScheduler.isPlaying()) {
+         // John Lloyd, May 2017: We used to invalidate the initial state only
+         // if we were not simulating. However, it seems to make sense to do
+         // this even if we are simulating.
+         // 
+         // if (invalidateWaypoints)  && !myScheduler.isPlaying()) {
+         if (invalidateWaypoints) {
             myScheduler.invalidateInitialState();
          }
       }
@@ -2994,7 +3000,10 @@ public class Main implements DriverInterface, ComponentChangeListener {
             throw new InternalErrorException (
                "transform command unimplemented for " + dragger.getClass());
          }
-         int flags = 0;
+         
+         // indicate that dragger is responsible for transforming, and 
+         // allow auto-flipping of orientation for negative-determinant transforms
+         int flags = TransformableGeometry.TG_DRAGGER | OrientedTransformableGeometry.OTG_AUTOFLIP;
          if (myArticulatedTransformsP && name != "scaling") {
             flags |= TransformableGeometry.TG_ARTICULATED;
          }

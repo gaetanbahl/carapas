@@ -157,6 +157,8 @@ TransformableGeometry, ScalableUnits, MechSystemModel {
       myProps.addInheritable (
          "penetrationTol:Inherited", "collision penetration tolerance",
          DEFAULT_PENETRATION_TOL);
+      myProps.add("staticTikhonovFactor", "Tikhonov regularization factor for static solves", 0);
+      myProps.add("staticIncrements", "Number of load increments for incremental static solves", 20);
       myProps.addInheritable (
          "excitationColor", "color of activated muscles", null);
       myProps.addInheritable (
@@ -944,6 +946,32 @@ TransformableGeometry, ScalableUnits, MechSystemModel {
 
    public Integrator getIntegrator() {
       return myIntegrationMethod;
+   }
+   
+   public void setStaticTikhonovFactor(double eps) {
+      if (mySolver != null) {
+         mySolver.setStaticTikhonovFactor(eps);
+      }
+   }
+   
+   public double getStaticTikhonovFactor() {
+      if (mySolver != null) {
+         return mySolver.getStaticTikhonovFactor();
+      }
+      return 0;
+   }
+   
+   public void setStaticIncrements(int n) {
+      if (mySolver != null) {
+         mySolver.setStaticIncrements(n);
+      }
+   }
+   
+   public int getStaticIncrements() {
+      if (mySolver != null) {
+         return mySolver.getStaticIncrements();
+      }
+      return 0;
    }
 
    public PointList<Particle> particles() {
@@ -2032,6 +2060,25 @@ TransformableGeometry, ScalableUnits, MechSystemModel {
       }
       return mech;
    }
+
+   /**
+    * Returns the nearest MechModel, if any, that is an ancestor of a specific
+    * component. If the component is itself a <code>MechModel</code>, the
+    * component itself returned.
+    * 
+    * @param c component to start with
+    * @return nearest MechModel on or above <code>comp</code>, or
+    * <code>null</code> if there is none.
+    */
+   public static MechModel nearestMechModel (ModelComponent c) {
+      while (c != null) {
+         if (c instanceof MechModel) {
+            return (MechModel)c;
+         }               
+         c = c.getParent();
+      }
+      return null;
+   }         
 
    protected void clearCachedData (ComponentChangeEvent e) {
       super.clearCachedData(e);
