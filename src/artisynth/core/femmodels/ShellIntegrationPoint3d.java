@@ -110,7 +110,14 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
             pos = new Point3d( rPos[0], rPos[1], rPos[2] );
          }
          
-         Vector3d g0Term = new Vector3d( node.myDirector0 );
+         Vector3d d0 = new Vector3d( node.myDirector0 );
+         d0.add(ele.myNodes[n].myDofu);
+         d0.sub(ele.myNodes[n].myDofd);
+         
+//         System.out.println ("My director: " + node.myDirector0);
+//         System.out.println ("My director len: " + node.myDirector0.norm());
+//         
+         Vector3d g0Term = new Vector3d( d0 );
          g0Term.scale( -(1 - t)*0.5 );
          g0Term.add( pos );
          
@@ -120,7 +127,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
          g0Term.scale( getGNs()[n].x );
          g1Term.scale( getGNs()[n].y );
          
-         Vector3d g2Term = new Vector3d( node.myDirector0 );
+         Vector3d g2Term = new Vector3d( d0 );
          // N
          g2Term.scale( getShapeWeights().get(n) * 0.5 );
          

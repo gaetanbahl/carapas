@@ -1,8 +1,6 @@
 package artisynth.core.femmodels;
 
 public abstract class ShellFemElement3d extends FemElement3d {
-
-   public double myShellThickness = 1;
    
    //public abstract static IntegrationShellPoint3d[] createIntegrationPoints(
    //  FemShellElement3d ele, double[] cdata);
@@ -18,4 +16,6 @@ public abstract class ShellFemElement3d extends FemElement3d {
    
    @Override
    public abstract ShellIntegrationData3d getWarpingData();
+   
+   public abstract double getShellThickness();
 }

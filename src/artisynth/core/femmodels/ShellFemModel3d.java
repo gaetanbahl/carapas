@@ -1,5 +1,8 @@
 package artisynth.core.femmodels;
 
+import java.util.ArrayList;
+import java.util.LinkedList;
+
 import artisynth.core.femmodels.FemModel.IncompMethod;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.IncompressibleMaterial;
@@ -16,12 +19,29 @@ import maspack.matrix.Vector3d;
 
 public class ShellFemModel3d extends FemModel3d {
    
+   /* Whenever this.addElement() is called, this list gets incremented by the 
+    * newly added element. This allows us to compute the directors using all the
+    * elements before super.addElement() is invoked which in turn requires the
+    * directors updated (e.g. to compute volume). */
+   protected LinkedList<ShellFemElement3d> myElements = null;
+   
    public ShellFemModel3d () {
       this(null);
    }
    
    public ShellFemModel3d (String name) {
       super(name);
+   }
+   
+   @Override
+   public void addElement(FemElement3d e) {
+      if (myElements == null) {
+         myElements = new LinkedList<ShellFemElement3d>();
+      }
+      myElements.add((ShellFemElement3d)e);
+      refreshNodeDirectors(myElements);
+      
+      super.addElement (e);
    }
    
    /**
@@ -34,10 +54,10 @@ public class ShellFemModel3d extends FemModel3d {
     * Ordering of element's node matters
     * 
     */
-   public void initNodeDirectors() {
+   protected void refreshNodeDirectors(LinkedList<ShellFemElement3d> eles) {
       /* Absolute and relative position of nodes probably doesn't 
        * matter b/c vector sub and normalization is being used. */
-      for (FemElement3d ele : this.myElements) {
+      for (FemElement3d ele : eles) {
          ShellFemElement3d sEle = (ShellFemElement3d) ele;
          for (int i = 0; i < sEle.numNodes(); i++) {     
             // Get next and prev nodes relative to i-th node.
@@ -57,7 +77,7 @@ public class ShellFemModel3d extends FemModel3d {
             Vector3d dir = new Vector3d();
             dir.cross (n_i, p_i);
             dir.normalize ();
-            dir.scale (sEle.myShellThickness);
+            dir.scale (sEle.getShellThickness());
             
             if (sEle.myNodes[i].myDirector0 == null) {
                sEle.myNodes[i].myDirector0 = dir;
@@ -70,10 +90,11 @@ public class ShellFemModel3d extends FemModel3d {
       
       // Average the directors.
       for (FemNode3d node : myNodes) {
-         int numAdjFaces = node.numAdjacentElements ();
-         System.out.println ("node index: " + node.getIndex ());
-         System.out.println ("numAdjFaces: " + numAdjFaces);
-         node.myDirector0.scale(1/numAdjFaces);
+         //System.out.println ("node index: " + node.getIndex ());
+         //System.out.println ("numAdjFaces: " + numAdjFaces);
+         //System.out.println ("  numAdj: " + node.numAdjElements);
+         node.myDirector0.scale(1.0/node.numAdjElements);
+         //System.out.println ("Norm: " + node.myDirector0.norm());
       }
    }
    
@@ -499,5 +520,15 @@ public class ShellFemModel3d extends FemModel3d {
          }
       }
    }
+   
+   @Override
+   public void applyForces (double t) {
+      super.applyForces(t);
+      
+      for (FemNode3d n : getNodes()) {
+         //n.myDofu.sub(n.getPosition(), n.getRestPosition());
+      }
+   }
 
+   
 }

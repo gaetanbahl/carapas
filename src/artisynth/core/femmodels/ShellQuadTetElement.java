@@ -91,6 +91,8 @@ public class ShellQuadTetElement extends ShellFemElement3d {
 
    protected ShellIntegrationData3d[] myIntegrationData;
    
+   protected final double myShellThickness = 1;
+   
    /*** End of variables and static blocks declarations ****/
 
    public ShellQuadTetElement () {
@@ -416,9 +418,9 @@ public class ShellQuadTetElement extends ShellFemElement3d {
    protected double computeVolume (boolean isRest) {
       isRest = true; // TODO. FEBio always relies on m_r0 (initial pos)
 
-      if (myNodes[0].myDirector0 == null) {
-         ((ShellFemModel3d)(myParent.getParent ())).initNodeDirectors ();
-      }
+//      if (myNodes[0].myDirector0 == null) {
+//         ((ShellFemModel3d)(myParent.getParent ())).initNodeDirectors ();
+//      }
 
       Vector3d[] nodePos = new Vector3d[myNodes.length];
       for (int i = 0; i < myNodes.length; i++) {
@@ -596,6 +598,8 @@ public class ShellQuadTetElement extends ShellFemElement3d {
       awn.z = 0.5 * (ux * vy - uy * vx);
    }
 
-   
-
+   @Override
+   public double getShellThickness() {
+      return myShellThickness;
+   }
 }

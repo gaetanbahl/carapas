@@ -34,6 +34,9 @@ public class FemNode3d extends FemNode {
 
    // Shell-specific
    public Vector3d myDirector0 = null;
+   public Vector3d myDofu = new Vector3d();
+   public Vector3d myDofd = new Vector3d();
+   public int numAdjElements = 0;
    
    protected Point3d myRest;
    protected Vector3d myInternalForce;

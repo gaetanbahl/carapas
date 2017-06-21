@@ -90,6 +90,8 @@ public class ShellTriElement extends ShellFemElement3d {
    protected static FemElementRenderer myRenderer;
 
    protected ShellIntegrationData3d[] myIntegrationData;
+ 
+   protected final double myShellThickness = 1; 
    
    /*** End of variables and static blocks declarations ****/
 
@@ -98,16 +100,19 @@ public class ShellTriElement extends ShellFemElement3d {
    }
 
    /**
-    * Creates a new triangle element from four nodes. The first three nodes
+    * Creates a new triangle element from three nodes. The three nodes
     * should define a clockwise arrangement about a particular face.
     */
    public ShellTriElement (FemNode3d p0, FemNode3d p1, FemNode3d p2) {
       this ();
       setNodes (p0, p1, p2);
+      p0.numAdjElements++;
+      p1.numAdjElements++;
+      p2.numAdjElements++;
    }
 
    /**
-    * Sets the nodes of a triangle element. The first three nodes should
+    * Sets the nodes of a triangle element. The three nodes should
     * define a clockwise arrangement about a particular face.
     */
    public void setNodes (FemNode3d p0, FemNode3d p1, FemNode3d p2) {
@@ -392,9 +397,10 @@ public class ShellTriElement extends ShellFemElement3d {
    protected double computeVolume (boolean isRest) {
       isRest = true; // TODO. FEBio always relies on m_r0 (initial pos)
 
-      if (myNodes[0].myDirector0 == null) {
-         ((ShellFemModel3d)(myParent.getParent ())).initNodeDirectors ();
-      }
+//      if (myNodes[0].myDirector0 == null || myNodes[1].myDirector0 == null ||
+//          myNodes[2].myDirector0 == null) {
+//         ((ShellFemModel3d)(myParent.getParent ())).initNodeDirectors ();
+//      }
 
       Vector3d[] nodePos = new Vector3d[myNodes.length];
       for (int i = 0; i < myNodes.length; i++) {
@@ -526,5 +532,10 @@ public class ShellTriElement extends ShellFemElement3d {
          myIntegrationData = idata;
       }
       return idata;
+   }
+   
+   @Override
+   public double getShellThickness() {
+      return myShellThickness;
    }
 }

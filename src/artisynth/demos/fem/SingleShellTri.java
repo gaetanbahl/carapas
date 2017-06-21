@@ -18,6 +18,7 @@ import javax.swing.JFrame;
 
 import maspack.properties.PropertyList;
 import maspack.render.*;
+import maspack.geometry.Vertex3d;
 import maspack.matrix.*;
 
 public class SingleShellTri extends RootModel {
@@ -57,6 +58,8 @@ public class SingleShellTri extends RootModel {
       m_node1 = new FemNode3d (1, 0, 0);        // right
       m_node2 = new FemNode3d (1, 1, 0);        // right-top
       
+      System.out.println ("Clockwise: " + isClockwise(
+         m_node0.getPosition (), m_node1.getPosition (), m_node2.getPosition ()));
 //      m_node0.transformGeometry (new RigidTransform3d(0,0,0));
 //      m_node1.transformGeometry (new RigidTransform3d(0,0,1));
 //      m_node2.transformGeometry (new RigidTransform3d(0,0,2));
@@ -104,4 +107,15 @@ public class SingleShellTri extends RootModel {
 //         }
 //      }
    }   
+   
+   public boolean isClockwise(Vertex3d[] triVtx) {
+      return isClockwise(triVtx[0].pnt, triVtx[1].pnt, triVtx[2].pnt);
+   }
+   
+   public boolean isClockwise(Point3d v0, Point3d v1, Point3d v2) {
+      double edge01 = (v1.x - v0.x)*(v1.y + v0.y);
+      double edge12 = (v2.x - v1.x)*(v2.y + v1.y);
+      double edge20 = (v0.x - v2.x)*(v0.y + v2.y);
+      return (edge01 + edge12 + edge20 > 0);
+   }
 }
