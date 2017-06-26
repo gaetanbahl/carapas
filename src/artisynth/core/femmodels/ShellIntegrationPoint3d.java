@@ -94,30 +94,51 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
       double t = getCoords().z;
       // DANNY TODO: account for m_dof
       
+      //System.out.println ("----");
+      
       // For each node...
       for (int n = 0; n < ele.getNodes().length; n++) {
          FemNode3d node = ele.getNodes()[n];
+         Vector3d d = null;
          
          Point3d pos = null;
          if (ePosType == NODE_POS.REST) {
             pos = node.getLocalRestPosition();
+            d = new Vector3d( node.myDirector0 );
          }
          else if (ePosType == NODE_POS.CURRENT) {
             pos = node.getLocalPosition();
+            d = new Vector3d( node.myDirector );
+            //d.add(ele.myNodes[n].getDisplacement());
          }
          else if (ePosType == NODE_POS.RENDER) {
             float[] rPos = node.myRenderCoords; 
             pos = new Point3d( rPos[0], rPos[1], rPos[2] );
+            d = new Vector3d( node.myDirector );
          }
          
-         Vector3d d0 = new Vector3d( node.myDirector0 );
-         d0.add(ele.myNodes[n].myDofu);
-         d0.sub(ele.myNodes[n].myDofd);
+         //d0.sub(ele.myNodes[n].myDofd);
          
-//         System.out.println ("My director: " + node.myDirector0);
-//         System.out.println ("My director len: " + node.myDirector0.norm());
-//         
-         Vector3d g0Term = new Vector3d( d0 );
+         //Vector3d nodeNormal = getNodeNormal(node);
+         //nodeNormal.normalize ();
+         
+         //nodeNormal.scale (d0.norm ());
+         
+         //d0.add(ele.myNodes[n].myDofu);
+         //nodeNormal.sub (nodeNormal, d0);
+         
+         //d0.add(ele.myNodes[n].myDofu);
+         //d0.sub (nodeNormal);
+         //d0.absolute ();
+         
+         //d0.set (nodeNormal);
+         
+         //System.out.println ("Node #" + n + " normal: " + d0);
+       
+         //System.out.printf ("Node #%d director: %s\n", n, node.myDirector);
+         //System.out.printf ("Surface normal: %s\n", nodeNormal);
+ 
+         Vector3d g0Term = new Vector3d( d );
          g0Term.scale( -(1 - t)*0.5 );
          g0Term.add( pos );
          
@@ -127,7 +148,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
          g0Term.scale( getGNs()[n].x );
          g1Term.scale( getGNs()[n].y );
          
-         Vector3d g2Term = new Vector3d( d0 );
+         Vector3d g2Term = new Vector3d( d );
          // N
          g2Term.scale( getShapeWeights().get(n) * 0.5 );
          
@@ -139,6 +160,31 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
       return g;
    }
 
+   public static Vector3d getNodeNormal(FemNode3d node) {
+      Vector3d normal = new Vector3d();
+      for (ShellFemElement3d el : node.myAdjElements) {
+         Vector3d elNormal = getElementNormal(el);
+         normal.add (elNormal);
+      }
+      // Avg
+      normal.scale (1.0/node.myAdjElements.size ());
+      return normal;
+   }
+   
+   public static Vector3d getElementNormal(FemElement3d el) {
+      Point3d n0 = el.myNodes[0].getPosition ();
+      Point3d n1 = el.myNodes[1].getPosition ();
+      Point3d n2 = el.myNodes[2].getPosition ();
+      Vector3d n1_0 = new Vector3d();
+      n1_0.sub (n1, n0);
+      Vector3d n2_0 = new Vector3d();
+      n2_0.sub (n2, n0);
+      Vector3d cross = new Vector3d();
+      cross.cross (n1_0, n2_0);
+      cross.normalize ();
+      return cross;
+   }
+   
    public Vector3d[] getContraBaseVectors(ShellFemElement3d ele) {
       return _getContraBaseVectors(ele, NODE_POS.CURRENT);
    }
@@ -172,7 +218,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
       double Jdet = J.fastInvert(J);
       if (Jdet <= 0) {
          throw new RuntimeException("Warning: getContraBaseVectors() detected "
-                                    + "determinant <= 0.");
+                                    + "determinant <= 0: " + Jdet);
       }
       
       // Compute contravectors using inverted J.
@@ -199,8 +245,8 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * Compute 3x3 jacobian matrix that represents dN/dx in matrix form. N is
     * the shape function and x is the node position.
     * 
-    * The jacobian matrix can be seen as a needed component of the stiffness
-    * matrix.
+    * The 3x3 jacobian matrix can be seen as a needed component for computing 
+    * the 3x3 material stress matrix.
     * 
     * FEBio: Top portion of FESSIShellDomain::invjac0
     * 
@@ -286,7 +332,8 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * void. Gradient is stored in Fmat parameter.
     */
    public void computeGradientForRender (Matrix3d Fmat, ShellFemElement3d ele) {
-      Vector3d[] gco = getCoBaseVectors(ele);
+      System.out.println ("here");
+      Vector3d[] gco = _getCoBaseVectors(ele, NODE_POS.RENDER);
       Vector3d[] gct = getContraBaseVectors0(ele);
       
       _computeJacobian(ele, NODE_POS.RENDER, gco);

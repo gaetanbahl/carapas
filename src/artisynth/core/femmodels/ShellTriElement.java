@@ -12,15 +12,16 @@ public class ShellTriElement extends ShellFemElement3d {
 
    /*** Variables and static blocks declarations ****/
 
-   protected final int NUM_NODES = 3;
    protected static double[] myNodeCoords = new double[] {
       0, 0, 0,
       1, 0, 0,
-      1, 1, 0};
+      1, 1, 0,
+   };
 
    protected static double[] myDefaultIntegrationCoords;
    public static final double[] INTEGRATION_COORDS_GAUSS_9;
    static {
+      /* FEBio: FEShellTri3G9::FEShellTri3G9() */
       double a = 1/6.0;
       double b = 2/3.0;
       double w1 = 5/9.0;
@@ -96,7 +97,7 @@ public class ShellTriElement extends ShellFemElement3d {
    /*** End of variables and static blocks declarations ****/
 
    public ShellTriElement () {
-      myNodes = new FemNode3d[NUM_NODES];
+      myNodes = new FemNode3d[myNodeCoords.length/3];
    }
 
    /**
@@ -106,9 +107,10 @@ public class ShellTriElement extends ShellFemElement3d {
    public ShellTriElement (FemNode3d p0, FemNode3d p1, FemNode3d p2) {
       this ();
       setNodes (p0, p1, p2);
-      p0.numAdjElements++;
-      p1.numAdjElements++;
-      p2.numAdjElements++;
+      
+      p0.myAdjElements.add (this);
+      p1.myAdjElements.add (this);
+      p2.myAdjElements.add (this);
    }
 
    /**

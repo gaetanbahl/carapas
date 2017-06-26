@@ -18,13 +18,7 @@ import maspack.matrix.SymmetricMatrix3d;
 import maspack.matrix.Vector3d;
 
 public class ShellFemModel3d extends FemModel3d {
-   
-   /* Whenever this.addElement() is called, this list gets incremented by the 
-    * newly added element. This allows us to compute the directors using all the
-    * elements before super.addElement() is invoked which in turn requires the
-    * directors updated (e.g. to compute volume). */
-   protected LinkedList<ShellFemElement3d> myElements = null;
-   
+
    public ShellFemModel3d () {
       this(null);
    }
@@ -34,14 +28,18 @@ public class ShellFemModel3d extends FemModel3d {
    }
    
    @Override
-   public void addElement(FemElement3d e) {
-      if (myElements == null) {
-         myElements = new LinkedList<ShellFemElement3d>();
+   public void addElement(FemElement3d newEle) {
+      // Create a new list of the existing elements + new element
+      LinkedList<ShellFemElement3d> eles = new LinkedList<ShellFemElement3d>();
+      for (FemElement3d e : this.myElements) {
+         eles.add((ShellFemElement3d)e);
       }
-      myElements.add((ShellFemElement3d)e);
-      refreshNodeDirectors(myElements);
+      eles.add((ShellFemElement3d)newEle);
       
-      super.addElement (e);
+      // Use this new list to compute each node's director
+      refreshNodeDirectors(eles, /*isRest=*/true);
+      
+      super.addElement (newEle);
    }
    
    /**
@@ -54,9 +52,22 @@ public class ShellFemModel3d extends FemModel3d {
     * Ordering of element's node matters
     * 
     */
-   protected void refreshNodeDirectors(LinkedList<ShellFemElement3d> eles) {
+   protected void refreshNodeDirectors(LinkedList<ShellFemElement3d> eles,
+      boolean isRest) {
       /* Absolute and relative position of nodes probably doesn't 
        * matter b/c vector sub and normalization is being used. */
+      
+      for (FemElement3d e : eles) {
+         for (FemNode3d n : e.myNodes) {
+            if (isRest) {
+               n.myDirector0.setZero ();
+            }
+            else {
+               n.myDirector.setZero ();
+            }
+         }
+      }
+      
       for (FemElement3d ele : eles) {
          ShellFemElement3d sEle = (ShellFemElement3d) ele;
          for (int i = 0; i < sEle.numNodes(); i++) {     
@@ -64,9 +75,9 @@ public class ShellFemModel3d extends FemModel3d {
             int n = (i+1) % sEle.numNodes();
             int p = (i==0) ? sEle.numNodes()-1 : i-1; 
             
-            Vector3d iPos = sEle.myNodes[i].getRestPosition ();
-            Vector3d nPos = sEle.myNodes[n].getRestPosition ();
-            Vector3d pPos = sEle.myNodes[p].getRestPosition ();
+            Vector3d iPos = sEle.myNodes[i].getPosition ();
+            Vector3d nPos = sEle.myNodes[n].getPosition ();
+            Vector3d pPos = sEle.myNodes[p].getPosition ();
             
             Vector3d n_i = new Vector3d();
             n_i.sub (nPos, iPos);
@@ -79,22 +90,23 @@ public class ShellFemModel3d extends FemModel3d {
             dir.normalize ();
             dir.scale (sEle.getShellThickness());
             
-            if (sEle.myNodes[i].myDirector0 == null) {
-               sEle.myNodes[i].myDirector0 = dir;
+            if (isRest) {
+               sEle.myNodes[i].myDirector0.add(dir);
             }
             else {
-               sEle.myNodes[i].myDirector0.add(dir);
+               sEle.myNodes[i].myDirector.add(dir);
             }
          }
       }
       
       // Average the directors.
       for (FemNode3d node : myNodes) {
-         //System.out.println ("node index: " + node.getIndex ());
-         //System.out.println ("numAdjFaces: " + numAdjFaces);
-         //System.out.println ("  numAdj: " + node.numAdjElements);
-         node.myDirector0.scale(1.0/node.numAdjElements);
-         //System.out.println ("Norm: " + node.myDirector0.norm());
+         if (isRest) {
+            node.myDirector0.scale(1.0/node.myAdjElements.size());
+         }
+         else {
+            node.myDirector.scale(1.0/node.myAdjElements.size());
+         }
       }
    }
    
@@ -521,14 +533,49 @@ public class ShellFemModel3d extends FemModel3d {
       }
    }
    
+   
    @Override
    public void applyForces (double t) {
-      super.applyForces(t);
+      //flip();
       
-      for (FemNode3d n : getNodes()) {
-         //n.myDofu.sub(n.getPosition(), n.getRestPosition());
+      // Reset directors and refresh.
+      LinkedList<ShellFemElement3d> eles = new LinkedList<ShellFemElement3d>();
+      for (FemElement3d e : this.myElements) {
+         eles.add((ShellFemElement3d)e);
+      }
+      refreshNodeDirectors(eles, false);
+      
+      super.applyForces(t);
+   }
+   
+   boolean flipped = false;
+   public void flip()
+   {
+      Vector3d elNormal = ShellIntegrationPoint3d.getElementNormal (this.myElements.get (0));
+      Vector3d d0 = this.myElements.get (0).myNodes[0].myDirector0;
+      
+      if (flipped == true)
+         elNormal.scale (-1);
+      
+      if ((elNormal.z < 0 && d0.z > 0) || (elNormal.z > 0 && d0.z < 0)) 
+      {
+         flipped = !flipped;
+         
+         FemElement3d el = this.myElements.get(0);
+         
+         FemNode3d n0 = el.myNodes[0];
+         FemNode3d n1 = el.myNodes[1];
+         FemNode3d n2 = el.myNodes[2];
+         
+         el.myNodes[0] = n2;
+         el.myNodes[1] = n1;
+         el.myNodes[2] = n0;
+         
+         for (FemNode3d n : el.myNodes) {
+            n.myDirector0.scale(-1);
+         }
+         
+         System.out.println ("FLIPPED. el.z: " + elNormal.z + " d0.z: " + d0.z);
       }
    }
-
-   
 }

@@ -33,10 +33,11 @@ import maspack.util.ReaderTokenizer;
 public class FemNode3d extends FemNode {
 
    // Shell-specific
-   public Vector3d myDirector0 = null;
-   public Vector3d myDofu = new Vector3d();
-   public Vector3d myDofd = new Vector3d();
-   public int numAdjElements = 0;
+   public Vector3d myDirector0 = new Vector3d();
+   public Vector3d myDirector = new Vector3d();
+   public LinkedList<ShellFemElement3d> myAdjElements = 
+      new LinkedList<ShellFemElement3d>();
+   protected Vector3d myInternalRotForce;
    
    protected Point3d myRest;
    protected Vector3d myInternalForce;

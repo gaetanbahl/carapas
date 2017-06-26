@@ -661,34 +661,60 @@ public class FemUtilities {
       jGradMu.scaledAdd(jN, gct[2]);
       jGradMu.scale(0.5);
       
+      // Compute gradMd for i and j
+      
+      Vector3d iGradMd = new Vector3d();
+      iGradMd.scaledAdd (1-t, iGradM);
+      iGradMd.scaledAdd (-iN, gct[2]);
+      iGradMd.scale (0.5);
+      
+      Vector3d jGradMd = new Vector3d();
+      jGradMd.scaledAdd (1-t, jGradM);
+      jGradMd.scaledAdd (-jN, gct[2]);
+      jGradMd.scale (0.5);
+      
       Matrix3d Kuu = new Matrix3d();
       TensorUtils.v3DotTens4sDotv3 (/*out=*/Kuu, iGradMu, matTangent, jGradMu);
       Kuu.scale(dv);
       
+      Matrix3d Kud = new Matrix3d();
+      TensorUtils.v3DotTens4sDotv3 (Kud, iGradMu, matTangent, jGradMd);
+      Kud.scale (dv);
+      
+      Matrix3d Kdu = new Matrix3d();
+      TensorUtils.v3DotTens4sDotv3 (Kdu, iGradMd, matTangent, jGradMu);
+      Kdu.scale (dv);
+      
+      Matrix3d Kdd = new Matrix3d();
+      TensorUtils.v3DotTens4sDotv3 (Kdd, iGradMd, matTangent, jGradMd);
+      Kdd.scale (dv);
+      
       // Material component 
       
-      K.m00 += Kuu.m00;
-      K.m10 += Kuu.m10;
-      K.m20 += Kuu.m20;
+      K.m00 += Kuu.m00;  K.m01 += Kuu.m01;  K.m02 += Kuu.m02;
+      K.m10 += Kuu.m10;  K.m11 += Kuu.m11;  K.m12 += Kuu.m12;
+      K.m20 += Kuu.m20;  K.m21 += Kuu.m21;  K.m22 += Kuu.m22;
       
-      K.m01 += Kuu.m01;
-      K.m11 += Kuu.m11;
-      K.m21 += Kuu.m21;
+      // TODO compute 3 other 3x3 matrices
       
-      K.m02 += Kuu.m02;
-      K.m12 += Kuu.m12;
-      K.m22 += Kuu.m22;
-
       // Stress component 
       
-      Vector3d sjGradMu = new Vector3d( jGradMu );     
-      matStress.mul (sjGradMu);                        
+      Vector3d sjGradMu = new Vector3d( jGradMu );   
+      matStress.mul (sjGradMu);
       
-      double sKuu = iGradMu.dot(sjGradMu) * dv;
+      Vector3d sjGradMd = new Vector3d( jGradMd ); 
+      matStress.mul (sjGradMd);
+                              
+      double sKuu = iGradMu.dot(sjGradMu) * dv;            
+      double sKud = iGradMu.dot(sjGradMd) * dv;
+      double sKdu = iGradMd.dot(sjGradMu) * dv;
+      double sKdd = iGradMd.dot(sjGradMd) * dv;
       
       K.m00 += sKuu;
       K.m11 += sKuu;
       K.m22 += sKuu; 
+      
+      // TODO compute 3 other 3x3 diag
    }
    
    
@@ -736,16 +762,16 @@ public class FemUtilities {
       gradMu.scaledAdd (N, gct[2]);
       gradMu.scale (0.5);
       
-//      Vector3d gradMd = new Vector3d();
-//      gradMd.scaledAdd (1-t, gradM);
-//      gradMd.scaledAdd (-N, gct[2]);
-//      gradMd.scale (0.5);
+      Vector3d gradMd = new Vector3d();
+      gradMd.scaledAdd (1-t, gradM);
+      gradMd.scaledAdd (-N, gct[2]);
+      gradMd.scale (0.5);
       
       Vector3d fu = new Vector3d(gradMu);
       sig.mul(fu);
       
-//      Vector3d fd = new Vector3d(gradMd);
-//      sig.mul(fd);
+      Vector3d fd = new Vector3d(gradMd);
+      sig.mul(fd);
       
       // Increment displacement force. In FEBio, force is subtracted here.
       // Artisynth does this subtraction later in

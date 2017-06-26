@@ -30,10 +30,11 @@ public class ShellPatch extends RootModel {
    protected ShellFemModel3d m_femShellModel = null;
    protected MechModel m_mechModel = null;
 
-   public final int mMeshX = 3;
-   public final int mMeshY = 3;
-   public final int mMeshXDiv = 3;
-   public final int mMeshYDiv = 3;
+   // 10,10,10,10
+   public final int mMeshX = 2;                
+   public final int mMeshY = 1;
+   public final int mMeshXDiv = 2;
+   public final int mMeshYDiv = 1;
    
    protected PolygonalMesh mMesh = null;
    
@@ -54,11 +55,11 @@ public class ShellPatch extends RootModel {
       for (Face face : mMesh.getFaces()) {
          Vertex3d[] triVtx = face.getTriVertices();
          
-         Vector3d centroid = new Vector3d();
-         face.computeCentroid (centroid);
-         Particle fParticle = new Particle(1, new Point3d(centroid));
-         RenderProps.setSphericalPoints(fParticle, face.idx/100.0, Color.BLUE);
-         m_mechModel.addParticle (fParticle);
+//         Vector3d centroid = new Vector3d();
+//         face.computeCentroid (centroid);
+//         Particle fParticle = new Particle(1, new Point3d(centroid));
+//         RenderProps.setSphericalPoints(fParticle, face.idx/100.0, Color.BLUE);
+//         m_mechModel.addParticle (fParticle);
          
 //         System.out.println ("My face: " + face.idx);
 //         System.out.println ("  My nodes are: " + triVtx[0].getIndex () + triVtx[1].getIndex () + triVtx[2].getIndex ());
@@ -75,7 +76,7 @@ public class ShellPatch extends RootModel {
          FemNode3d n0 = m_nodes[ triVtx[0].getIndex() ];
          FemNode3d n1 = m_nodes[ triVtx[1].getIndex() ];
          FemNode3d n2 = m_nodes[ triVtx[2].getIndex() ];
-         System.out.println ("Clockwise: " + isClockwise(triVtx));
+         //System.out.println ("Clockwise: " + isClockwise(triVtx));
          
          // Add femElement using 3 femNodes.
          ShellTriElement ele = new ShellTriElement(n0, n1, n2);
@@ -102,7 +103,7 @@ public class ShellPatch extends RootModel {
       m_femShellModel.setDensity (m_density);
       m_femShellModel.setParticleDamping (m_damping);
 
-      m_mechModel.setProfiling (true);
+      //m_mechModel.setProfiling (true);
    }   
    
    public boolean isClockwise(Vertex3d[] triVtx) {

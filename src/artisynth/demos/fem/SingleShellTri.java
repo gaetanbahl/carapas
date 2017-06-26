@@ -32,6 +32,8 @@ public class SingleShellTri extends RootModel {
    
    final double m_density = 10000;
    final double m_damping = 100;
+   
+   final double m_nodeRadius = 0.05;
 
    public void build (String[] args) {
       m_femShellModel = new ShellFemModel3d();
@@ -84,13 +86,13 @@ public class SingleShellTri extends RootModel {
       addModel (m_mechModel);
 
       RenderProps.setPointStyle (m_femShellModel.getNodes(), Renderer.PointStyle.SPHERE);
-      RenderProps.setPointRadius (m_femShellModel.getNodes(), 0.05);
+      RenderProps.setPointRadius (m_femShellModel.getNodes(), m_nodeRadius);
 
       m_femShellModel.setGravity (0, 0, 0);
       m_femShellModel.setDensity (m_density);
       m_femShellModel.setParticleDamping (m_damping);
 
-      m_mechModel.setProfiling (true);
+      //m_mechModel.setProfiling (true);
       
 //      int i = 0;
 //      for (FemNode3d node : femMod.getNodes()) {
