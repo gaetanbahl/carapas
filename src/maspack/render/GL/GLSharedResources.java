@@ -170,7 +170,6 @@ public abstract class GLSharedResources implements GLEventListener, GLGarbageSou
    public synchronized GLCanvas createCanvas() {
       
       maybeCreateMaster();
-      
       GLCanvas canvas = new GLCanvas (glCapabilities);
       canvas.setSharedAutoDrawable (masterDrawable);
       return canvas;

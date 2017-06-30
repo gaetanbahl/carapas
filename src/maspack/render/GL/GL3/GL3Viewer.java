@@ -236,7 +236,7 @@ public class GL3Viewer extends GLViewer {
       Logger logger = Logger.getSystemLogger();
       logger.info("GLSL Version: " + glslVersion);
       
-      gl.setSwapInterval (1);
+       gl.setSwapInterval (1);
 
       int[] buff = new int[1];
       gl.glGetIntegerv(GL3.GL_MAX_CLIP_DISTANCES, buff, 0);
@@ -310,7 +310,7 @@ public class GL3Viewer extends GLViewer {
       super.dispose (drawable);
 
       this.drawable = drawable;
-      this.gl = GL3Utilities.wrap(drawable.getGL ().getGL3 ());
+      this.gl = GL3Utilities.wrap(drawable.getGL().getGL3 ());
       
       if (this.primitives != null) {
          for (int i=0; i<primitives.length; ++i) {
@@ -432,7 +432,7 @@ public class GL3Viewer extends GLViewer {
 
       this.drawable = null;
       this.gl = null;
-   }
+   }   
 
    private void doDisplay(GLAutoDrawable drawable, int flags) {
       

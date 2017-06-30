@@ -54,7 +54,7 @@ import maspack.util.ReaderTokenizer;
 */
 public abstract class MuscleElementDescBase
    extends RenderableComponentBase
-   implements ConstitutiveMaterial, 
+   implements ConstitutiveMaterial, AuxiliaryMaterial,
    ExcitationComponent, ScalableUnits, TransformableGeometry {
 
    FemElement3d myElement;
@@ -550,6 +550,21 @@ public abstract class MuscleElementDescBase
 //      computeStress(sigma, pt, dt, baseMat);
 //      computeTangent(D, sigma, pt, dt, baseMat);
 //   }
+   
+   @Override
+   public void computeStress(
+      SymmetricMatrix3d sigma, SolidDeformation def, IntegrationPoint3d pt,
+      IntegrationData3d dt, FemMaterial baseMat) {
+      computeStress(sigma, def, dt.myFrame, baseMat);
+      
+   }
+
+   @Override
+   public void computeTangent(
+      Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def,
+      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
+      computeTangent(D, stress, def, dt.myFrame, baseMat);
+   }
 
    public boolean hasSymmetricTangent() {
       MuscleMaterial mat = getEffectiveMuscleMaterial();

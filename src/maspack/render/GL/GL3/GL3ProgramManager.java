@@ -29,7 +29,6 @@ import maspack.render.GL.GLProgramInfo.RenderingMode;
 import maspack.render.GL.GLShaderProgram;
 import maspack.render.GL.GLTexture;
 import maspack.render.GL.GL3.GLSLGenerator.StringIntPair;
-import maspack.util.Logger;
 
 public class GL3ProgramManager {
 

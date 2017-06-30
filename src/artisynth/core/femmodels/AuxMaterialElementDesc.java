@@ -48,7 +48,7 @@ import maspack.util.ReaderTokenizer;
  * element.
  */
 public class AuxMaterialElementDesc extends RenderableComponentBase
-   implements ConstitutiveMaterial, ScalableUnits, TransformableGeometry {
+   implements ConstitutiveMaterial, AuxiliaryMaterial, ScalableUnits, TransformableGeometry {
 
    FemElement3d myElement;
    private FemMaterial myMat;
@@ -217,6 +217,21 @@ public class AuxMaterialElementDesc extends RenderableComponentBase
             D.setZero();
          }
       }
+   }
+   
+   @Override
+   public void computeStress(
+      SymmetricMatrix3d sigma, SolidDeformation def, IntegrationPoint3d pt,
+      IntegrationData3d dt, FemMaterial baseMat) {
+      computeStress(sigma, def, dt.myFrame, baseMat);
+      
+   }
+
+   @Override
+   public void computeTangent(
+      Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def,
+      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
+      computeTangent(D, stress, def, dt.myFrame, baseMat);
    }
 
    public boolean hasSymmetricTangent() {

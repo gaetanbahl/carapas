@@ -247,7 +247,7 @@ public class WedgeElement extends FemElement3d {
    }
 
    /** 
-    * Cpmputes the exact volume of the wedge
+    * Computes the exact volume of the wedge
     *
     * @return element volume
     */

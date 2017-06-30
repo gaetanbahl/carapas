@@ -1669,13 +1669,10 @@ public class WavefrontReader extends MeshReaderBase {
       throws IOException {
       setMesh (mesh, /*groupName=*/null);
    }
-
-   public void setMesh (PolygonalMesh mesh, String groupName)
-      throws IOException {      
-
-      mesh.clear();
-      groupName = checkGroupName (groupName);
-
+   
+   private void setMeshInternal(PolygonalMesh mesh, String groupName) throws IOException {
+      setGroup(groupName);
+      
       ArrayList<Point3d> vtxList = new ArrayList<Point3d>();
       int[][] indices = getLocalFaceIndicesAndVertices (vtxList);
 
@@ -1710,6 +1707,15 @@ public class WavefrontReader extends MeshReaderBase {
          mesh.setHardEdgesFromNormals();
       }      
       setNameAndRenderProps (mesh, groupName);
+   }
+
+   public void setMesh (PolygonalMesh mesh, String groupName)
+      throws IOException {      
+
+      mesh.clear();
+      groupName = checkGroupName (groupName);
+
+      setMeshInternal(mesh, groupName);
    }
 
    public MeshBase readMesh (MeshBase mesh) 

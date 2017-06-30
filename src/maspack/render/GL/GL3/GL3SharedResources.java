@@ -61,7 +61,7 @@ public class GL3SharedResources extends GLSharedResources {
    public GL3SharedRenderInstances getInstances(GL3 gl, RenderInstances rinst) {
       return groManager.getInstances(gl, rinst);
    }
-   
+
    public GL3SharedPrimitiveManager getSharedPrimitiveManager () {
       return primManager;
    }

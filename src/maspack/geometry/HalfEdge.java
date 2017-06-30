@@ -1094,5 +1094,37 @@ public class HalfEdge extends Feature implements Boundable {
       return (face == f0 && opposite.face == f1 ||
               face == f1 && opposite.face == f0);
    }
+   
+   @Override
+   public void nearestPoint(Point3d nearest, Point3d pnt) {
+      Point3d p0 = tail.getWorldPoint();
+      Point3d p1 = head.getWorldPoint();
+     
+      double ux = p1.x - p0.x;
+      double uy = p1.y - p0.y;
+      double uz = p1.z - p0.z;
+      
+      double dx, dy, dz;
+
+      dx = pnt.x - p1.x;
+      dy = pnt.y - p1.y;
+      dz = pnt.z - p1.z;
+      double dot = dx*ux + dy*uy + dz*uz;
+      if (dot >= 0) {
+         nearest.set(p1);
+      }
+      dx = pnt.x - p0.x;
+      dy = pnt.y - p0.y;
+      dz = pnt.z - p0.z;
+      dot = dx*ux + dy*uy + dz*uz;
+      if (dot <= 0) {
+         nearest.set(p0);
+      }
+      else {
+         double umagSqr = ux*ux + uy*uy + uz*uz;
+         double s = dot/umagSqr;
+         pnt.interpolate(p0, s, p1);
+      }
+   }
 
 }

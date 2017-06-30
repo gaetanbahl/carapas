@@ -234,7 +234,7 @@ public class GL3RenderObjectManager implements GLGarbageSource {
                it.remove ();
                entry.getValue ().dispose (gl3);
             }
-         }        
+         }
       }
    }
    

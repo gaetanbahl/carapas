@@ -333,7 +333,7 @@ public class TriangleIntersector {
    double alpha;
 
    // Vector3d source, target;
-   
+
    public Point3d[] intersectTriangleTriangle (
       Vector3d p1, Vector3d q1, Vector3d r1, Vector3d p2, Vector3d q2,
       Vector3d r2) {
@@ -352,21 +352,16 @@ public class TriangleIntersector {
       v1.sub (r1, r2);
       dr1 = v1.dot (N2);
 
-      //epsilon test
-      if(dp1 < epsilon && -dp1 < epsilon) {
-         dp1 = 0;
-      }
-      if(dq1 < epsilon && -dq1 < epsilon) {
-         dq1 = 0;
-      }
-      if(dr1 < epsilon && -dr1 < epsilon) {
-         dr1 = 0;
-      }
+      // //epsilon test
+      // if(dp1 < epsilon && -dp1 < epsilon)
+      // dp1 = 0;
+      // if(dq1 < epsilon && -dq1 < epsilon)
+      // dq1 = 0;
+      // if(dr1 < epsilon && -dr1 < epsilon)
+      // dr1 = 0;
 
-      // p1, q1, r1 all on same side of plane defined by triangle 2 --> no intersection
-      if (((dp1 * dq1) > 0.0) && ((dp1 * dr1) > 0.0)) {
+      if (((dp1 * dq1) > 0.0) && ((dp1 * dr1) > 0.0))
          return null;
-      }
 
       // Compute distance signs of p2, q2 and r2
       // to the plane of triangle(p1,q1,r1)
@@ -382,32 +377,28 @@ public class TriangleIntersector {
       v1.sub (r2, r1);
       dr2 = v1.dot (N1);
 
-      //epsilon test
-      if(dp2 < epsilon && -dp2 < epsilon) {
-         dp2 = 0;
-      }
-      if(dq2 < epsilon && -dq2 < epsilon) {
-         dq2 = 0;
-      }
-      if(dr2 < epsilon && -dr2 < epsilon) {
-         dr2 = 0;
-      }
+      // //epsilon test
+      // if(dp2 < epsilon && -dp2 < epsilon)
+      // dp2 = 0;
+      // if(dq2 < epsilon && -dq2 < epsilon)
+      // dq2 = 0;
+      // if(dr2 < epsilon && -dr2 < epsilon)
+      // dr2 = 0;
 
-      
-      // p2, q2, r2 all on same side of plane defined by triangle 1 --> no intersection
-      if (((dp2 * dq2) > 0.0) && ((dp2 * dr2) > 0.0)) {
+      if (((dp2 * dq2) > 0.0) && ((dp2 * dr2) > 0.0))
          return null;
-      }
 
       // System.out.println(dp1 + " " + dq1 + " " + dr1);
       // System.out.println(dp2 + " " + dq2 + " " + dr2);
 
       // Permutation in a canonical form of T1's vertices
+
       if (dp1 > 0.0) {
          if (dq1 > 0.0)
             return TRI_TRI_INTER_3D (r1, p1, q1, p2, r2, q2, dp2, dr2, dq2);
          else if (dr1 > 0.0)
             return TRI_TRI_INTER_3D (q1, r1, p1, p2, r2, q2, dp2, dr2, dq2);
+
          else
             return TRI_TRI_INTER_3D (p1, q1, r1, p2, q2, r2, dp2, dq2, dr2);
       }
@@ -441,8 +432,8 @@ public class TriangleIntersector {
                // triangles are co-planar
 
                // coplanar.value = 1;
-               // return coplanar_tri_tri3d (p1, q1, r1, p2, q2, r2, N1, N2);
-               return null;
+               return null;// coplanar_tri_tri3d (p1, q1, r1, p2, q2, r2, N1,
+                           // N2);
             }
          }
       }

@@ -13,7 +13,6 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 
-import artisynth.core.materials.ConstitutiveMaterial;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.IncompressibleMaterial;
 import artisynth.core.mechmodels.DynamicAttachment;
@@ -27,6 +26,7 @@ import artisynth.core.modelbase.ComponentUtils;
 import artisynth.core.modelbase.CompositeComponent;
 import artisynth.core.modelbase.ModelComponent;
 import artisynth.core.util.ScanToken;
+import maspack.function.Function1x1;
 import maspack.geometry.Boundable;
 import maspack.matrix.LUDecomposition;
 import maspack.matrix.Matrix;
@@ -87,7 +87,7 @@ public abstract class FemElement3d extends FemElement
    protected PropertyMode myElementWidgetSizeMode = PropertyMode.Inherited;
 
    // Auxiliary Materials are mainly used for implementing muscle fibres
-   protected ArrayList<ConstitutiveMaterial> myAuxMaterials = null;
+   protected ArrayList<AuxiliaryMaterial> myAuxMaterials = null;
 
    public static PropertyList myProps =
       new PropertyList (FemElement3d.class, FemElement.class);
@@ -473,6 +473,18 @@ public abstract class FemElement3d extends FemElement
       }
       centroid.scale (1.0 / numNodes());
    }
+   
+   /**
+    * Compute position within element based on natural coordinates
+    * @param pnt  populated position within element
+    * @param coords natural coordinates
+    */
+   public void computePosition(Point3d pnt, Vector3d coords) {
+      pnt.setZero();
+      for (int i=0; i<numNodes(); ++i) {
+         pnt.scaledAdd(getN(i, coords), myNodes[i].getPosition());
+      }
+   }
 
    public double computeCovariance (Matrix3d C) {
       double vol = 0;
@@ -778,10 +790,17 @@ public abstract class FemElement3d extends FemElement
       res.sub (pnt);
    }
    
+   public int getNaturalCoordinates (
+      Vector3d coords, Point3d pnt, int maxIters) {
+      
+      return getNaturalCoordinatesBS(coords, pnt, maxIters);
+      
+   }
+   
    /**
     * Given point p, get its natural coordinates with respect to this element.
-    * Returns true if the algorithm converges, false if a maximum number of 
-    * iterations is reached. Uses a modified Newton's method to solve the 
+    * Returns a positive number if the algorithm converges, or -1 if a maximum
+    * number of iterations has been reached. Uses a modified Newton's method to solve the 
     * equations. The <code>coords</code> argument that returned the coordinates is
     * used, on input, to supply an initial guess of the coordinates.
     * Zero is generally a safe guess.
@@ -796,7 +815,7 @@ public abstract class FemElement3d extends FemElement
     * @return the number of iterations required for convergence, or
     * -1 if the calculation did not converge.
     */
-   public int getNaturalCoordinates (
+   public int getNaturalCoordinatesBS (
       Vector3d coords, Point3d pnt, int maxIters) {
 
       if (!coordsAreInside(coords)) {
@@ -894,6 +913,190 @@ public abstract class FemElement3d extends FemElement
                return -1;  // failed
             }
          }
+         prn = rn;
+      }
+      return -1; // failed
+   }
+
+   // performs golden-section search to minimize f in the range [a, b]
+   private double gss(Function1x1 f, double a, double b, double tol, double ftol) {
+
+      final double g = (Math.sqrt(5)+1)/2; 
+      
+      double c = b - (b-a)/g;
+      double fc = f.eval(c);
+      double d = a + (b-a) / g;
+      double fd = f.eval(d);
+      
+      double s = c;
+      double fs = fc;
+      if (fd < fs) {
+         s = d;
+         fs = fd;
+      }
+      
+      while ((d-c) > tol && fs > ftol) {
+         if (fc < fd) {
+            b = d;
+         } else {
+            a = c;
+         }
+         
+         c = b - (b-a)/g;
+         fc = f.eval(c);
+         d = a + (b-a) / g;
+         fd = f.eval(d);
+         
+         s = c;
+         fs = fc;
+         if (fd < fs) {
+            s = d;
+            fs = fd;
+         }
+      }
+      
+      return s;
+   }
+   
+   private static class GSSResidual implements Function1x1 {
+      private Point3d c0;
+      private Point3d target;
+      private Vector3d dir;
+      private Point3d c;
+      private Vector3d res;
+      FemElement3d elem;
+      
+      public GSSResidual(FemElement3d elem, Point3d target) {
+         this.elem = elem;
+         this.c0 = new Point3d();
+         this.dir = new Vector3d();
+         this.target = new Point3d(target);
+         this.c = new Point3d();
+         this.res = new Vector3d();
+      }
+      
+      public void set(Point3d coord, Vector3d dir) {
+         this.c0.set(coord);
+         this.dir.set(dir);
+      }
+
+      @Override
+      public double eval(double x) {
+         c.scaledAdd(x, dir, c0);
+         elem.computeNaturalCoordsResidual(res, c, target);
+         return res.normSquared();
+      }
+   }
+   
+   /**
+    * Given point p, get its natural coordinates with respect to this element.
+    * Returns a positive number if the algorithm converges, or -1 if a maximum
+    * number of iterations has been reached. Uses a modified Newton's method to solve the 
+    * equations. The <code>coords</code> argument that returned the coordinates is
+    * used, on input, to supply an initial guess of the coordinates.
+    * Zero is generally a safe guess.
+    * 
+    * @param coords
+    * Outputs the natural coordinates, and supplies (on input) an initial
+    * guess as to their position.
+    * @param pnt
+    * A given point (in world coords)
+    * @param maxIters
+    * Maximum number of Newton iterations
+    * @return the number of iterations required for convergence, or
+    * -1 if the calculation did not converge.
+    */
+   public int getNaturalCoordinatesGSS (
+      Vector3d coords, Point3d pnt, int maxIters) {
+
+      if (!coordsAreInside(coords)) {
+         // if not inside, reset coords to 0
+         coords.setZero();
+      }
+
+      // if FEM is frame-relative, transform to local coords
+      Point3d lpnt = new Point3d(pnt);
+      if (getGrandParent() instanceof FemModel3d) {
+         FemModel3d fem = (FemModel3d)getGrandParent();
+         if (fem.isFrameRelative()) {
+            lpnt.inverseTransform (fem.getFrame().getPose());
+         }
+      }
+
+      Vector3d res = new Point3d();
+      int i;
+
+      double tol = RenderableUtils.getRadius (this) * 1e-12;
+      computeNaturalCoordsResidual (res, coords, lpnt);
+      double prn = res.norm();
+      //System.out.println ("res=" + prn);
+      if (prn < tol) {
+         // already have the right answer
+         return 0;
+      }
+
+      LUDecomposition LUD = new LUDecomposition();
+      Point3d prevCoords = new Point3d();
+      Vector3d dNds = new Vector3d();
+      Matrix3d dxds = new Matrix3d();
+      Vector3d del = new Point3d();
+      
+      GSSResidual func = new GSSResidual(this, lpnt);
+
+      /*
+       * solve using Newton's method.
+       */
+      for (i = 0; i < maxIters; i++) {
+
+         // compute the Jacobian dx/ds for the current guess
+         dxds.setZero();
+         for (int k=0; k<numNodes(); k++) {
+            getdNds (dNds, k, coords);
+            dxds.addOuterProduct (myNodes[k].getLocalPosition(), dNds);
+         }
+         LUD.factor (dxds);
+         double cond = LUD.conditionEstimate (dxds);
+         if (cond > 1e10)
+            System.err.println (
+               "Warning: condition number for solving natural coordinates is "
+               + cond);
+         // solve Jacobian to obtain an update for the coords
+         LUD.solve (del, res);
+         del.negate();
+
+         // if del is very small assume we are close to the root. Assume
+         // natural coordinates are generally around 1 in magnitude, so we can
+         // use an absolute value for a tolerance threshold
+         if (del.norm() < 1e-10) {
+            //System.out.println ("1 res=" + res.norm());
+            return i+1;
+         }
+
+         prevCoords.set (coords);         
+         coords.add (del);                              
+         computeNaturalCoordsResidual (res, coords, lpnt);
+         double rn = res.norm();
+         //System.out.println ("res=" + rn);
+
+         // If the residual norm is within tolerance, we have converged.
+         if (rn < tol) {
+            //System.out.println ("2 res=" + rn);
+            return i+1;
+         }
+         
+         // do a golden section search in range
+         double eps = 1e-12;
+         func.set(prevCoords, del);
+         double alpha = gss(func, 0, 1, eps, 0.8*prn*prn);
+         coords.scaledAdd(alpha, del, prevCoords);
+         computeNaturalCoordsResidual(res, coords, lpnt);
+         rn = res.norm();
+         
+         //System.out.println (" alpha=" + alpha + " rn=" + rn + " prn=" + prn);
+         if (alpha < eps) {
+            return -1;  // failed
+         }
+         
          prn = rn;
       }
       return -1; // failed
@@ -1331,14 +1534,14 @@ public abstract class FemElement3d extends FemElement
    }
 
    // Auxiliary materials, used for implementing muscle fibres
-   public void addAuxiliaryMaterial (ConstitutiveMaterial mat) {
+   public void addAuxiliaryMaterial (AuxiliaryMaterial mat) {
       if (myAuxMaterials == null) {
-         myAuxMaterials = new ArrayList<ConstitutiveMaterial>(4);
+         myAuxMaterials = new ArrayList<AuxiliaryMaterial>(4);
       }
       myAuxMaterials.add (mat);
    }
 
-   public boolean removeAuxiliaryMaterial (ConstitutiveMaterial mat) {
+   public boolean removeAuxiliaryMaterial (AuxiliaryMaterial mat) {
       if (myAuxMaterials != null) {
          return myAuxMaterials.remove (mat);
       }
@@ -1351,12 +1554,12 @@ public abstract class FemElement3d extends FemElement
       return myAuxMaterials == null ? 0 : myAuxMaterials.size();
    }
 
-   public List<ConstitutiveMaterial> getAuxiliaryMaterials() {
+   public List<AuxiliaryMaterial> getAuxiliaryMaterials() {
       //      if (myAuxMaterials == null) {
-      //         return new ConstitutiveMaterial[0];
+      //         return new AuxiliaryMaterial[0];
       //      }
       //      else {
-      //         return myAuxMaterials.toArray (new ConstitutiveMaterial[0]);
+      //         return myAuxMaterials.toArray (new AuxiliaryMaterial[0]);
       //      }
       return myAuxMaterials;
    }
@@ -1537,9 +1740,9 @@ public abstract class FemElement3d extends FemElement
 
       e.myAuxMaterials = null;
       if (myAuxMaterials != null) {
-         for (ConstitutiveMaterial a : myAuxMaterials) {
+         for (AuxiliaryMaterial a : myAuxMaterials) {
             try {
-               e.addAuxiliaryMaterial ((ConstitutiveMaterial)a.clone());
+               e.addAuxiliaryMaterial ((AuxiliaryMaterial)a.clone());
             }
             catch (Exception ex) {
                throw new InternalErrorException (

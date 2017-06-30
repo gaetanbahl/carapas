@@ -1846,7 +1846,7 @@ public interface Renderer {
     * @param rinst instance to draw
     */
    public void drawPoints(RenderObject robj, int gidx, RenderInstances rinst);
-   
+     
    // MATRICES
    
    /**

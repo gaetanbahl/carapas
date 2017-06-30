@@ -11,6 +11,7 @@ import java.awt.Color;
 import java.util.*;
 import java.io.*;
 
+import maspack.geometry.BVFeatureQuery.PointFeatureDistanceCalculator;
 import maspack.matrix.*;
 import maspack.render.*;
 import maspack.render.Renderer.DrawMode;
@@ -22,7 +23,7 @@ import maspack.util.Logger;
 import maspack.util.StringHolder;
 
 /**
- * Implements a signed distance field for fixed triangular mesh. One common
+ * Implements a distance field for fixed triangular mesh. One common
  * use of such a field is to detect point penetration distances and normals for
  * use in collision handling.
  *
@@ -30,7 +31,7 @@ import maspack.util.StringHolder;
  * <code>numVX</code> X <code>numVY</code> X <code>numVZ</code> vertices along
  * the x, y and z directions, dividing the volume into <code>(numVX-1)</code> X
  * <code>(numVY-1)</code> X <code>(numVZ-1)</code> cells. For vertices close to
- * the mesh, nearby faces are examined to determine the distance from the mesh
+ * the mesh, nearby Features are examined to determine the distance from the mesh
  * to the vertex. A sweep method and ray-casting are then used to propogate
  * distance values throughout the volume and determine whether vertices are
  * inside or outside. The algorithm is based on C++ code provided by Robert
@@ -45,9 +46,8 @@ import maspack.util.StringHolder;
  * of vertex values across each cell is used to compute the distance and normal
  * for a general point within the grid volume.
  */
-public class SignedDistanceGrid implements Renderable, DistanceQueryable {
+public class DistanceGrid implements Renderable, DistanceQueryable {
 
-   private PolygonalMesh myMesh;      // mesh associated with the grid
    private Vector3d myCellWidths;     // cell widths along x, y, z
    private double[] myPhi;            // distance values at each vertex
    private Vector3d[] myNormals;      // normal values at each vertex
@@ -66,11 +66,11 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
    protected boolean myRobValid = false;
 
    /**
-    * Maximum of the signed distance field, in mesh coordinates.
+    * Maximum of the distance field, in mesh coordinates.
     */
    private Point3d myMaxCoord = new Point3d();
    /**
-    * Minimum of the signed distance field, in mesh coordinates.
+    * Minimum of the distance field, in mesh coordinates.
     */
    private Point3d myMinCoord = new Point3d();
 
@@ -85,65 +85,84 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
    private int numVXxVY = 0; // numVX*numVY
 
    /**
-    * An array giving the index of the nearest face to each vertex.
+    * An array giving the index of the nearest Feature to each vertex.
     */
-   private int[] myClosestFaceIdxs;
+   private int[] myClosestFeatureIdxs;
+   
+   Feature[] myFeatures;
+   AffineTransform3dBase myWorldTransform;
 
-   SignedDistanceGrid () {
+   DistanceGrid () {
       myRenderProps = createRenderProps();
+   }
+   
+   public void setWorldTransform(AffineTransform3dBase trans) {
+      myWorldTransform = trans;
+   }
+   
+   /**
+    * Converts v to local coordinates, if the distance grid has a world transform
+    * @param local populated local coordinates
+    * @param world world coordinates
+    */
+   public void getLocalCoordinates(Point3d local, Point3d world) {
+      local.set(world);
+      if (myWorldTransform != null) {
+         local.inverseTransform(myWorldTransform);
+      }
    }
 
    /**
-    * Creates a new signed distance grid for a specified mesh. The mesh is
-    * created as for {@link #SignedDistanceGrid(PolygonalMesh,double,Vector3i)},
+    * Creates a new distance grid for a specified set of features. The feature is
+    * created as for {@link #SignedDistanceFeatureGrid(Features,double,Vector3i)},
     * with the number of cells along each axis given by 25.
     *
-    * @param mesh mesh for which the grid should be created
+    * @param features features for which the grid should be created
     * @param marginFraction multiplied by the width in each direction to
     * determine the margin for that direction
     */
-   public SignedDistanceGrid (PolygonalMesh mesh, double marginFraction) {
-      this (mesh, marginFraction, new Vector3i (25, 25, 25));
+   public DistanceGrid (Feature[] features, double marginFraction) {
+      this (features, marginFraction, new Vector3i (25, 25, 25));
    }
 
-   private void setMeshAndBounds (
+   private void setFeaturesAndBounds (
       Vector3d widths, Vector3d margin,
-      PolygonalMesh mesh, double marginFraction) {
+      Feature[] features, double marginFraction) {
       
-      if (!mesh.isTriangular()) {
-         throw new IllegalArgumentException ("mesh is not triangular");
+      myMinCoord.set(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+      myMaxCoord.set(Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY);
+      for (Feature f : features) {
+         f.updateBounds(myMinCoord, myMaxCoord);
       }
-      myMesh = mesh;
-      myMesh.getLocalBounds (myMinCoord, myMaxCoord);      
+            
       widths.sub (myMaxCoord, myMinCoord);
       margin.scale(marginFraction, widths);
       widths.scaledAdd(2, margin);     
    }
 
    /**
-    * Creates a new signed distance grid for a specified mesh. The grid is
-    * aligned with the x, y, z axes, is centered on the mesh, and has cells of
-    * uniform size. Its widths are first determined using the mesh bounds and
-    * <code>marginFraction</code> as described for {@link
-    * #SignedDistanceGrid(PolygonalMesh,double,Vector3i)}. The axis with maximum
+    * Creates a new distance grid for a specified list of features. 
+    * The grid is aligned with the x, y, z axes, is centered on the features, and has cells of
+    * uniform size. Its widths are first determined using the feature bounds and
+    * <code>marginFraction</code>. The axis with maximum
     * width is then divided into <code>maxResolution</code> cells, while the
     * other axes are divided into a number of cells {@code <= maxResolution}
     * with the same cell width, with the overall axis widths grown as necessary
     * to accommodate this.
     * 
-    * @param mesh mesh for which the grid should be created
+    * @param features list of features for which the grid should be created
     * @param marginFraction multiplied by the width in each direction
     * to determine the (initial) margin for that direction
     * @param maxResolution number of grid cells along the axis of maximum
     * width
     */
-   public SignedDistanceGrid (
-      PolygonalMesh mesh, double marginFraction, int maxResolution) {
+   public DistanceGrid (
+      Feature[] features, double marginFraction, int maxResolution) {
       this();
 
       Vector3d widths = new Vector3d();
       Vector3d margin = new Vector3d();
-      setMeshAndBounds (widths, margin, mesh, marginFraction);
+      setFeaturesAndBounds (widths, margin, features, marginFraction);
       
       double cwidth = widths.maxElement()/maxResolution;
       numVX = (int)(Math.ceil(widths.x/cwidth))+1; 
@@ -160,37 +179,37 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
       myMinCoord.sub(margin);
       myDiameter = myMaxCoord.distance(myMinCoord);
       
-      calculatePhi (margin.norm());      
+      calculatePhi (features, margin.norm());      
       clearColors();
       myRenderRanges = new int[] {0, numVX, 0, numVY, 0, numVZ};
    }
    
    /**
-    * Creates a new signed distance grid for a specified mesh. The grid is
-    * aligned with the x, y, z axes and centered on the mesh. Its width along
-    * each axis is computed from the mesh's maximum and minimum bounds, and
+    * Creates a new distance grid for a specified features. The grid is
+    * aligned with the x, y, z axes and centered on the features. Its width along
+    * each axis is computed from the features' maximum and minimum bounds, and
     * then enlarged by a margin computed by multiplying the width by
     * <code>marginFraction</code>. The width along each axis is therefore
     * <pre>
     *   width = (1 + 2*marginFraction)*boundsWidth
     * </pre>
-    * where <code>boundsWidth</code> is the width determined from the mesh
+    * where <code>boundsWidth</code> is the width determined from the feature
     * bounds.
     * 
-    * @param mesh mesh for which the grid should be created
+    * @param features features for which the grid should be created
     * @param marginFraction multiplied by the width in each direction
     * to determine the margin for that direction
     * @param resolution number of grid cells that should be used along
     * each axis
     */
-   public SignedDistanceGrid (
-      PolygonalMesh mesh, double marginFraction, Vector3i resolution) {
+   public DistanceGrid (
+      Feature[] features, double marginFraction, Vector3i resolution) {
 
       this();
 
       Vector3d widths = new Vector3d();
       Vector3d margin = new Vector3d();
-      setMeshAndBounds (widths, margin, mesh, marginFraction);
+      setFeaturesAndBounds (widths, margin, features, marginFraction);
       
       myCellWidths = new Vector3d ();
       myCellWidths.x = widths.x / resolution.x;
@@ -206,18 +225,9 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
       myMaxCoord.add(margin);
       myMinCoord.sub(margin);
       
-      calculatePhi (margin.norm());
+      calculatePhi (features, margin.norm());
       clearColors();
       myRenderRanges = new int[] {0, numVX, 0, numVY, 0, numVZ};
-   }
-
-   /**
-    * Returns the mesh associated with this grid.
-    * 
-    * @return mesh associated with this grid
-    */
-   public PolygonalMesh getMesh() {
-      return myMesh;
    }
 
    /**
@@ -290,12 +300,14 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
    }
    
    /** 
-    * Calculates the signed distance field.
+    * Calculates the distance field.
     */
-   private void calculatePhi (double marginDist) {
-      Logger logger = Logger.getSystemLogger();
-      //logger.info ("Calculating Signed Distance Field...");
+   private void calculatePhi (Feature[] features, double marginDist) {
+      // Logger logger = Logger.getSystemLogger();
+      //logger.info ("Calculating Distance Field...");
 
+      myFeatures = features;
+      
       double maxDist = myMaxCoord.distance (myMinCoord);
       int numV = numVX*numVY*numVZ;
 
@@ -306,115 +318,77 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
       for (int p = 0; p < myPhi.length; p++) {
          myPhi[p] = maxDist;
       }
-      // The index of closestFace matches with phi.
-      // Each entry in closestFace is the index of the closest 
-      // face to the grid vertex.
-      myClosestFaceIdxs = new int[myPhi.length];
+      // The index of closestFeature matches with phi.
+      // Each entry in closestFeature is the index of the closest 
+      // Feature to the grid vertex.
+      myClosestFeatureIdxs = new int[myPhi.length];
       int zIntersectionCount[] = new int[myPhi.length];
       
       for (int i = 0; i < myPhi.length; i++) {
-         myClosestFaceIdxs[i] = -1;
+         myClosestFeatureIdxs[i] = -1;
          zIntersectionCount[i] = 0;
       }
-      Point3d faceMin          = new Point3d();
-      Point3d faceMax          = new Point3d();
+      Point3d featureMin          = new Point3d();
+      Point3d featureMax          = new Point3d();
       Point3d closestPoint     = new Point3d();
-      // Point3d currentPoint     = new Point3d();
-      Point3d currentPointMesh = new Point3d();
+      Point3d currentPointFeature = new Point3d();
       Point3d pc = new Point3d(); // A temp variable passed in for performance.
       Point3d p1 = new Point3d(); // A temp variable passed in for performance.
-      Point3d bot = new Point3d();
-      Point3d top = new Point3d();
-      
-      // For every triangle...
-      for (int t = 0; t < myMesh.numFaces(); t++) {
-         Face face = myMesh.getFace(t);
-         faceMin.set (Double.POSITIVE_INFINITY,
+
+      // For every feature
+      for (int t=0; t<features.length; ++t) {
+         Feature feature = features[t];
+         featureMin.set (Double.POSITIVE_INFINITY,
             Double.POSITIVE_INFINITY,
             Double.POSITIVE_INFINITY);
-         faceMax.set (Double.NEGATIVE_INFINITY,
+         featureMax.set (Double.NEGATIVE_INFINITY,
             Double.NEGATIVE_INFINITY, 
             Double.NEGATIVE_INFINITY);
-         face.updateBounds (faceMin, faceMax);
-         // Converting mesh min/max to grid coordinates.
-         int faceMinX = (int)((faceMin.x - myMinCoord.x) / myCellWidths.x);
-         int faceMinY = (int)((faceMin.y - myMinCoord.y) / myCellWidths.y);
-         int faceMinZ = (int)((faceMin.z - myMinCoord.z) / myCellWidths.z);
-         if (faceMinX < 0) {
-            faceMinX = 0;
+         feature.updateBounds (featureMin, featureMax);
+         // Converting features min/max to grid coordinates.
+         int featureMinX = (int)((featureMin.x - myMinCoord.x) / myCellWidths.x);
+         int featureMinY = (int)((featureMin.y - myMinCoord.y) / myCellWidths.y);
+         int featureMinZ = (int)((featureMin.z - myMinCoord.z) / myCellWidths.z);
+         if (featureMinX < 0) {
+            featureMinX = 0;
          }
-         if (faceMinY < 0) {
-            faceMinY = 0;
+         if (featureMinY < 0) {
+            featureMinY = 0;
          }
-         if (faceMinZ < 0) {
-            faceMinZ = 0;
+         if (featureMinZ < 0) {
+            featureMinZ = 0;
          }
-         int faceMaxX = (int)((faceMax.x - myMinCoord.x) / myCellWidths.x) + 1;
-         int faceMaxY = (int)((faceMax.y - myMinCoord.y) / myCellWidths.y) + 1;
-         int faceMaxZ = (int)((faceMax.z - myMinCoord.z) / myCellWidths.z) + 1;
-         if (faceMaxX > numVX - 1) {
-            faceMaxX = numVX - 1;
+         int featureMaxX = (int)((featureMax.x - myMinCoord.x) / myCellWidths.x) + 1;
+         int featureMaxY = (int)((featureMax.y - myMinCoord.y) / myCellWidths.y) + 1;
+         int featureMaxZ = (int)((featureMax.z - myMinCoord.z) / myCellWidths.z) + 1;
+         if (featureMaxX > numVX - 1) {
+            featureMaxX = numVX - 1;
          }
-         if (faceMaxY > numVY - 1) {
-            faceMaxY = numVY - 1;
+         if (featureMaxY > numVY - 1) {
+            featureMaxY = numVY - 1;
          }
-         if (faceMaxZ > numVZ - 1) {
-            faceMaxZ = numVZ - 1;
+         if (featureMaxZ > numVZ - 1) {
+            featureMaxZ = numVZ - 1;
          }
 
          // Now go through the entire parallelpiped. Calculate distance and
-         // closestFace.
-         for (int z = faceMinZ; z <= faceMaxZ; z++) {
-            for (int y = faceMinY; y <= faceMaxY; y++) {
-               for (int x = faceMinX; x <= faceMaxX; x++) {
-                  // Get mesh coordinates
-                  getVertexCoords (currentPointMesh, x, y, z);
-                  // Get the distance from this point to the face.
-                  face.nearestPoint (closestPoint, currentPointMesh);
-                  double distance = currentPointMesh.distance (closestPoint);
+         // closestFeature.
+         for (int z = featureMinZ; z <= featureMaxZ; z++) {
+            for (int y = featureMinY; y <= featureMaxY; y++) {
+               for (int x = featureMinX; x <= featureMaxX; x++) {
+                  // Get features coordinates
+                  getLocalVertexCoords (currentPointFeature, x, y, z);
+                  // Get the distance from this point to the Feature.
+                  feature.nearestPoint (closestPoint, currentPointFeature);
+                  double distance = currentPointFeature.distance (closestPoint);
                   int index = xyzIndicesToVertex (x, y, z);
                   if (distance < myPhi[index]) {
                      myPhi[index] = distance;
-                     myClosestFaceIdxs [index] = t;
+                     myClosestFeatureIdxs [index] = t;
                   }
                }
             }
          }
-         
-         // Ray-casts from bottom x-y plane, upwards, counting intersections.
-         // We're building intersectionCount[] to use in ray casting below.
-         for (int y = faceMinY; y <= faceMaxY; y++) {
-            currentPointMesh.y = y * myCellWidths.y + myMinCoord.y;
-            for (int x = faceMinX; x <= faceMaxX; x++) {
-               currentPointMesh.x = x * myCellWidths.x + myMinCoord.x;
-
-               bot.x = currentPointMesh.x;
-               bot.y = currentPointMesh.y;
-               bot.z = myMinCoord.z-1;
-               top.x = currentPointMesh.x;
-               top.y = currentPointMesh.y;
-               top.z = myMaxCoord.z+1;
-
-               Point3d ipnt = new Point3d();
-               int res = RobustPreds.intersectSegmentTriangle (
-                  ipnt, bot, top, face, maxDist, /*worldCoords=*/false);
-
-               if (res > 0) {
-                  currentPointMesh.z = ipnt.z;
-                  // We should now use the z value in grid coordinates.
-                  // Extract it from currentPointMesh
-                  double currentPointZ =
-                     (currentPointMesh.z - myMinCoord.z) / myCellWidths.z;
-                  int zInterval = (int)currentPointZ + 1;
-                  // intersection counted in next grid square
-                  if (zInterval < 0) {
-                     ++zIntersectionCount [xyzIndicesToVertex (x, y, 0)];
-                  } else if (zInterval < numVZ) {
-                     ++zIntersectionCount[xyzIndicesToVertex(x, y, zInterval)];
-                  }
-               } // point in triangle
-            } // x
-         } // y
       }
 
       // Done all triangles.
@@ -430,36 +404,17 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
          sweep(-1, +1, +1, pc, p1);
       }
       
-      // This is a ray-casting implementation to find the sign of each vertex in
-      // the grid.
-      for (int x = 0; x < numVX; x++) {
-         for (int y = 0; y < numVY; y++) {
-            int total_count = 0;
-            //Count the intersections of the x axis
-            for (int z = 0; z < numVZ; z++) {
-               int index = xyzIndicesToVertex (x, y, z);
-               total_count += zIntersectionCount [index];
-
-               // If parity of intersections so far is odd, we are inside the 
-               // mesh.
-               if (total_count % 2 == 1) {
-                  myPhi[index] =- myPhi[index];
-               }
-            }
-         }
-      }
-      //logger.println ("done.");
    }
 
 
    /** 
-    * Calculates the signed distance field, using bounding volume
+    * Calculates the distance field, using bounding volume
     * hierarchy queries at each vertex. This method can be considerably
     * slower than the default approach and so is not currently used.
     */
-   private void calculatePhiBVH (double marginDist) {
+   private void calculatePhiBVH (Feature[] features, double marginDist) {
       Logger logger = Logger.getSystemLogger();
-      logger.info ("Calculating Signed Distance Field...");
+      logger.info ("Calculating Distance Field...");
 
       // gridSize represents the maximum point in grid coordinates, rounded
       // up to the nearest full cell.
@@ -470,56 +425,60 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
       // numVZ = (int)(Math.ceil((myMaxCoord.z-myMinCoord.z) / myCellWidths.z))+1;
       // numVXxVY = numVX*numVY;
       
+      myFeatures = features;
+      
       int numV = numVX*numVY*numVZ;
 
       myPhi = new double [numV];
       myNormals = new Vector3d [numV];
       myColorIndices = new int [numV];
 
-      // The index of closestFace matches with phi.
-      // Each entry in closestFace is the index of the closest 
-      // face to the grid vertex.
-      myClosestFaceIdxs = new int[myPhi.length];
+      // The index of closestFeature matches with phi.
+      // Each entry in closestFeature is the index of the closest 
+      // Feature to the grid vertex.
+      myClosestFeatureIdxs = new int[myPhi.length];
 
       BVFeatureQuery query = new BVFeatureQuery();
-      // create our own bvtree for the mesh, since we can then dispose of it
+      // create our own bvtree for the features, since we can then dispose of it
       // after we are down building the SD field
-      AABBTree bvtree = new AABBTree (myMesh, 2, marginDist);      
+      AABBTree bvtree = new AABBTree (); //features, 2, marginDist);
+      bvtree.setMargin(marginDist);
+      bvtree.setMaxLeafElements(2);
+      bvtree.build(features, features.length);
       System.out.println ("tree done");
 
       // Now go through the entire parallelpiped. Calculate distance and
-      // closestFace.
+      // closestFeature.
       Vector3i vxyz = new Vector3i();
       Point3d near = new Point3d();
       Point3d coords = new Point3d();
       double tol = 1e-12*myMaxCoord.distance(myMinCoord);
-
+      
+      HashMap<Feature,Integer> featureIdxMap = new HashMap<>();
+      for (int i=0; i<features.length; ++i) {
+         featureIdxMap.put(features[i], i);
+      }
+      
+      PointFeatureDistanceCalculator calc = new PointFeatureDistanceCalculator();
+      
       for (int idx=0; idx<myPhi.length; idx++) {
          vertexToXyzIndices (vxyz, idx);
-         getVertexCoords (coords, vxyz);
-         // Get the distance from this point to the face.
-         boolean inside = query.isInsideOrientedMesh (bvtree, coords, tol);
-         Face face = query.getFaceForInsideOrientedTest (near, null);
+         getLocalVertexCoords (coords, vxyz);
+         
+         // Get the distance from this point to the Feature.
+         calc.setPoint(coords);
+         calc.reset();
+         Feature ftr = (Feature)query.nearestObjectToPoint(near, bvtree, calc);
          
          Vector3d diff = new Vector3d();
          Vector3d normal = new Vector3d();
          diff.sub (coords, near);
          double dist = diff.norm();
-         if (dist < tol) {
-            face.computeNormal (normal);
-            normal.negate();
-            dist = normal.dot (diff);
-         }
-         else {
-            normal.normalize(diff);
-            if (inside) {
-               normal.negate();
-               dist = -dist;
-            }
-         }
+         normal.normalize(diff);
          myPhi[idx] = dist;
+         
          //myNormals[idx] = normal;
-         myClosestFaceIdxs[idx] = face.getIndex();
+         myClosestFeatureIdxs[idx] = featureIdxMap.get(ftr);
       }
       logger.println ("done.");
    }
@@ -531,7 +490,7 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
     * @param x x coordinate on grid.
     * @param y y coordinate on grid.
     * @param z z coordinate on grid.
-    * @return normal to the mesh surface at this point.
+    * @return normal to the features at this point.
     */
    private Vector3d calcNormal (int x, int y, int z) {
 
@@ -587,19 +546,88 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
     * for the grid cell containing the point. If the point lies outside
     * the grid volume, {@link #OUTSIDE} is returned.
     *
-    * @param norm returns the normal (in mesh coordinates)
-    * @param x x coordinate of point (in mesh coordinates).
-    * @param y y coordinate of point (in mesh coordinates).
-    * @param z z coordinate of point (in mesh coordinates).
-    * @return distance to the mesh surface
+    * @param norm returns the normal (in local coordinates)
+    * @param x x coordinate of point (in local coordinates).
+    * @param y y coordinate of point (in local coordinates).
+    * @param z z coordinate of point (in local coordinates).
+    * @return distance to the nearest feature
     */
    public double getDistanceAndNormal (
       Vector3d norm, double x, double y, double z) {
       Point3d point = new Point3d (x, y, z);
       return getDistanceAndNormal (norm, point);
-   }  
+   }
    
-   
+   /**
+    * Determines nearest feature to a point
+    * @param nearest populates with the nearest point on the feature
+    * @param point point for which to find nearest feature
+    * @return nearest feature, or null if outside of domain
+    */
+   public Feature getNearestFeature(Point3d nearest, Point3d point) {
+      
+      // Change to grid coordinates
+      double tempPointX = (point.x - myMinCoord.x) / myCellWidths.x;
+      double tempPointY = (point.y - myMinCoord.y) / myCellWidths.y;
+      double tempPointZ = (point.z - myMinCoord.z) / myCellWidths.z;
+      int minx = (int)tempPointX;
+      int miny = (int)tempPointY;
+      int minz = (int)tempPointZ;
+
+      if (tempPointX < 0 || tempPointX > numVX - 1 ||
+          tempPointY < 0 || tempPointY > numVY - 1 ||
+          tempPointZ < 0 || tempPointZ > numVZ - 1) {
+         return null;
+      }
+      
+      double dx = tempPointX - minx;
+      double dy = tempPointY - miny;
+      double dz = tempPointZ - minz;
+      if (tempPointX == numVX - 1) {
+         minx -= 1;
+         dx = 1;
+      }
+      if (tempPointY == numVY - 1) {
+         miny -= 1;
+         dy = 1;
+      }
+      if (tempPointZ == numVZ - 1) {
+         minz -= 1;
+         dz = 1;
+      }
+      
+      Point3d tmp = new Point3d();
+      double dmin = Double.POSITIVE_INFINITY;
+      Feature nf = null;
+      
+      int[] coords = {minx, miny, minz, 
+                    minx+1, miny, minz,
+                    minx, miny+1, minz,
+                    minx, miny, minz+1,
+                    minx+1, miny+1, minz,
+                    minx+1, miny, minz+1,
+                    minx, miny+1, minz+1,
+                    minx+1, miny+1, minz+1};
+      
+      // check 8 nearest features from corners
+      for (int i=0; i<coords.length; i+=3) {
+         int idx = xyzIndicesToVertex(coords[i], coords[i+1], coords[i+2]);
+         Feature f = myFeatures[idx];
+         f.nearestPoint(tmp, point);
+         double d = tmp.distance(point);
+         if (d < dmin) {
+            dmin = d;
+            if (nearest != null) {
+               nearest.set(tmp);
+            }
+            nf = f;
+         }   
+      }
+      
+      return nf; 
+      
+   }
+
    /** 
     * Calculates the distance at an arbitrary point. These values
     * are determined by multilinear interpolation of the vertex values
@@ -607,24 +635,23 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
     * the grid volume, {@link #OUTSIDE} is returned.
     *
     * @param point point at which to calculate the normal and distance
-    * (in mesh coordinates).
-    * @return distance to the mesh surface
+    * (in local coordinates).
+    * @return distance to the nearest feature
     */
-   @Override
-   public double getDistance(Point3d pnt) {
-      return getDistanceAndNormal(null, pnt);
+   public double getDistance(Point3d point) {
+      return getDistanceAndNormal(null, point);
    }
-
+   
    /** 
     * Calculates the distance and normal at an arbitrary point. These values
     * are determined by multilinear interpolation of the vertex values
     * for the grid cell containing the point. If the point lies outside
     * the grid volume, {@link #OUTSIDE} is returned.
     *
-    * @param norm returns the normal (in mesh coordinates)
+    * @param norm returns the normal (in local coordinates)
     * @param point point at which to calculate the normal and distance
-    * (in mesh coordinates).
-    * @return distance to the mesh surface
+    * (in local coordinates).
+    * @return distance to the nearest feature
     */
    public double getDistanceAndNormal (Vector3d norm, Point3d point) {
       // Change to grid coordinates
@@ -707,7 +734,7 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
     * @param vi global index
     * @return reference to <code>vxyz</code> 
     */
-   public Vector3i vertexToXyzIndices (Vector3i vxyz, int vi) {
+   private Vector3i vertexToXyzIndices (Vector3i vxyz, int vi) {
       vxyz.z = vi / (numVXxVY);
       vxyz.y = (vi - vxyz.z * numVXxVY) / numVX;
       vxyz.x = vi % numVX;
@@ -721,7 +748,7 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
     * @param vxyz x, y, z indices
     * @return vertex index
     */
-   int xyzIndicesToVertex (Vector3i vxyz) {
+   private int xyzIndicesToVertex (Vector3i vxyz) {
       return vxyz.x + vxyz.y*numVX + vxyz.z*numVXxVY;
    }
    
@@ -734,7 +761,7 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
     * @param zk z vertex index
     * @return vertex index
     */
-   int xyzIndicesToVertex (int xi, int yj, int zk) {
+   private int xyzIndicesToVertex (int xi, int yj, int zk) {
       return xi + yj*numVX + zk*numVXxVY;
    }
    
@@ -789,15 +816,15 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
    }
 
    /**
-    * Returns the normal to the mesh at a vertex, as specified by
+    * Returns the normal to the nearest feature at a vertex, as specified by
     * its x, y, z indices.
     * 
     * @param xi x vertex index
     * @param yj y vertex index
     * @param zk z vertex index
-    * @return mesh normal at the vertex (must not be modified)
+    * @return nearest feature normal at the vertex (must not be modified)
     */
-   public Vector3d getVertexNormal (int xi, int yj, int zk) {
+   private Vector3d getVertexNormal (int xi, int yj, int zk) {
       Vector3d nrm = myNormals[xyzIndicesToVertex(xi, yj, zk)];
       if (nrm == null) {
          nrm = calcNormal (xi, yj, zk);
@@ -806,13 +833,13 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
    }
    
    /**
-    * Returns the normal to the mesh at a vertex, as specified by
+    * Returns the normal to the nearest feature at a vertex, as specified by
     * its x, y, z indices.
     * 
     * @param vxyz x, y, z vertex indices
-    * @return mesh distance at the vertex (must not be modified)
+    * @return nearest feature distance at the vertex (must not be modified)
     */
-   public Vector3d getVertexNormal (Vector3i vxyz) {
+   private Vector3d getVertexNormal (Vector3i vxyz) {
       Vector3d nrm = myNormals[xyzIndicesToVertex(vxyz)];
       if (nrm == null) {
          nrm = calcNormal (vxyz.x, vxyz.y, vxyz.z);
@@ -821,7 +848,7 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
    }
 
    /**
-    * Returns the full array of distances to the mesh at each vertex.
+    * Returns the full array of distances to the features at each vertex.
     * The array is indexed such that for vertex indices xi, yj, zk,
     * the corresponding index into this array is
     * <pre>
@@ -837,26 +864,26 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
    }
    
    /**
-    * Returns the distance to the mesh at a specified vertex, as specified
+    * Returns the distance to the features at a specified vertex, as specified
     * by x, y, z indices.
     * 
     * @param vxyz x, y, z vertex indices
     * @return mesh distance at the vertex
     */
-   public double getVertexDistance (Vector3i vxyz) {
+   private double getVertexDistance (Vector3i vxyz) {
       return myPhi[xyzIndicesToVertex(vxyz)];
    }
    
    /**
-    * Returns the distance to the mesh at a specified vertex, as specified
+    * Returns the distance to the features at a specified vertex, as specified
     * by x, y, z indices.
     * 
     * @param xi x vertex index
     * @param yj y vertex index
     * @param zk z vertex index
-    * @return mesh distance at the vertex
+    * @return nearest feature distance at the vertex
     */   
-   public double getVertexDistance (int xi, int yj, int zk) {
+   private double getVertexDistance (int xi, int yj, int zk) {
       return myPhi[xyzIndicesToVertex(xi, yj, zk)];
    }
 
@@ -873,24 +900,23 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
     */
    private void checkNeighbouringVertex (
       int xi, int yj, int zk, int dx, int dy, int dz, 
-      Point3d closestPointOnFace, Point3d p1) {
+      Point3d closestPointOnFeature, Point3d p1) {
       
       // dx, dy, dz represent a point +- 1 grid cell away from out current
       // point. There are 26 neighbours.
       int neighbourIndex = xyzIndicesToVertex (dx, dy, dz);
-      if (myClosestFaceIdxs[neighbourIndex] >= 0 ) {
-         // Everything is in mesh coordinates.
-         getVertexCoords (p1, xi, yj, zk);
-         Face neighbourFace = 
-            myMesh.getFace (myClosestFaceIdxs[neighbourIndex]);
-         neighbourFace.nearestPoint (closestPointOnFace, p1);
-         double distanceToNeighbourFace = p1.distance (closestPointOnFace);
+      if (myClosestFeatureIdxs[neighbourIndex] >= 0 ) {
+         // Everything is in local coordinates.
+         getLocalVertexCoords (p1, xi, yj, zk);
+         Feature neighbourFeature = myFeatures[myClosestFeatureIdxs[neighbourIndex]];
+         neighbourFeature.nearestPoint (closestPointOnFeature, p1);
+         double distanceToNeighbourFeature = p1.distance (closestPointOnFeature);
          int index = xyzIndicesToVertex (xi, yj, zk);
-         if (distanceToNeighbourFace < myPhi[index]) {
-            myPhi[index] = distanceToNeighbourFace;
-            // gridCellArray [index].setDistance (distanceToNeighbourFace);
-            myClosestFaceIdxs [index] = 
-               myClosestFaceIdxs [neighbourIndex];
+         if (distanceToNeighbourFeature < myPhi[index]) {
+            myPhi[index] = distanceToNeighbourFeature;
+            // gridCellArray [index].setDistance (distanceToNeighbourFeature);
+            myClosestFeatureIdxs [index] = 
+               myClosestFeatureIdxs [neighbourIndex];
          }
       }
    }
@@ -970,7 +996,7 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
          for (int yj=myRenderRanges[2]; yj<myRenderRanges[3]; yj++) {
             for (int zk=myRenderRanges[4]; zk<myRenderRanges[5]; zk++) {
 
-               getVertexCoords (coords, xi, yj, zk);
+               getLocalVertexCoords (coords, xi, yj, zk);
                int vi = xyzIndicesToVertex (xi, yj, zk);
                int cidx = myColorMap != null ? myColorIndices[vi] : -1;
                rob.addPosition (coords);
@@ -1045,9 +1071,9 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
    
    public void render (Renderer renderer, RenderProps props, int flags) {
 
-      if (myMesh != null) {
+      if (myWorldTransform != null) {
          renderer.pushModelMatrix();
-         renderer.mulModelMatrix (myMesh.XMeshToWorld);
+         renderer.mulModelMatrix (myWorldTransform);
       }
 
       if (false) {
@@ -1112,7 +1138,7 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
          }
       }
 
-      if (myMesh != null) {
+      if (myWorldTransform != null) {
          renderer.popModelMatrix();
       }
    }
@@ -1121,6 +1147,8 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
     * {@inheritDoc}
     */
    public void updateBounds (Vector3d pmin, Vector3d pmax) {
+      myMinCoord.updateBounds(pmin, pmax);
+      myMaxCoord.updateBounds(pmin, pmax);
    }
 
    /**
@@ -1131,13 +1159,13 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
    }
 
    /** 
-    * Returns the closest face to the vertex indexed by <code>idx</code>.
+    * Returns the closest Feature to the vertex indexed by <code>idx</code>.
     *
     * @param idx vertex index
-    * @return nearest face to the vertex
+    * @return nearest Feature to the vertex
     */
-   public Face getClosestFace(int idx) {
-      return myMesh.getFace(myClosestFaceIdxs[idx]);
+   private Feature getClosestFeature(int idx) {
+      return myFeatures[myClosestFeatureIdxs[idx]];
    }
 
    /** 
@@ -1184,7 +1212,7 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
     * @param zk z vertex index
     * @return coords
     */
-   public Vector3d getVertexCoords (
+   private Vector3d getLocalVertexCoords (
       Vector3d coords, int xi, int yj, int zk) {
       coords.x = xi * myCellWidths.x + myMinCoord.x;
       coords.y = yj * myCellWidths.y + myMinCoord.y;
@@ -1200,7 +1228,7 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
     * @param vxyz x, y, z vertex indices
     * @return coords
     */
-   public Vector3d getVertexCoords (Vector3d coords, Vector3i vxyz) {
+   private Vector3d getLocalVertexCoords (Vector3d coords, Vector3i vxyz) {
       coords.x = vxyz.x * myCellWidths.x + myMinCoord.x;
       coords.y = vxyz.y * myCellWidths.y + myMinCoord.y;
       coords.z = vxyz.z * myCellWidths.z + myMinCoord.z;
@@ -1350,7 +1378,7 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
       BufferedReader reader =
          new BufferedReader(new InputStreamReader(System.in));
       String line;
-      SignedDistanceGrid grid = new SignedDistanceGrid();
+      DistanceGrid grid = new DistanceGrid();
       grid.numVX = 10;
       grid.numVY = 5;
       grid.numVZ = 5;
@@ -1364,6 +1392,49 @@ public class SignedDistanceGrid implements Renderable, DistanceQueryable {
             System.out.println (errorMsg.value);
          }
       }
+   }
+   
+   /**
+    * Apply the smoothing operation n times
+    * @param n
+    */
+   public void smooth(int n) {
+      for (int i=0; i<n; ++i) {
+         smooth();
+      }
+   }
+   
+   /**
+    * Applies a Laplacian smoothing operation to the distance grid
+    */
+   public void smooth() {
+      
+      double[] sphi = new double[myPhi.length];
+      for (int i=0; i<numVX; ++i) {
+         for (int j=0; j<numVY; ++j) {
+            for (int k=0; k<numVZ; ++k) {
+               
+               // loop through 3x3x3 neighbourhood
+               int N = 0; 
+               double p = 0;
+               for (int ii=Math.max(i-1, 0); ii<Math.min(i+2, numVX); ++ii) {
+                  for (int jj=Math.max(j-1, 0); jj<Math.min(j+2, numVY); ++jj) {
+                     for (int kk=Math.max(k-1, 0); kk<Math.min(k+2, numVZ); ++kk) {
+                        int idx = xyzIndicesToVertex(ii,jj,kk);
+                        p += myPhi[idx];
+                        ++N;
+                     }
+                  }
+               }
+               
+               int idx = xyzIndicesToVertex(i, j, k);
+               sphi[idx] = p/N;
+            }
+         }
+      }
+      
+      myPhi = sphi;
+      
    }
 
    public PolygonalMesh computeDistanceSurface() {

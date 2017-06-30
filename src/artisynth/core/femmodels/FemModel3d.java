@@ -770,7 +770,7 @@ public class FemModel3d extends FemModel
       }
       
       if (elem.numAuxiliaryMaterials() > 0) {
-         for (ConstitutiveMaterial aux : elem.getAuxiliaryMaterials()) {
+         for (AuxiliaryMaterial aux : elem.getAuxiliaryMaterials()) {
             if (aux.isCorotated()) {
                return true;
             }
@@ -883,7 +883,7 @@ public class FemModel3d extends FemModel
       }
 
       if (myComputeNodalStress || myComputeNodalStrain) {
-         nodalExtrapMat = e.getNodalExtrapolationMatrix();
+         // nodalExtrapMat = e.getNodalExtrapolationMatrix();
          if (linMat != null) {
             linMat.addStress(wpnt.sigma, myEps, corotated ? e.myWarper.getRotation() : null);
             for (int i = 0; i < nodes.length; i++) {
@@ -981,7 +981,7 @@ public class FemModel3d extends FemModel
             pt.avgp = 0;
             def.setAveragePressure(0);
             if (e.numAuxiliaryMaterials() > 0) {
-               for (ConstitutiveMaterial aux : e.myAuxMaterials) {
+               for (AuxiliaryMaterial aux : e.myAuxMaterials) {
                   aux.computeStress(sigmaAux, def, Q, mat);
                   if (scaling != 1) {
                      sigmaAux.scale(scaling);
@@ -1275,7 +1275,7 @@ public class FemModel3d extends FemModel
          hasNonlinear = true;
       }
       if (e.numAuxiliaryMaterials() > 0) {
-         for (ConstitutiveMaterial amat : e.getAuxiliaryMaterials()) {
+         for (AuxiliaryMaterial amat : e.getAuxiliaryMaterials()) {
             if (amat.isLinear()) {
                if (amat.isCorotated()) {
                   hasCorotatedLinear = true;
@@ -1504,7 +1504,7 @@ public class FemModel3d extends FemModel
          pt.avgp = 0;
          def.setAveragePressure(0);
          if (e.numAuxiliaryMaterials() > 0) {
-            for (ConstitutiveMaterial aux : e.myAuxMaterials) {
+            for (AuxiliaryMaterial aux : e.myAuxMaterials) {
 
                aux.computeStress(sigmaTmp, def, Q, mat);
                if (scaling != 1) {
@@ -2047,7 +2047,7 @@ public class FemModel3d extends FemModel
             return false;
          }
          if (e.numAuxiliaryMaterials() > 0) {
-            for (ConstitutiveMaterial aux : e.myAuxMaterials) {
+            for (AuxiliaryMaterial aux : e.myAuxMaterials) {
                if (!aux.hasSymmetricTangent()) {
                   return false;
                }

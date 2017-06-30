@@ -88,7 +88,7 @@ public class GL3SharedRenderObjectManager implements GLGarbageSource {
       
       return gro;
    }
-   
+
    public GL3SharedRenderInstances getInstances(GL3 gl, RenderInstances rinst) {
       
       GL3SharedRenderInstances gro = null;

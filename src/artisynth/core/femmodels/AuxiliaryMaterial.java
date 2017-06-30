@@ -6,11 +6,12 @@
  */
 package artisynth.core.femmodels;
 
+import artisynth.core.materials.FemMaterial;
+import artisynth.core.materials.SolidDeformation;
+import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.util.Clonable;
-import artisynth.core.materials.FemMaterial;
-import artisynth.core.materials.SolidDeformation;
 
 public interface AuxiliaryMaterial extends Clonable {
 
@@ -18,6 +19,10 @@ public interface AuxiliaryMaterial extends Clonable {
       SymmetricMatrix3d sigma,
       SolidDeformation def, IntegrationPoint3d pt,
       IntegrationData3d dt, FemMaterial baseMat);
+   
+   public abstract void computeStress (
+      SymmetricMatrix3d sigma,
+      SolidDeformation def, Matrix3d Q, FemMaterial baseMat);
 
 //   public abstract void addStress(
 //      SymmetricMatrix3d sigma, IntegrationPoint3d pt, IntegrationData3d dt,
@@ -25,7 +30,11 @@ public interface AuxiliaryMaterial extends Clonable {
 
    public abstract void computeTangent(
       Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def,
-      IntegrationPoint3d pt,IntegrationData3d dt, FemMaterial baseMat);
+      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat);
+   
+   public abstract void computeTangent(
+      Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def,
+      Matrix3d Q, FemMaterial baseMat);
 
 //   public abstract void addTangent(
 //      Matrix6d D, SymmetricMatrix3d stress, IntegrationPoint3d pt,
