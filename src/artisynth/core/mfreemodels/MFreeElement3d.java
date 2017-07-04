@@ -13,6 +13,7 @@ import artisynth.core.femmodels.FemElement;
 import artisynth.core.femmodels.FemNodeNeighbor;
 import artisynth.core.femmodels.IntegrationData3d;
 import artisynth.core.femmodels.IntegrationPoint3d;
+import artisynth.core.femmodels.NodeNeighbor;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.LinearMaterial;
 import maspack.geometry.BVFeatureQuery;
@@ -43,7 +44,7 @@ import maspack.util.InternalErrorException;
 public class MFreeElement3d extends FemElement implements Boundable {
 
    protected MFreeNode3d[] myNodes;
-   protected FemNodeNeighbor[][] myKBlocks;
+   protected NodeNeighbor[][] myKBlocks;
    boolean[][] active;
    
    protected ArrayList<IntegrationData3d> myIntegrationData;
@@ -405,11 +406,11 @@ public class MFreeElement3d extends FemElement implements Boundable {
 
       setMass(0);
       
-      myKBlocks = new FemNodeNeighbor[numNodes()][numNodes()];
+      myKBlocks = new NodeNeighbor[numNodes()][numNodes()];
       for (int i=0; i<myNodes.length; i++) {
          MFreeNode3d node = myNodes[i];
          int cnt = 0;
-         for (FemNodeNeighbor nbr : node.getNodeNeighbors()){
+         for (NodeNeighbor nbr : node.getNodeNeighbors()){
             int j = getLocalNodeIndex (nbr.getNode());
             if (j != -1) {
                myKBlocks[i][j] = nbr;
@@ -453,7 +454,7 @@ public class MFreeElement3d extends FemElement implements Boundable {
    public void addMaterialStiffness(int i, int j, Vector3d gi, Matrix6d D,
       SymmetricMatrix3d sig, Vector3d gj, double dv) {
       if (active[i][j]) {
-         myKBlocks[i][j].addMaterialStiffness(gi, D, sig, gj, dv);
+         ((FemNodeNeighbor)myKBlocks[i][j]).addMaterialStiffness(gi, D, sig, gj, dv);
       }
    }
    
@@ -531,11 +532,11 @@ public class MFreeElement3d extends FemElement implements Boundable {
       myWarper.computeRotation(F, P);
    }
    
-   public FemNodeNeighbor getStiffnessBlock(int i, int j) {
+   public NodeNeighbor getStiffnessBlock(int i, int j) {
       return myKBlocks[i][j];
    }
 
-   public FemNodeNeighbor[][] getStiffnessBlocks() {
+   public NodeNeighbor[][] getStiffnessBlocks() {
       return myKBlocks;
    }
 

@@ -38,7 +38,7 @@ public class ShellPatch extends RootModel {
    
    protected PolygonalMesh mMesh = null;
    
-   protected FemNode3d[] m_nodes = null;
+   protected ShellFemNode3d[] m_nodes = null;
 
    final double m_density = 10000;
    final double m_damping = 100;
@@ -50,7 +50,7 @@ public class ShellPatch extends RootModel {
       m_femShellModel = new ShellFemModel3d();
 
       mMesh = MeshFactory.createPlane(mMeshX, mMeshY, mMeshXDiv, mMeshYDiv);
-      m_nodes = new FemNode3d[mMesh.numVertices()];
+      m_nodes = new ShellFemNode3d[mMesh.numVertices()];
       
       for (Face face : mMesh.getFaces()) {
          Vertex3d[] triVtx = face.getTriVertices();
@@ -67,15 +67,15 @@ public class ShellPatch extends RootModel {
          for (Vertex3d vertex : triVtx) {
             int v = vertex.getIndex();
             if (m_nodes[v] == null) {
-               m_nodes[v] = new FemNode3d(vertex.getPosition());
+               m_nodes[v] = new ShellFemNode3d(vertex.getPosition());
                m_nodes[v].setIndex(v);
                m_femShellModel.addNumberedNode(m_nodes[v], v);
             }
          }
          
-         FemNode3d n0 = m_nodes[ triVtx[0].getIndex() ];
-         FemNode3d n1 = m_nodes[ triVtx[1].getIndex() ];
-         FemNode3d n2 = m_nodes[ triVtx[2].getIndex() ];
+         ShellFemNode3d n0 = m_nodes[ triVtx[0].getIndex() ];
+         ShellFemNode3d n1 = m_nodes[ triVtx[1].getIndex() ];
+         ShellFemNode3d n2 = m_nodes[ triVtx[2].getIndex() ];
          //System.out.println ("Clockwise: " + isClockwise(triVtx));
          
          // Add femElement using 3 femNodes.

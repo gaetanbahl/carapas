@@ -59,11 +59,12 @@ public class ShellFemModel3d extends FemModel3d {
       
       for (FemElement3d e : eles) {
          for (FemNode3d n : e.myNodes) {
+            ShellFemNode3d sn = (ShellFemNode3d) n;
             if (isRest) {
-               n.myDirector0.setZero ();
+               sn.myDirector0.setZero ();
             }
             else {
-               n.myDirector.setZero ();
+               sn.myDirector.setZero ();
             }
          }
       }
@@ -90,25 +91,35 @@ public class ShellFemModel3d extends FemModel3d {
             dir.normalize ();
             dir.scale (sEle.getShellThickness());
             
+            ShellFemNode3d sn = (ShellFemNode3d) sEle.myNodes[i];
             if (isRest) {
-               sEle.myNodes[i].myDirector0.add(dir);
+               sn.myDirector0.add(dir);
             }
             else {
-               sEle.myNodes[i].myDirector.add(dir);
+               sn.myDirector.add(dir);
             }
          }
       }
       
       // Average the directors.
-      for (FemNode3d node : myNodes) {
+      for (FemNode3d n : myNodes) {
+         ShellFemNode3d sn = (ShellFemNode3d) n;
          if (isRest) {
-            node.myDirector0.scale(1.0/node.myAdjElements.size());
+            sn.myDirector0.scale(1.0/sn.myAdjElements.size());
          }
          else {
-            node.myDirector.scale(1.0/node.myAdjElements.size());
+            sn.myDirector.scale(1.0/sn.myAdjElements.size());
          }
       }
    }
+   
+   
+      /* Add inertia force in updateNodeForces()*/
+//      for (FemElement3d e : myElements) {
+//         ShellFemElement3d el = (ShellFemElement3d)e;
+//         FemUtilities.addShellInertiaForces(el);
+//      }
+
    
    
    @Override
@@ -356,12 +367,13 @@ public class ShellFemModel3d extends FemModel3d {
             // e.myAvgStress.scaledAdd (dv, pt.sigma);
 
             for (int i = 0; i < e.myNodes.length; i++) {
-               FemNode3d nodei = e.myNodes[i];
+               ShellFemNode3d nodei = (ShellFemNode3d) e.myNodes[i];
                int bi = nodei.getSolveIndex();
                
                // Add stress (pt.sigma) to node force
                FemUtilities.addShellStressForce(
-                  nodei.myInternalForce, pt.sigma, dv, i, pt, e);
+                  nodei.myInternalForce, nodei.myInternalDirForce,
+                  pt.sigma, dv, i, pt, e);
 
                if (D != null) {
                   double p = 0;
@@ -385,8 +397,8 @@ public class ShellFemModel3d extends FemModel3d {
                         myNodalConstraints[i].scale(dv, GNx[i]);
                      }
                      else { // tet element
-                        for (FemNodeNeighbor nbr : getNodeNeighbors(nodei)) {
-                           int j = e.getLocalNodeIndex(nbr.myNode);
+                        for (NodeNeighbor nbr : getNodeNeighbors(nodei)) {
+                           int j = e.getLocalNodeIndex(nbr.getNode());
                            if (j != -1) {
                               nbr.myDivBlk.scaledAdd(1, myNodalConstraints[j]);
                            }
@@ -411,15 +423,14 @@ public class ShellFemModel3d extends FemModel3d {
                            
                            Vector3d[] gct = pt.getContraBaseVectors(e);
                            
-                           e.myNbrs[i][j].addShellMaterialStiffness (
+                           /* Add shell-specific material stiffness */
+                           ((ShellFemNodeNeighbor)e.myNbrs[i][j]).
+                              addMaterialStiffness (
                               iN, jN, idN, jdN, dv, t, gct, 
                               /*material stress=*/ pt.sigma, 
                               /*material tangent=*/ D,
                               GNx[i], GNx[j], p);
 
-                           // NEW
-                           
-                           
                            if (kp != 0) {               // SKIPPED
                               e.myNbrs[i][j].addDilationalStiffness(
                                  vebTangentScale*kp, GNx[i], GNx[j]);
@@ -455,8 +466,8 @@ public class ShellFemModel3d extends FemModel3d {
             if (D != null &&
             softIncomp == IncompMethod.NODAL &&
             e.integrationPointsMapToNodes()) {
-               for (FemNodeNeighbor nbr : getNodeNeighbors(e.myNodes[k])) {
-                  int j = e.getLocalNodeIndex(nbr.myNode);
+               for (NodeNeighbor nbr : getNodeNeighbors(e.myNodes[k])) {
+                  int j = e.getLocalNodeIndex(nbr.getNode());
                   if (j != -1) {
                      nbr.myDivBlk.scaledAdd(1, myNodalConstraints[j]);
                   }
@@ -552,7 +563,7 @@ public class ShellFemModel3d extends FemModel3d {
    public void flip()
    {
       Vector3d elNormal = ShellIntegrationPoint3d.getElementNormal (this.myElements.get (0));
-      Vector3d d0 = this.myElements.get (0).myNodes[0].myDirector0;
+      Vector3d d0 = ((ShellFemNode3d)this.myElements.get (0).myNodes[0]).myDirector0;
       
       if (flipped == true)
          elNormal.scale (-1);
@@ -572,7 +583,8 @@ public class ShellFemModel3d extends FemModel3d {
          el.myNodes[2] = n0;
          
          for (FemNode3d n : el.myNodes) {
-            n.myDirector0.scale(-1);
+            ShellFemNode3d sn = (ShellFemNode3d) n;
+            sn.myDirector0.scale(-1);
          }
          
          System.out.println ("FLIPPED. el.z: " + elNormal.z + " d0.z: " + d0.z);

@@ -472,20 +472,20 @@ public class FemModel3d extends FemModel
       return myElements.get(idx);
    }
 
-   public LinkedList<FemNodeNeighbor> getNodeNeighbors(FemNode3d node) {
+   public LinkedList<NodeNeighbor> getNodeNeighbors(FemNode3d node) {
       return node.getNodeNeighbors();
    }
 
-   private LinkedList<FemNodeNeighbor> myEmptyNeighborList =
-   new LinkedList<FemNodeNeighbor>();
+   private LinkedList<NodeNeighbor> myEmptyNeighborList =
+   new LinkedList<NodeNeighbor>();
 
    /**
     * Gets the indirect neighbors for a node. This is used when computing
     * soft nodal-based incompressibility. See the documentation in
     * FemNode3d.getIndirectNeighbors().
     */
-   protected LinkedList<FemNodeNeighbor> getIndirectNeighbors(FemNode3d node) {
-      LinkedList<FemNodeNeighbor> indirect;
+   protected LinkedList<NodeNeighbor> getIndirectNeighbors(FemNode3d node) {
+      LinkedList<NodeNeighbor> indirect;
       if ((indirect = node.getIndirectNeighbors()) != null) {
          return indirect;
       }
@@ -643,11 +643,11 @@ public class FemModel3d extends FemModel
          fk.set(n.myInternalForce);
          fd.setZero();
          if (myStiffnessDamping != 0) {         // SKIPPED
-            for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
+            for (NodeNeighbor nbr : getNodeNeighbors(n)) {
                nbr.addDampingForce(fd);
             }
             // used for soft nodal-based incompressibilty:
-            for (FemNodeNeighbor nbr : getIndirectNeighbors(n)) {
+            for (NodeNeighbor nbr : getIndirectNeighbors(n)) {
                nbr.addDampingForce(fd);
             }
             fd.scale(myStiffnessDamping);
@@ -1025,8 +1025,8 @@ public class FemModel3d extends FemModel
                         myNodalConstraints[i].scale(dv, GNx[i]);
                      }
                      else { // tet element
-                        for (FemNodeNeighbor nbr : getNodeNeighbors(nodei)) {
-                           int j = e.getLocalNodeIndex(nbr.myNode);
+                        for (NodeNeighbor nbr : getNodeNeighbors(nodei)) {
+                           int j = e.getLocalNodeIndex(nbr.getNode());
                            if (j != -1) {
                               nbr.myDivBlk.scaledAdd(1, myNodalConstraints[j]);
                            }
@@ -1037,9 +1037,9 @@ public class FemModel3d extends FemModel
                      for (int j = 0; j < e.myNodes.length; j++) {
                         int bj = e.myNodes[j].getSolveIndex();
                         if (!mySolveMatrixSymmetricP || bj >= bi) {
-                           // DANNY HERE TODO
-                           e.myNbrs[i][j].addMaterialStiffness(
-                              GNx[i], D, p, pt.sigma, GNx[j], dv);
+                           ((FemNodeNeighbor)e.myNbrs[i][j]).
+                              addMaterialStiffness(
+                                 GNx[i], D, p, pt.sigma, GNx[j], dv);
                            if (kp != 0) {
                               e.myNbrs[i][j].addDilationalStiffness(
                                  vebTangentScale*kp, GNx[i], GNx[j]);
@@ -1074,8 +1074,8 @@ public class FemModel3d extends FemModel
             if (D != null &&
             softIncomp == IncompMethod.NODAL &&
             e.integrationPointsMapToNodes()) {
-               for (FemNodeNeighbor nbr : getNodeNeighbors(e.myNodes[k])) {
-                  int j = e.getLocalNodeIndex(nbr.myNode);
+               for (NodeNeighbor nbr : getNodeNeighbors(e.myNodes[k])) {
+                  int j = e.getLocalNodeIndex(nbr.getNode());
                   if (j != -1) {
                      nbr.myDivBlk.scaledAdd(1, myNodalConstraints[j]);
                   }
@@ -1226,11 +1226,11 @@ public class FemModel3d extends FemModel
       for (FemNode3d n : myNodes) {
          n.myInternalForce.setZero();
          if (!myStiffnessesValidP) {
-            for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
+            for (NodeNeighbor nbr : getNodeNeighbors(n)) {
                nbr.zeroStiffness();
             }
             // used for soft nodal-based incompressibilty:
-            for (FemNodeNeighbor nbr : getIndirectNeighbors(n)) {
+            for (NodeNeighbor nbr : getIndirectNeighbors(n)) {
                nbr.zeroStiffness();
             }
          }
@@ -1254,7 +1254,7 @@ public class FemModel3d extends FemModel
          setNodalIncompConstraintsAllocated(true);
          updateNodalPressures((IncompressibleMaterial)myMaterial);
          for (FemNode3d n : myNodes) {
-            for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
+            for (NodeNeighbor nbr : getNodeNeighbors(n)) {
                nbr.myDivBlk.setZero();
             }
          }
@@ -1290,16 +1290,16 @@ public class FemModel3d extends FemModel
                imat.getEffectiveModulus(n.myVolume / restVol) / restVol;
                // myKp[0] = 1;
                if (myKp[0] != 0) {
-                  for (FemNodeNeighbor nbr_i : getNodeNeighbors(n)) {
-                     int bi = nbr_i.myNode.getSolveIndex();
-                     for (FemNodeNeighbor nbr_j : getNodeNeighbors(n)) {
-                        int bj = nbr_j.myNode.getSolveIndex();
+                  for (NodeNeighbor nbr_i : getNodeNeighbors(n)) {
+                     int bi = nbr_i.getNode().getSolveIndex();
+                     for (NodeNeighbor nbr_j : getNodeNeighbors(n)) {
+                        int bj = nbr_j.getNode().getSolveIndex();
                         if (!mySolveMatrixSymmetricP || bj >= bi) {
-                           FemNodeNeighbor nbr =
-                           nbr_i.myNode.getNodeNeighbor(nbr_j.myNode);
+                           NodeNeighbor nbr =
+                           nbr_i.getNode().getNodeNeighbor(nbr_j.getNode());
                            if (nbr == null) {
                               nbr =
-                              nbr_i.myNode.getIndirectNeighbor(nbr_j.myNode);
+                              nbr_i.getNode().getIndirectNeighbor(nbr_j.getNode());
                            }
                            if (nbr == null) {
                               throw new InternalErrorException(
@@ -1338,20 +1338,20 @@ public class FemModel3d extends FemModel
          for (FemNode3d n : myNodes) {
             int bi = n.getSolveIndex();
             if (bi != -1) {
-               for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
-                  int bj = nbr.myNode.getSolveIndex();
+               for (NodeNeighbor nbr : getNodeNeighbors(n)) {
+                  int bj = nbr.getNode().getSolveIndex();
                   if (bj > bi) {
-                     FemNodeNeighbor nbrT =
-                     nbr.myNode.getNodeNeighborBySolveIndex(bi);
+                     NodeNeighbor nbrT =
+                     nbr.getNode().getNodeNeighborBySolveIndex(bi);
                      nbrT.setTransposedStiffness(nbr);
                   }
                }
                // used for soft nodal-based incompressibilty:
-               for (FemNodeNeighbor nbr : getIndirectNeighbors(n)) {
-                  int bj = nbr.myNode.getSolveIndex();
+               for (NodeNeighbor nbr : getIndirectNeighbors(n)) {
+                  int bj = nbr.getNode().getSolveIndex();
                   if (bj > bi) {
-                     FemNodeNeighbor nbrT =
-                     nbr.myNode.getIndirectNeighborBySolveIndex(bi);
+                     NodeNeighbor nbrT =
+                     nbr.getNode().getIndirectNeighborBySolveIndex(bi);
                      nbrT.setTransposedStiffness(nbr);
                   }
                }
@@ -1369,11 +1369,11 @@ public class FemModel3d extends FemModel
       timerStart();
       for (FemNode3d n : myNodes) {
          n.myInternalForce.setZero();
-         for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
+         for (NodeNeighbor nbr : getNodeNeighbors(n)) {
             nbr.zeroStiffness();
          }
          // used for soft nodal-based incompressibilty:
-         for (FemNodeNeighbor nbr : getIndirectNeighbors(n)) {
+         for (NodeNeighbor nbr : getIndirectNeighbors(n)) {
             nbr.zeroStiffness();
          }
          if (myComputeNodalStress) {
@@ -1443,12 +1443,12 @@ public class FemModel3d extends FemModel
 
    private void addNeighborVelJacobian(
       SparseNumberedBlockMatrix M, FemNode3d node,
-      FemNodeNeighbor nbr, double s) {
+      NodeNeighbor nbr, double s) {
 
-      if (nbr.myNode.getSolveIndex() != -1) {
+      if (nbr.getNode().getSolveIndex() != -1) {
          Matrix3x3Block blk =
          (Matrix3x3Block)M.getBlockByNumber(nbr.myBlkNum);
-         if (nbr.myNode == node && node.isActive()) {
+         if (nbr.getNode() == node && node.isActive()) {
             nbr.addVelJacobian(
                blk, s, myStiffnessDamping, myMassDamping);
          }
@@ -1467,11 +1467,11 @@ public class FemModel3d extends FemModel
       for (int i = 0; i < myNodes.size(); i++) {
          FemNode3d node = myNodes.get(i);
          if (node.getSolveIndex() != -1) {
-            for (FemNodeNeighbor nbr : getNodeNeighbors(node)) {
+            for (NodeNeighbor nbr : getNodeNeighbors(node)) {
                addNeighborVelJacobian(M, node, nbr, s);
             }
             // used for soft nodal-based incompressibilty:
-            for (FemNodeNeighbor nbr : getIndirectNeighbors(node)) {
+            for (NodeNeighbor nbr : getIndirectNeighbors(node)) {
                addNeighborVelJacobian(M, node, nbr, s);
             }
          }
@@ -1487,16 +1487,16 @@ public class FemModel3d extends FemModel
       for (int i = 0; i < myNodes.size(); i++) {
          FemNode3d node = myNodes.get(i);
          if (node.getSolveIndex() != -1) {
-            for (FemNodeNeighbor nbr : getNodeNeighbors(node)) {
-               if (nbr.myNode.getSolveIndex() != -1) {
+            for (NodeNeighbor nbr : getNodeNeighbors(node)) {
+               if (nbr.getNode().getSolveIndex() != -1) {
                   Matrix3x3Block blk =
                   (Matrix3x3Block)M.getBlockByNumber(nbr.myBlkNum);
                   nbr.addPosJacobian(blk, s);
                }
             }
             // used for soft nodal-based incompressibilty:
-            for (FemNodeNeighbor nbr : getIndirectNeighbors(node)) {
-               if (nbr.myNode.getSolveIndex() != -1) {
+            for (NodeNeighbor nbr : getIndirectNeighbors(node)) {
+               if (nbr.getNode().getSolveIndex() != -1) {
                   Matrix3x3Block blk =
                   (Matrix3x3Block)M.getBlockByNumber(nbr.myBlkNum);
                   nbr.addPosJacobian(blk, s);
@@ -1508,9 +1508,9 @@ public class FemModel3d extends FemModel
    }
 
    private void addNodeNeighborBlock(
-      SparseNumberedBlockMatrix S, FemNodeNeighbor nbr, int bi) {
+      SparseNumberedBlockMatrix S, NodeNeighbor nbr, int bi) {
 
-      int bj = nbr.myNode.getSolveIndex();
+      int bj = nbr.getNode().getSolveIndex();
       Matrix3x3Block blk = null;
       int blkNum = -1;
       if (bj != -1) {
@@ -1532,11 +1532,11 @@ public class FemModel3d extends FemModel
          FemNode3d node = myNodes.get(i);
          int bi = node.getSolveIndex();
          if (bi != -1) {
-            for (FemNodeNeighbor nbr : getNodeNeighbors(node)) {
+            for (NodeNeighbor nbr : getNodeNeighbors(node)) {
                addNodeNeighborBlock(S, nbr, bi);
             }
             // used for soft nodal-based incompressibilty:
-            for (FemNodeNeighbor nbr : getIndirectNeighbors(node)) {
+            for (NodeNeighbor nbr : getIndirectNeighbors(node)) {
                addNodeNeighborBlock(S, nbr, bi);
             }
          }
@@ -2180,7 +2180,7 @@ public class FemModel3d extends FemModel
       b.setZero();
       for (FemNode3d n : myNodes) {
          if (n.getIncompressIndex() != -1) {
-            for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
+            for (NodeNeighbor nbr : getNodeNeighbors(n)) {
                // if (isControllable (nbr.myNode)) {
                nbr.myDivBlk.setZero();
                // }
@@ -2218,8 +2218,8 @@ public class FemModel3d extends FemModel
                }
             }
             if ((idx = n.getIncompressIndex()) != -1) {
-               for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
-                  FemNode3d nnode = nbr.myNode;
+               for (NodeNeighbor nbr : getNodeNeighbors(n)) {
+                  FemNode3d nnode = nbr.getNode();
                   int j = e.getLocalNodeIndex(nnode);
                   if (j != -1) {
                      // if (isControllable (nnode)) {
@@ -2298,10 +2298,10 @@ public class FemModel3d extends FemModel
       if (myNodalIncompBlocksAllocatedP != allocated) {
          for (FemNode3d n : myNodes) {
             if (allocated) {
-               for (FemNodeNeighbor nbr_i : getNodeNeighbors(n)) {
-                  FemNode3d node_i = nbr_i.myNode;
-                  for (FemNodeNeighbor nbr_j : getNodeNeighbors(n)) {
-                     FemNode3d node_j = nbr_j.myNode;
+               for (NodeNeighbor nbr_i : getNodeNeighbors(n)) {
+                  FemNode3d node_i = nbr_i.getNode();
+                  for (NodeNeighbor nbr_j : getNodeNeighbors(n)) {
+                     FemNode3d node_j = nbr_j.getNode();
                      if (node_i.getNodeNeighbor(node_j) == null &&
                      node_i.getIndirectNeighbor(node_j) == null) {
                         // System.out.println (
@@ -2329,12 +2329,12 @@ public class FemModel3d extends FemModel
       if (myNodalIncompConstraintsAllocatedP != allocated) {
          for (FemNode3d n : myNodes) {
             if (allocated) {
-               for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
+               for (NodeNeighbor nbr : getNodeNeighbors(n)) {
                   nbr.myDivBlk = new Matrix3x1Block();
                }
             }
             else {
-               for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
+               for (NodeNeighbor nbr : getNodeNeighbors(n)) {
                   nbr.myDivBlk = null;
                }
             }
@@ -3214,10 +3214,10 @@ public class FemModel3d extends FemModel
             // For controllable node, add the incompressibility constraint
             for (FemNode3d n : myNodes) {
                if (n.getIncompressIndex() != -1) {
-                  for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
+                  for (NodeNeighbor nbr : getNodeNeighbors(n)) {
                      // if (isControllable (nbr.myNode)) {
                         GT.addBlock(
-                           nbr.myNode.getSolveIndex(), bj, nbr.myDivBlk);
+                           nbr.getNode().getSolveIndex(), bj, nbr.myDivBlk);
                         // }
                   }
                   bj++;

@@ -11,7 +11,6 @@ public class ShellQuadTetElement extends ShellFemElement3d {
 
    /*** Variables and static blocks declarations ****/
 
-   protected final int NUM_NODES = 4;
    protected static double[] myNodeCoords = new double[] {
       0, 0, 0,
       1, 0, 0,
@@ -96,7 +95,7 @@ public class ShellQuadTetElement extends ShellFemElement3d {
    /*** End of variables and static blocks declarations ****/
 
    public ShellQuadTetElement () {
-      myNodes = new FemNode3d[NUM_NODES];
+      myNodes = new FemNode3d[myNodeCoords.length/3];
    }
 
    /**
@@ -449,7 +448,7 @@ public class ShellQuadTetElement extends ShellFemElement3d {
          g2.setZero ();
          // For each node...
          for (int n = 0; n < myNodes.length; n++) {
-            FemNode3d node = myNodes[n];
+            ShellFemNode3d node = (ShellFemNode3d) myNodes[n];
 
             Vector3d g0Term = new Vector3d (node.myDirector0);
             g0Term.scale (iPt_t * 0.5);

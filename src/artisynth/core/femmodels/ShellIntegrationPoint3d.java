@@ -98,7 +98,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
       
       // For each node...
       for (int n = 0; n < ele.getNodes().length; n++) {
-         FemNode3d node = ele.getNodes()[n];
+         ShellFemNode3d node = (ShellFemNode3d) ele.getNodes()[n];
          Vector3d d = null;
          
          Point3d pos = null;
@@ -160,7 +160,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
       return g;
    }
 
-   public static Vector3d getNodeNormal(FemNode3d node) {
+   public static Vector3d getNodeNormal(ShellFemNode3d node) {
       Vector3d normal = new Vector3d();
       for (ShellFemElement3d el : node.myAdjElements) {
          Vector3d elNormal = getElementNormal(el);
@@ -344,6 +344,44 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
       }
    }      
 
+   
+   /**
+    * Evaluate a vector function over the shell.
+    * 
+    * FEBio: FESSIShellDomain::evaluate
+    * 
+    * @param el
+    * Shell element to evaluate the vector function over.
+    * 
+    * @param vn
+    * Computed xyz-related vectors for each node. E.g. acceleration.
+    * 
+    * @param dvn
+    * Computed uvw-related vectors for each node. E.g. rotational acceleration.
+    * 
+    * @return 
+    * Scalar. Generalized vector for the entire shell based on vn and dvn.
+    */
+   public Vector3d evaluate(ShellFemElement3d el, Vector3d[] vn, Vector3d[] dvn) {
+      Vector3d v = new Vector3d(); 
+      double t = coords.z;
+      VectorNd Ns = getShapeWeights();
+      
+      for (int n = 0; n < el.getNodes().length; n++) {
+         ShellFemNode3d node = (ShellFemNode3d) el.getNodes()[n];
+         
+         double N = Ns.get(n);
+         
+         double mu = (1+t)/2.0*N;
+         double md = (1-t)/2.0*N;
+         
+         v.scaledAdd(mu, vn[n]);
+         v.scaledAdd(md, dvn[n]);
+      }
+      
+      return v;
+   }
+   
    /*** FEBio: FEElasticShellDomain::Update relies on existing vec3d evaluate()
                function for its shell implementation. This means that 
                computePosition() here shouldn't need to be overridden. ***/

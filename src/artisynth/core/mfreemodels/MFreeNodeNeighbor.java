@@ -7,6 +7,7 @@
 package artisynth.core.mfreemodels;
 
 import maspack.matrix.Vector3d;
+import maspack.matrix.VectorBase;
 import artisynth.core.femmodels.FemNodeNeighbor;
 
 public class MFreeNodeNeighbor extends FemNodeNeighbor {
@@ -22,8 +23,10 @@ public class MFreeNodeNeighbor extends FemNodeNeighbor {
       return myMNode;
    }
    
-   public void addDampingForce (Vector3d fd) {
-      fd.mulAdd (myK, myMNode.getFalseVelocity(), fd);
+   @Override
+   public void addDampingForce (VectorBase fd) {
+      Vector3d fd3 = (Vector3d) fd;
+      fd3.mulAdd (myK, myMNode.getFalseVelocity(), fd3);
    }
    
 }

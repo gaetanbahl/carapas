@@ -52,6 +52,7 @@ import artisynth.core.femmodels.FemNode3d;
 import artisynth.core.femmodels.FemNodeNeighbor;
 import artisynth.core.femmodels.FemUtilities;
 import artisynth.core.femmodels.IntegrationData3d;
+import artisynth.core.femmodels.NodeNeighbor;
 import artisynth.core.gui.ControlPanel;
 import artisynth.core.gui.FemControlPanel;
 import artisynth.core.materials.FemMaterial;
@@ -391,15 +392,15 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       }
    }
 
-   public LinkedList<FemNodeNeighbor> getNodeNeighbors(FemNode3d node) {
+   public LinkedList<NodeNeighbor> getNodeNeighbors(FemNode3d node) {
       return node.getNodeNeighbors();
    }
 
-   private LinkedList<FemNodeNeighbor> myEmptyNeighborList =
-      new LinkedList<FemNodeNeighbor>();
+   private LinkedList<NodeNeighbor> myEmptyNeighborList =
+      new LinkedList<NodeNeighbor>();
 
-   protected LinkedList<FemNodeNeighbor> getIndirectNeighbors(FemNode3d node) {
-      LinkedList<FemNodeNeighbor> indirect;
+   protected LinkedList<NodeNeighbor> getIndirectNeighbors(FemNode3d node) {
+      LinkedList<NodeNeighbor> indirect;
       if ((indirect = node.getIndirectNeighbors()) != null) {
          return indirect;
       }
@@ -426,10 +427,10 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          fk.set(n.getInternalForce());
          fd.setZero();
          if (myStiffnessDamping != 0) {
-            for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
+            for (NodeNeighbor nbr : getNodeNeighbors(n)) {
                nbr.addDampingForce(fd);
             }
-            for (FemNodeNeighbor nbr : getIndirectNeighbors(n)) {
+            for (NodeNeighbor nbr : getIndirectNeighbors(n)) {
                nbr.addDampingForce(fd);
             }
             fd.scale(myStiffnessDamping);
@@ -455,10 +456,10 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          if (myComputeNodalStrain) {
             n.zeroStrain();
          }
-         for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
+         for (NodeNeighbor nbr : getNodeNeighbors(n)) {
             nbr.zeroStiffness();
          }
-         for (FemNodeNeighbor nbr : getIndirectNeighbors(n)) {
+         for (NodeNeighbor nbr : getIndirectNeighbors(n)) {
             nbr.zeroStiffness();
          }
 
@@ -522,18 +523,18 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          for (FemNode3d n : myNodes) {
             int bi = n.getSolveIndex();
             if (bi != -1) {
-               for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
+               for (NodeNeighbor nbr : getNodeNeighbors(n)) {
                   int bj = nbr.getNode().getSolveIndex();
                   if (bj > bi) {
-                     FemNodeNeighbor nbrT =
+                     NodeNeighbor nbrT =
                         nbr.getNode().getNodeNeighborBySolveIndex(bi);
                      nbrT.setTransposedStiffness(nbr);
                   }
                }
-               for (FemNodeNeighbor nbr : getIndirectNeighbors(n)) {
+               for (NodeNeighbor nbr : getIndirectNeighbors(n)) {
                   int bj = nbr.getNode().getSolveIndex();
                   if (bj > bi) {
-                     FemNodeNeighbor nbrT =
+                     NodeNeighbor nbrT =
                         nbr.getNode().getIndirectNeighborBySolveIndex(bi);
                      nbrT.setTransposedStiffness(nbr);
                   }
@@ -1115,7 +1116,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
 
    private void addBlockVelJacobian(
       SparseNumberedBlockMatrix M, MFreeNode3d node,
-      FemNodeNeighbor nbr, double s) {
+      NodeNeighbor nbr, double s) {
 
       if (nbr.getNode().getSolveIndex() != -1) {
          Matrix3x3Block blk =
@@ -1140,10 +1141,10 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       for (int i = 0; i < myNodes.size(); i++) {
          MFreeNode3d node = myNodes.get(i);
          if (node.getSolveIndex() != -1) {
-            for (FemNodeNeighbor nbr : getNodeNeighbors(node)) {
+            for (NodeNeighbor nbr : getNodeNeighbors(node)) {
                addBlockVelJacobian(M, node, nbr, s);
             }
-            for (FemNodeNeighbor nbr : getIndirectNeighbors(node)) {
+            for (NodeNeighbor nbr : getIndirectNeighbors(node)) {
                addBlockVelJacobian(M, node, nbr, s);
             }
          }
@@ -1152,7 +1153,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
 
    private void addBlockPosJacobian(
       SparseNumberedBlockMatrix M, MFreeNode3d node,
-      FemNodeNeighbor nbr, double s) {
+      NodeNeighbor nbr, double s) {
 
       if (nbr.getNode().getSolveIndex() != -1) {
          Matrix3x3Block blk =
@@ -1172,10 +1173,10 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       for (int i = 0; i < myNodes.size(); i++) {
          MFreeNode3d node = myNodes.get(i);
          if (node.getSolveIndex() != -1) {
-            for (FemNodeNeighbor nbr : getNodeNeighbors(node)) {
+            for (NodeNeighbor nbr : getNodeNeighbors(node)) {
                addBlockPosJacobian(M, node, nbr, s);
             }
-            for (FemNodeNeighbor nbr : getIndirectNeighbors(node)) {
+            for (NodeNeighbor nbr : getIndirectNeighbors(node)) {
                addBlockPosJacobian(M, node, nbr, s);
             }
          }
@@ -1183,7 +1184,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    }
 
    private void addStiffnessBlock(
-      SparseNumberedBlockMatrix S, FemNodeNeighbor nbr, int bi) {
+      SparseNumberedBlockMatrix S, NodeNeighbor nbr, int bi) {
 
       int bj = nbr.getNode().getSolveIndex();
       Matrix3x3Block blk = null;
@@ -1206,10 +1207,10 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          FemNode3d node = myNodes.get(i);
          int bi = node.getSolveIndex();
          if (bi != -1) {
-            for (FemNodeNeighbor nbr : getNodeNeighbors(node)) {
+            for (NodeNeighbor nbr : getNodeNeighbors(node)) {
                addStiffnessBlock(S, nbr, bi);
             }
-            for (FemNodeNeighbor nbr : getIndirectNeighbors(node)) {
+            for (NodeNeighbor nbr : getIndirectNeighbors(node)) {
                addStiffnessBlock(S, nbr, bi);
             }
          }

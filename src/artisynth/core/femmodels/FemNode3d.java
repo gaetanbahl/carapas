@@ -32,19 +32,12 @@ import maspack.util.ReaderTokenizer;
 
 public class FemNode3d extends FemNode {
 
-   // Shell-specific
-   public Vector3d myDirector0 = new Vector3d();
-   public Vector3d myDirector = new Vector3d();
-   public LinkedList<ShellFemElement3d> myAdjElements = 
-      new LinkedList<ShellFemElement3d>();
-   protected Vector3d myInternalRotForce;
-   
    protected Point3d myRest;
    protected Vector3d myInternalForce;
 
    private LinkedList<FemElement3d> myElementDeps;
-   protected LinkedList<FemNodeNeighbor> myNodeNeighbors;
-   private LinkedList<FemNodeNeighbor> myIndirectNeighbors;
+   protected LinkedList<NodeNeighbor> myNodeNeighbors;
+   protected LinkedList<NodeNeighbor> myIndirectNeighbors;
    int myIndex = -1;
    private int myIncompressIdx = -1;
    //private int myLocalIncompressIdx = -1;
@@ -89,7 +82,7 @@ public class FemNode3d extends FemNode {
       myRest = new Point3d();
       myInternalForce = new Vector3d();
       myElementDeps = new LinkedList<FemElement3d>();
-      myNodeNeighbors = new LinkedList<FemNodeNeighbor>();
+      myNodeNeighbors = new LinkedList<NodeNeighbor>();
    }
 
    public FemNode3d (Point3d p) {
@@ -303,22 +296,22 @@ public class FemNode3d extends FemNode {
       return myInternalForce;
    }
 
-   public LinkedList<FemNodeNeighbor> getNodeNeighbors() {
+   public LinkedList<NodeNeighbor> getNodeNeighbors() {
       return myNodeNeighbors;
    }
 
-   public FemNodeNeighbor getNodeNeighborBySolveIndex (int idx) {
-      for (FemNodeNeighbor nbr : myNodeNeighbors) {
-         if (nbr.myNode.getSolveIndex() == idx) {
+   public NodeNeighbor getNodeNeighborBySolveIndex (int idx) {
+      for (NodeNeighbor nbr : myNodeNeighbors) {
+         if (nbr.getNode().getSolveIndex() == idx) {
             return nbr;
          }
       }
       return null;
    }
 
-   public FemNodeNeighbor getNodeNeighbor (FemNode3d node) {
-      for (FemNodeNeighbor nbr : myNodeNeighbors) {
-         if (nbr.myNode == node) {
+   public NodeNeighbor getNodeNeighbor (FemNode3d node) {
+      for (NodeNeighbor nbr : myNodeNeighbors) {
+         if (nbr.getNode() == node) {
             return nbr;
          }
       }
@@ -335,14 +328,14 @@ public class FemNode3d extends FemNode {
     * nodes. Hence when computing overall forces and stiffness matrices,
     * each node has a larger set of nodes that influence it.
     */
-   public LinkedList<FemNodeNeighbor> getIndirectNeighbors() {
+   public LinkedList<NodeNeighbor> getIndirectNeighbors() {
       return myIndirectNeighbors;
    }
 
-   public FemNodeNeighbor getIndirectNeighborBySolveIndex (int idx) {
+   public NodeNeighbor getIndirectNeighborBySolveIndex (int idx) {
       if (myIndirectNeighbors != null) {
-         for (FemNodeNeighbor nbr : myIndirectNeighbors) {
-            if (nbr.myNode.getSolveIndex() == idx) {
+         for (NodeNeighbor nbr : myIndirectNeighbors) {
+            if (nbr.getNode().getSolveIndex() == idx) {
                return nbr;
             }
          }
@@ -350,10 +343,10 @@ public class FemNode3d extends FemNode {
       return null;
    }
 
-   public FemNodeNeighbor getIndirectNeighbor (FemNode3d node) {
+   public NodeNeighbor getIndirectNeighbor (FemNode3d node) {
       if (myIndirectNeighbors != null) {
-         for (FemNodeNeighbor nbr : myIndirectNeighbors) {
-            if (nbr.myNode == node) {
+         for (NodeNeighbor nbr : myIndirectNeighbors) {
+            if (nbr.getNode() == node) {
                return nbr;
             }
          }
@@ -368,17 +361,17 @@ public class FemNode3d extends FemNode {
       }
    }
 
-   public FemNodeNeighbor addIndirectNeighbor (FemNode3d nbrNode) {
+   public NodeNeighbor addIndirectNeighbor (FemNode3d nbrNode) {
       FemNodeNeighbor nbr = new FemNodeNeighbor (nbrNode);
       if (myIndirectNeighbors == null) {
-         myIndirectNeighbors = new LinkedList<FemNodeNeighbor>();
+         myIndirectNeighbors = new LinkedList<NodeNeighbor>();
       }
       myIndirectNeighbors.add (nbr);
       return nbr;
    }
 
    protected void registerNodeNeighbor (FemNode3d nbrNode) {
-      FemNodeNeighbor nbr = getNodeNeighbor (nbrNode);
+      NodeNeighbor nbr = getNodeNeighbor (nbrNode);
       if (nbr == null) {
          nbr = new FemNodeNeighbor (nbrNode);
          myNodeNeighbors.add (nbr);
@@ -389,7 +382,7 @@ public class FemNode3d extends FemNode {
    }
 
    public void deregisterNodeNeighbor (FemNode3d nbrNode) {
-      FemNodeNeighbor nbr = getNodeNeighbor (nbrNode);
+      NodeNeighbor nbr = getNodeNeighbor (nbrNode);
       if (nbr == null) {
          throw new InternalErrorException ("node not registered as a neighbor");
       }
@@ -399,8 +392,8 @@ public class FemNode3d extends FemNode {
    }
    
    protected void invalidateAdjacentNodeMasses() {
-      for (FemNodeNeighbor nbr : myNodeNeighbors) {
-         nbr.myNode.invalidateMassIfNecessary();
+      for (NodeNeighbor nbr : myNodeNeighbors) {
+         nbr.getNode().invalidateMassIfNecessary();
       }
    }
    
@@ -569,7 +562,7 @@ public class FemNode3d extends FemNode {
       node.myRest = new Point3d (myRest);
       node.myInternalForce = new Vector3d();
       node.myElementDeps = new LinkedList<FemElement3d>();
-      node.myNodeNeighbors = new LinkedList<FemNodeNeighbor>();
+      node.myNodeNeighbors = new LinkedList<NodeNeighbor>();
       node.myIndirectNeighbors = null;
 
       node.myIncompressIdx = -1;

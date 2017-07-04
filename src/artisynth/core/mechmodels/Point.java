@@ -58,7 +58,7 @@ public class Point extends DynamicComponentBase
    public float[] myRenderCoords = new float[3];
    // protected Activity myActivity = Activity.Unknown;
    protected boolean mySolveBlockValidP;
-   private int mySolveBlockNum = -1;
+   protected int mySolveBlockNum = -1;
    protected double myPointDamping;
    private PropertyMode myPointDampingMode = PropertyMode.Inherited;
 
@@ -645,7 +645,7 @@ public class Point extends DynamicComponentBase
 //      return mySolveBlock;
 //   }
 
-   public Matrix3x3DiagBlock createMassBlock() {
+   public MatrixBlock createMassBlock() {
       return new Matrix3x3DiagBlock();
    }
 

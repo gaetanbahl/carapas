@@ -35,7 +35,7 @@ import artisynth.core.util.*;
 public abstract class FemElement3d extends FemElement
    implements Boundable, PointAttachable, FrameAttachable {
    protected FemNode3d[] myNodes;
-   protected FemNodeNeighbor[][] myNbrs = null;
+   protected NodeNeighbor[][] myNbrs = null;
    // average shape function gradient; used for incompressibility
    //protected Vector3d[] myAvgGNx = null; 
    // altGnx is an alternate copy of avgGNx for use in a second constraint matrix
@@ -114,7 +114,7 @@ public abstract class FemElement3d extends FemElement
       return myNodes;
    }
    
-   public FemNodeNeighbor[][] getNodeNeighbors() {
+   public NodeNeighbor[][] getNodeNeighbors() {
       return myNbrs;
    }
 
@@ -654,8 +654,8 @@ public abstract class FemElement3d extends FemElement
       for (int i=0; i<myNodes.length; i++) {
          FemNode3d node = myNodes[i];
          int cnt = 0;
-         for (FemNodeNeighbor nbr : node.getNodeNeighbors()){
-            int j = getLocalNodeIndex (nbr.myNode);
+         for (NodeNeighbor nbr : node.getNodeNeighbors()){
+            int j = getLocalNodeIndex (nbr.getNode());
             if (j != -1) {
                myNbrs[i][j] = nbr;
                cnt++;

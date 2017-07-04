@@ -4,6 +4,7 @@ import maspack.matrix.Matrix3d;
 import maspack.matrix.Point3d;
 import maspack.matrix.Vector2d;
 import maspack.matrix.Vector3d;
+import maspack.matrix.VectorNd;
 import maspack.render.RenderProps;
 import maspack.render.Renderer;
 import maspack.util.InternalErrorException;
@@ -12,6 +13,8 @@ public class ShellTriElement extends ShellFemElement3d {
 
    /*** Variables and static blocks declarations ****/
 
+   protected ShellFemNodeNeighbor[][] myNbrs = null;
+   
    protected static double[] myNodeCoords = new double[] {
       0, 0, 0,
       1, 0, 0,
@@ -97,14 +100,14 @@ public class ShellTriElement extends ShellFemElement3d {
    /*** End of variables and static blocks declarations ****/
 
    public ShellTriElement () {
-      myNodes = new FemNode3d[myNodeCoords.length/3];
+      myNodes = new ShellFemNode3d[myNodeCoords.length/3];
    }
 
    /**
     * Creates a new triangle element from three nodes. The three nodes
     * should define a clockwise arrangement about a particular face.
     */
-   public ShellTriElement (FemNode3d p0, FemNode3d p1, FemNode3d p2) {
+   public ShellTriElement (ShellFemNode3d p0, ShellFemNode3d p1, ShellFemNode3d p2) {
       this ();
       setNodes (p0, p1, p2);
       
@@ -117,7 +120,7 @@ public class ShellTriElement extends ShellFemElement3d {
     * Sets the nodes of a triangle element. The three nodes should
     * define a clockwise arrangement about a particular face.
     */
-   public void setNodes (FemNode3d p0, FemNode3d p1, FemNode3d p2) {
+   public void setNodes (ShellFemNode3d p0, ShellFemNode3d p1, ShellFemNode3d p2) {
       myNodes[0] = p0;
       myNodes[1] = p1;
       myNodes[2] = p2;
@@ -431,7 +434,7 @@ public class ShellTriElement extends ShellFemElement3d {
          g2.setZero ();
          // For each node...
          for (int n = 0; n < myNodes.length; n++) {
-            FemNode3d node = myNodes[n];
+            ShellFemNode3d node = (ShellFemNode3d)myNodes[n];
 
             Vector3d g0Term = new Vector3d (node.myDirector0);
             g0Term.scale (iPt_t * 0.5);
@@ -540,4 +543,18 @@ public class ShellTriElement extends ShellFemElement3d {
    public double getShellThickness() {
       return myShellThickness;
    }
+   
+   
+   /**
+    * FEBio: FEElasticMaterial::FEElasticMaterial
+    */
+   @Override
+   public double getDensity() {
+      return 1.0;
+   }
+   
+   public ShellFemNodeNeighbor[][] getNodeNeighbors() {
+      return myNbrs;
+   }
+
 }

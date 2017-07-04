@@ -17,6 +17,7 @@ import maspack.matrix.VectorNd;
 import artisynth.core.femmodels.FemNodeNeighbor;
 import artisynth.core.femmodels.FemUtilities;
 import artisynth.core.femmodels.IntegrationData3d;
+import artisynth.core.femmodels.NodeNeighbor;
 
 /** 
  * Implements stiffness warping for a particular integration region.
@@ -164,7 +165,7 @@ public class MFreeStiffnessWarper3d {
       }
    }
    
-   public void addNodeStiffness (FemNodeNeighbor nbr, boolean [][] active, int i, int j, boolean warping) {
+   public void addNodeStiffness (NodeNeighbor nbr, boolean [][] active, int i, int j, boolean warping) {
       
       if (active[i][j]) {
          if (warping) {
@@ -189,7 +190,7 @@ public class MFreeStiffnessWarper3d {
    }
 
    public void addNodeForce (
-      Vector3d f, boolean[][] active, int i, MFreeNode3d[] nodes, boolean warping, FemNodeNeighbor[] nbr) {
+      Vector3d f, boolean[][] active, int i, MFreeNode3d[] nodes, boolean warping, NodeNeighbor[] nbr) {
 
       if (warping) {
          tmp.setZero();

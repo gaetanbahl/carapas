@@ -180,7 +180,7 @@ public class StiffnessWarper3d {
    }
 
    public void addNodeStiffness (
-      FemNodeNeighbor nbr, int i, int j, boolean warping) {
+      NodeNeighbor nbr, int i, int j, boolean warping) {
       if (warping) {
          A.mulTransposeRight (K0[i][j], R);
          A.mul (R, A);

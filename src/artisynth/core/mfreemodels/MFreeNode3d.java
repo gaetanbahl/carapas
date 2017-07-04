@@ -27,6 +27,7 @@ import maspack.render.RenderList;
 import maspack.render.RenderProps;
 import artisynth.core.femmodels.FemNode3d;
 import artisynth.core.femmodels.FemNodeNeighbor;
+import artisynth.core.femmodels.NodeNeighbor;
 import artisynth.core.mechmodels.Point;
 import artisynth.core.mechmodels.PointState;
 import artisynth.core.modelbase.ComponentUtils;
@@ -136,7 +137,7 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
    }
    
    public void registerNodeNeighbor (MFreeNode3d nbrNode) {
-      FemNodeNeighbor nbr = getNodeNeighbor (nbrNode);
+      NodeNeighbor nbr = getNodeNeighbor (nbrNode);
       if (nbr == null) {
          nbr = new MFreeNodeNeighbor (nbrNode);
          myNodeNeighbors.add (nbr);

@@ -6,6 +6,7 @@
  */
 package artisynth.core.femmodels;
 
+import maspack.matrix.DenseMatrixBase;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix3x1Block;
 import maspack.matrix.Matrix6d;
@@ -13,20 +14,27 @@ import maspack.matrix.MatrixBlock;
 import maspack.matrix.MatrixNd;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.matrix.Vector3d;
+import maspack.matrix.VectorBase;
 
-public class FemNodeNeighbor {
+public class FemNodeNeighbor extends NodeNeighbor {
    protected FemNode3d myNode;
    protected Matrix3d myK;
-   // Extra K matrix components for which we don't want to apply stiffness damping
+   
+   // Extra K matrix components for which we don't want to apply 
+   // stiffness damping.
    protected Matrix3d myKX; 
    
    //protected Matrix3x3Block myBlk;
-   protected int myBlkNum;
-   protected int myRefCnt;
-   // block used in the incompressibility constraint matrix.
-   protected Matrix3x1Block myDivBlk;
-   // Matrix3x1Block myDivBlk1;
 
+   
+   
+   public FemNodeNeighbor (FemNode3d node) {
+      myNode = node;
+      myK = new Matrix3d();
+      myRefCnt = 1;
+   }
+   
+   @Override
    public void zeroStiffness() {
       myK.setZero();
       if (myKX != null) {
@@ -34,8 +42,9 @@ public class FemNodeNeighbor {
       }
    }
    
-   public void addStiffness (Matrix3d K) {
-      myK.add (K);
+   @Override
+   public void addStiffness (DenseMatrixBase K) {
+      myK.add ((Matrix3d)K);
    }
 
 //   public void getStiffness (Matrix3d K){
@@ -45,16 +54,19 @@ public class FemNodeNeighbor {
 //      }
 //   }
    
+   @Override
    public Matrix3d getK()  {
       return myK;
    }
    
+   @Override
    public Matrix3x1Block getDivBlk() {
       return myDivBlk;
    }
    
-   public void setDivBlk(Matrix3x1Block blk) {
-      myDivBlk = blk;
+   @Override
+   public void setDivBlk(MatrixBlock blk) {
+      myDivBlk = (Matrix3x1Block)blk;
    }
 
 //    public void addNondampedStiffness (Matrix3d K) {
@@ -65,70 +77,49 @@ public class FemNodeNeighbor {
     * Sets the stiffness components of this node neighbour to the transpose of
     * the stiffness components of another node neighbour. 
     */
-   public void setTransposedStiffness (FemNodeNeighbor nbr) {
-      myK.transpose (nbr.myK);
-      if (nbr.myKX != null) {
+   public void setTransposedStiffness (NodeNeighbor nbr) {
+      FemNodeNeighbor fNbr = (FemNodeNeighbor) nbr;
+      
+      myK.transpose (fNbr.myK);
+      if (fNbr.myKX != null) {
          if (myKX == null) {
             myKX = new Matrix3d();
          }
-         myKX.transpose (nbr.myKX);
+         myKX.transpose (fNbr.myKX);
       }
-   }
-   
-   public void setRefCount(int count) {
-      myRefCnt = count;
-   }
-   
-   public void increaseRefCount() {
-      myRefCnt++;
-   }
-   
-   public void decreaseRefCount() {
-      myRefCnt--;
-   }
-   
-
-   public FemNodeNeighbor (FemNode3d node) {
-      myNode = node;
-      myK = new Matrix3d();
-      myRefCnt = 1;
    }
 
 //   public void setBlock (Matrix3x3Block blk) {
 //      myBlk = blk;
 //   }
    
-   public void setBlockNumber (int num) {
-      myBlkNum = num;
-   }
-
-   public int getBlockNumber() {
-      return myBlkNum;
-   }
-   
 //   public void addVelJacobian (
 //      double s, double stiffnessDamping, double massDamping) {
 //      addVelJacobian (myBlk, s, stiffnessDamping, massDamping);
 //   }
 
+   @Override
    public void addVelJacobian (
-      Matrix3d blk, double s, double stiffnessDamping, double massDamping) {
+      DenseMatrixBase blk, double s, double stiffnessDamping,
+      double massDamping) {
+      Matrix3d blk3 = (Matrix3d) blk;
       // System.out.println (
       // "addVelJacobian: myK=\n" + myK.toString("%10.5f"));
-      blk.scaledAdd (-s * stiffnessDamping, myK, blk);
-      //blk.scaledAdd (-s * stiffnessDamping, myKX, blk);
+      blk3.scaledAdd (-s * stiffnessDamping, myK, blk3);
+      //blk3.scaledAdd (-s * stiffnessDamping, myKX, blk3);
       if (massDamping != 0) {
-//         if (blk == null) {
+//         if (blk3 == null) {
 //            System.out.println ("null block");
 //         }
          //double d = -s * massDamping * myNode.getEffectiveMass();
          double d = -s * massDamping * myNode.getMass();
-         blk.m00 += d;
-         blk.m11 += d;
-         blk.m22 += d;
+         blk3.m00 += d;
+         blk3.m11 += d;
+         blk3.m22 += d;
       }
    }
 
+   @Override
    public FemNode3d getNode() {
       return myNode;
    }
@@ -137,32 +128,41 @@ public class FemNodeNeighbor {
 //      addPosJacobian ((Matrix3x3Block)S.getBlockByNumber(myBlkNum), s);
 //   }
 
-   public void addPosJacobian (Matrix3d blk, double s) {
-      blk.scaledAdd (-s, myK, blk);
+   @Override
+   public void addPosJacobian (DenseMatrixBase blk, double s) {
+      Matrix3d blk3 = (Matrix3d) blk;
+      blk3.scaledAdd (-s, myK, blk3);
       if (myKX != null) {
-         blk.scaledAdd (-s, myKX, blk);
+         blk3.scaledAdd (-s, myKX, blk3);
       }
    }
 
-   public void addDampingForce (Vector3d fd) {
-      fd.mulAdd (myK, myNode.getVelocity(), fd);
+   @Override
+   public void addDampingForce (VectorBase fd) {
+      Vector3d fd3 = (Vector3d) fd;
+      fd3.mulAdd (myK, myNode.getVelocity(), fd3);
    }
 
+   @Override
    public void addDilationalStiffness (
-      double kp, Vector3d intGi, Vector3d intGj) {
+      double kp, VectorBase intGi, VectorBase intGj) {
 
+      Vector3d intGi3 = (Vector3d) intGi; 
+      Vector3d intGj3 = (Vector3d) intGj;
+      
       if (FemModel3d.noIncompressStiffnessDamping) {
          if (myKX == null) {
             myKX = new Matrix3d();
          }
-         FemUtilities.addDilationalStiffness (myKX, kp, intGi, intGj);
+         FemUtilities.addDilationalStiffness (myKX, kp, intGi3, intGj3);
       }
       else {
-         FemUtilities.addDilationalStiffness (myK, kp, intGi, intGj);
+         FemUtilities.addDilationalStiffness (myK, kp, intGi3, intGj3);
       }
       
    }
    
+   @Override
    public void addDilationalStiffness (
       double[] Kp, MatrixBlock GT_i, MatrixBlock GT_j) {
 
@@ -178,6 +178,7 @@ public class FemNodeNeighbor {
       
    }
    
+   @Override
    public void addDilationalStiffness (
       MatrixNd Rinv, MatrixBlock GT_i, MatrixBlock GT_j) {
 
@@ -193,17 +194,21 @@ public class FemNodeNeighbor {
       
    }
    
+   @Override
    public void addIncompressibilityStiffness (
-      double s, Vector3d intGi, Vector3d intGj) {
+      double s, VectorBase intGi, VectorBase intGj) {
 
+      Vector3d intGi3 = (Vector3d) intGi; 
+      Vector3d intGj3 = (Vector3d) intGj;
+      
       if (FemModel3d.noIncompressStiffnessDamping) {
          if (myKX == null) {
             myKX = new Matrix3d();
          }
-         FemUtilities.addIncompressibilityStiffness (myKX, s, intGi, intGj);
+         FemUtilities.addIncompressibilityStiffness (myKX, s, intGi3, intGj3);
       }
       else {
-         FemUtilities.addIncompressibilityStiffness (myK, s, intGi, intGj);
+         FemUtilities.addIncompressibilityStiffness (myK, s, intGi3, intGj3);
       }
       
    }
@@ -235,71 +240,20 @@ public class FemNodeNeighbor {
       FemUtilities.addGeometricStiffness (myK, gi, sig, gj, dv);   
    }
    
-   public void addPressureStiffness( Vector3d gi, double p,
-      Vector3d gj, double dv) {
+   @Override
+   public void addPressureStiffness( VectorBase gi, double p,
+      VectorBase gj, double dv) {
+      
+      Vector3d gi3 = (Vector3d) gi; 
+      Vector3d gj3 = (Vector3d) gj;
       
       if (FemModel3d.noIncompressStiffnessDamping) {
          if (myKX == null) {
             myKX = new Matrix3d();
          }
-         FemUtilities.addPressureStiffness (myKX, gi, p, gj, dv);  
-         FemUtilities.addPressureStiffness (myK, gi, -p, gj, dv);  
+         FemUtilities.addPressureStiffness (myKX, gi3, p, gj3, dv);  
+         FemUtilities.addPressureStiffness (myK, gi3, -p, gj3, dv);  
       }
       
-   }
-   
-   /**
-    * Add weighted material stiffness for this i,j node neighbor pair, 
-    * relative to a particular integration point of the shell element.
-    * 
-    * Standard pressure stiffness is added as well (non-shell specific).
-    * 
-    * @param iN
-    * Shape function of i-th node and integration point.
-    * 
-    * @param jN
-    * Shape function of j-th node and integration point.
-    * 
-    * @param idN
-    * Derivative of shape function of i-th node and integration point.
-    * 
-    * @param jdN 
-    * Derivative of shape function of j-th node and integration point.
-    * 
-    * @param dv
-    * Weighted determinant of integration point jacobian.
-    * 
-    * @param t
-    * t-component of (r,s,t) integration point coordinates (i.e. gauss point)
-    * 
-    * @param gct 
-    * Contravariant base vectors of integration point.
-    * 
-    * @param matStress
-    * Material stress of integration point.
-    * 
-    * @param matTangent
-    * Material tangent of integration point.
-    * 
-    * @param gi 
-    * Shape function gradient of i-th node and integration point.
-    * 
-    * @param gj 
-    * Shape function gradient of j-th node and integration point.
-    * 
-    * @param p
-    * Pressure.
-    * 
-    * @postcond
-    * this.myK (3x3 stiffness block for this i-j node pair) is increased.
-    */
-   public void addShellMaterialStiffness(
-      double iN, double jN, Vector3d idN, Vector3d jdN, double dv, double t,
-      Vector3d[] gct, SymmetricMatrix3d matStress, Matrix6d matTangent, 
-      Vector3d gi, Vector3d gj, double p) {
-      FemUtilities.addShellMaterialStiffness(
-         myK, iN, jN, idN, jdN, dv, t, gct, matStress, matTangent);
-      
-      addPressureStiffness(gi, p, gj, dv);
    }
 }

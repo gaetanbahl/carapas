@@ -635,7 +635,7 @@ public class FemUtilities {
     *         Not sure if the full 6dof is needed.
     */
    public static void addShellMaterialStiffness (
-      Matrix3d K, double iN, double jN, Vector3d idN, Vector3d jdN, double dv,
+      Matrix6d K, double iN, double jN, Vector3d idN, Vector3d jdN, double dv,
       double t, Vector3d[] gct, SymmetricMatrix3d matStress,
       Matrix6d matTangent) {
      
@@ -695,7 +695,17 @@ public class FemUtilities {
       K.m10 += Kuu.m10;  K.m11 += Kuu.m11;  K.m12 += Kuu.m12;
       K.m20 += Kuu.m20;  K.m21 += Kuu.m21;  K.m22 += Kuu.m22;
       
-      // TODO compute 3 other 3x3 matrices
+      K.m03 += Kud.m00;  K.m04 += Kud.m01;  K.m05 += Kud.m02;
+      K.m13 += Kud.m10;  K.m14 += Kud.m11;  K.m15 += Kud.m12;
+      K.m23 += Kud.m20;  K.m24 += Kud.m21;  K.m25 += Kud.m22;
+      
+      K.m30 += Kdu.m00;  K.m31 += Kdu.m01;  K.m32 += Kdu.m02;
+      K.m40 += Kdu.m10;  K.m41 += Kdu.m11;  K.m42 += Kdu.m12;
+      K.m50 += Kdu.m20;  K.m51 += Kdu.m21;  K.m52 += Kdu.m22;
+      
+      K.m33 += Kdd.m00;  K.m34 += Kdd.m01;  K.m35 += Kdd.m02;
+      K.m43 += Kdd.m10;  K.m44 += Kdd.m11;  K.m45 += Kdd.m12;
+      K.m53 += Kdd.m20;  K.m54 += Kdd.m21;  K.m55 += Kdd.m22;
       
       // Stress component 
       
@@ -714,9 +724,18 @@ public class FemUtilities {
       K.m11 += sKuu;
       K.m22 += sKuu; 
       
-      // TODO compute 3 other 3x3 diag
+      K.m03 += sKud;
+      K.m14 += sKud;
+      K.m25 += sKud; 
+      
+      K.m30 += sKdu;
+      K.m41 += sKdu;
+      K.m52 += sKdu;
+      
+      K.m33 += sKdd;
+      K.m44 += sKdd;
+      K.m55 += sKdd;
    }
-   
    
    /** 
     * Adds the force on a node resulting from a given stress at a given 
@@ -743,7 +762,7 @@ public class FemUtilities {
     * FEBio: FEElasticShellDomain::ElementInternalForce
     */
    public static void addShellStressForce (
-      Vector3d f, SymmetricMatrix3d sig, double dv, int n, 
+      Vector3d f, Vector3d rf, SymmetricMatrix3d sig, double dv, int n, 
       ShellIntegrationPoint3d pt, ShellFemElement3d el) {
       
       double t = pt.coords.z;
@@ -773,16 +792,130 @@ public class FemUtilities {
       Vector3d fd = new Vector3d(gradMd);
       sig.mul(fd);
       
-      // Increment displacement force. In FEBio, force is subtracted here.
-      // Artisynth does this subtraction later in
-      // FemModel3d.updateNodeForces().
+      // Increment displacement force. 
       f.x += fu.x*dv;
       f.y += fu.y*dv;
       f.z += fu.z*dv;
       
-      // Increment angular force (not supported by Artisynth). TODO
-//      += fd.x*dv;
-//      += fd.y*dv;
-//      += fd.z*dv;
+      // Increment angular force.
+      rf.x += fd.x*dv;
+      rf.y += fd.y*dv;
+      rf.z += fd.z*dv;
+      
+      // In FEBio, force are subtracted here.
+      // Artisynth does this subtraction later in
+      // FemModel3d.updateNodeForces().
+   }
+   
+   /**
+    * Add inertia stiffness between a pair of nodes. This is specific for
+    * shell-elements.
+    * 
+    * FEBio: FEElasticShellDomain::InertialForces
+    * 
+    * @param K
+    * 6x6 (i.e. 6dof) stiffness matrix to add the stiffness into.
+    * 
+    * @param el
+    * Shell element that iPt, i, and j belong to.
+    * 
+    * @param iPt
+    * Integration point of the pair of nodes.
+    * 
+    * @param i
+    * First node index of pair.
+    * 
+    * @param j
+    * Second node index of pair.
+    * 
+    * @param scale
+    * Scaler for added stiffness. Use 1.0 unless timestep is fractured into 
+    * smaller integration steps (e.g. 1.0 / beta*h*h).
+    */
+   public static void addShellInertialStiffness(Matrix6d K, 
+      ShellFemElement3d el, ShellIntegrationPoint3d iPt, int i, int j, 
+      double scale) {
+      
+      double density = el.getDensity();
+      
+      VectorNd Ns = iPt.getShapeWeights();
+      
+      iPt.computeJacobian0(el);
+      double detJ0 = iPt.getJ().determinant () * iPt.getWeight();
+      
+      double t = iPt.coords.z;
+      
+      double iN = Ns.get(i);
+      double jN = Ns.get(i);
+         
+      double Kuu = (1+t)/2.0*iN*(1+t)/2.0*jN*scale*density*detJ0;
+      double Kud = (1+t)/2.0*iN*(1-t)/2.0*jN*scale*density*detJ0;
+      double Kdu = (1-t)/2.0*iN*(1+t)/2.0*jN*scale*density*detJ0;
+      double Kdd = (1-t)/2.0*iN*(1-t)/2.0*jN*scale*density*detJ0;
+         
+      K.m00 += Kuu;
+      K.m11 += Kuu;
+      K.m22 += Kuu;
+      
+      K.m03 += Kud;
+      K.m14 += Kud;
+      K.m25 += Kud;
+      
+      K.m30 += Kdu;
+      K.m41 += Kdu;
+      K.m52 += Kdu;
+      
+      K.m33 += Kdd;
+      K.m44 += Kdd;
+      K.m55 += Kdd;
+   }
+   
+   
+   /**
+    * Add inertia forces to each node for a particular shell element.
+    * 
+    * @param el
+    * Shell-element to have its node forces summed with inertia forces.
+    * 
+    * @postcond
+    * node.myInternalForce and node.myInternalDirForce are increased with 
+    * inertia forces.
+    */
+   public static void addShellInertiaForces(ShellFemElement3d el) {
+      double density = el.getDensity();
+      
+      // For each integration point...
+      ShellIntegrationPoint3d[] iPts = el.getIntegrationPoints();
+      for (int k = 0; k < iPts.length; k++) {
+         ShellIntegrationPoint3d iPt = iPts[k];
+      
+         iPt.computeJacobian0(el);
+         double detJ0 = iPt.getJ().determinant ()*iPt.getWeight();
+         
+         VectorNd Ns = iPt.getShapeWeights();
+         
+         double t = iPt.coords.z;
+
+         // For each node...
+         for (int n = 0; n < el.numNodes(); n++) {
+            ShellFemNode3d sn = (ShellFemNode3d)el.myNodes[n];
+            
+            // TODO
+            Vector3d a = null;
+            
+            double N = Ns.get(n);
+            
+            Vector3d fu = new Vector3d(a);
+            fu.scale( density*N*(1+t)/2.0*detJ0 );
+            
+            Vector3d fd = new Vector3d(a);
+            fd.scale( density*N*(1-t)/2.0*detJ0 );
+            
+            sn.myInternalForce.add( fu );
+            sn.myInternalDirForce.add( fd );
+         }
+      }
+      
+      throw new RuntimeException("Unimplemented");
    }
 }

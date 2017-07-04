@@ -6,6 +6,7 @@ import artisynth.core.femmodels.*;
 import artisynth.core.modelbase.*;
 import artisynth.core.materials.*;
 import artisynth.core.mechmodels.*;
+import artisynth.core.mechmodels.MechSystemSolver.Integrator;
 import artisynth.core.workspace.RootModel;
 import artisynth.core.gui.*;
 import artisynth.core.driver.*;
@@ -25,10 +26,10 @@ public class SingleShellTri extends RootModel {
    ShellFemModel3d m_femShellModel;
    MechModel m_mechModel;
 
-   FemNode3d m_node0;
-   FemNode3d m_node1;
-   FemNode3d m_node2;
-   FemNode3d m_node3;
+   ShellFemNode3d m_node0;
+   ShellFemNode3d m_node1;
+   ShellFemNode3d m_node2;
+   ShellFemNode3d m_node3;
    
    final double m_density = 10000;
    final double m_damping = 100;
@@ -56,9 +57,9 @@ public class SingleShellTri extends RootModel {
 //      m_node1.setDynamic (false);
 //      m_node2.setDynamic (false);
       
-      m_node0 = new FemNode3d (0, 0, 0);        // base
-      m_node1 = new FemNode3d (1, 0, 0);        // right
-      m_node2 = new FemNode3d (1, 1, 0);        // right-top
+      m_node0 = new ShellFemNode3d (0, 0, 0);        // base
+      m_node1 = new ShellFemNode3d (1, 0, 0);        // right
+      m_node2 = new ShellFemNode3d (1, 1, 0);        // right-top
       
       System.out.println ("Clockwise: " + isClockwise(
          m_node0.getPosition (), m_node1.getPosition (), m_node2.getPosition ()));
@@ -84,6 +85,7 @@ public class SingleShellTri extends RootModel {
       m_mechModel = new MechModel ("mech");
       m_mechModel.addModel (m_femShellModel);
       addModel (m_mechModel);
+      //m_mechModel.setIntegrator(Integrator.ForwardEuler);
 
       RenderProps.setPointStyle (m_femShellModel.getNodes(), Renderer.PointStyle.SPHERE);
       RenderProps.setPointRadius (m_femShellModel.getNodes(), m_nodeRadius);
