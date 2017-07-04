@@ -424,7 +424,7 @@ public class ShellFemModel3d extends FemModel3d {
                            Vector3d[] gct = pt.getContraBaseVectors(e);
                            
                            /* Add shell-specific material stiffness */
-                           ((ShellFemNodeNeighbor)e.myNbrs[i][j]).
+                           ((FemNodeNeighbor)e.myNbrs[i][j]).
                               addMaterialStiffness (
                               iN, jN, idN, jdN, dv, t, gct, 
                               /*material stress=*/ pt.sigma, 

@@ -546,15 +546,16 @@ public class ShellTriElement extends ShellFemElement3d {
    
    
    /**
+    * Get density of this shell element.
+    * 
     * FEBio: FEElasticMaterial::FEElasticMaterial
+    * 
+    * Disabled for now. FEBio uses 1.0 constant but that constant will
+    * mess up with Artisynth's mass computation via computeMassFromDensity().
     */
-   @Override
-   public double getDensity() {
-      return 1.0;
-   }
+//   @Override
+//   public double getDensity() {
+//      return 1.0;
+//   }
    
-   public ShellFemNodeNeighbor[][] getNodeNeighbors() {
-      return myNbrs;
-   }
-
 }

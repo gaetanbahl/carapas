@@ -635,7 +635,7 @@ public class FemUtilities {
     *         Not sure if the full 6dof is needed.
     */
    public static void addShellMaterialStiffness (
-      Matrix6d K, double iN, double jN, Vector3d idN, Vector3d jdN, double dv,
+      Matrix3d K, double iN, double jN, Vector3d idN, Vector3d jdN, double dv,
       double t, Vector3d[] gct, SymmetricMatrix3d matStress,
       Matrix6d matTangent) {
      
@@ -695,17 +695,17 @@ public class FemUtilities {
       K.m10 += Kuu.m10;  K.m11 += Kuu.m11;  K.m12 += Kuu.m12;
       K.m20 += Kuu.m20;  K.m21 += Kuu.m21;  K.m22 += Kuu.m22;
       
-      K.m03 += Kud.m00;  K.m04 += Kud.m01;  K.m05 += Kud.m02;
-      K.m13 += Kud.m10;  K.m14 += Kud.m11;  K.m15 += Kud.m12;
-      K.m23 += Kud.m20;  K.m24 += Kud.m21;  K.m25 += Kud.m22;
-      
-      K.m30 += Kdu.m00;  K.m31 += Kdu.m01;  K.m32 += Kdu.m02;
-      K.m40 += Kdu.m10;  K.m41 += Kdu.m11;  K.m42 += Kdu.m12;
-      K.m50 += Kdu.m20;  K.m51 += Kdu.m21;  K.m52 += Kdu.m22;
-      
-      K.m33 += Kdd.m00;  K.m34 += Kdd.m01;  K.m35 += Kdd.m02;
-      K.m43 += Kdd.m10;  K.m44 += Kdd.m11;  K.m45 += Kdd.m12;
-      K.m53 += Kdd.m20;  K.m54 += Kdd.m21;  K.m55 += Kdd.m22;
+//      K.m03 += Kud.m00;  K.m04 += Kud.m01;  K.m05 += Kud.m02;
+//      K.m13 += Kud.m10;  K.m14 += Kud.m11;  K.m15 += Kud.m12;
+//      K.m23 += Kud.m20;  K.m24 += Kud.m21;  K.m25 += Kud.m22;
+//      
+//      K.m30 += Kdu.m00;  K.m31 += Kdu.m01;  K.m32 += Kdu.m02;
+//      K.m40 += Kdu.m10;  K.m41 += Kdu.m11;  K.m42 += Kdu.m12;
+//      K.m50 += Kdu.m20;  K.m51 += Kdu.m21;  K.m52 += Kdu.m22;
+//      
+//      K.m33 += Kdd.m00;  K.m34 += Kdd.m01;  K.m35 += Kdd.m02;
+//      K.m43 += Kdd.m10;  K.m44 += Kdd.m11;  K.m45 += Kdd.m12;
+//      K.m53 += Kdd.m20;  K.m54 += Kdd.m21;  K.m55 += Kdd.m22;
       
       // Stress component 
       
@@ -724,17 +724,17 @@ public class FemUtilities {
       K.m11 += sKuu;
       K.m22 += sKuu; 
       
-      K.m03 += sKud;
-      K.m14 += sKud;
-      K.m25 += sKud; 
-      
-      K.m30 += sKdu;
-      K.m41 += sKdu;
-      K.m52 += sKdu;
-      
-      K.m33 += sKdd;
-      K.m44 += sKdd;
-      K.m55 += sKdd;
+//      K.m03 += sKud;
+//      K.m14 += sKud;
+//      K.m25 += sKud; 
+//      
+//      K.m30 += sKdu;
+//      K.m41 += sKdu;
+//      K.m52 += sKdu;
+//      
+//      K.m33 += sKdd;
+//      K.m44 += sKdd;
+//      K.m55 += sKdd;
    }
    
    /** 

@@ -231,8 +231,8 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
       double iN, double jN, Vector3d idN, Vector3d jdN, double dv, double t,
       Vector3d[] gct, SymmetricMatrix3d matStress, Matrix6d matTangent, 
       Vector3d gi, Vector3d gj, double p) {
-      FemUtilities.addShellMaterialStiffness(
-         myK, iN, jN, idN, jdN, dv, t, gct, matStress, matTangent);
+//      FemUtilities.addShellMaterialStiffness(
+//         myK, iN, jN, idN, jdN, dv, t, gct, matStress, matTangent);
       
       addPressureStiffness(gi, p, gj, dv);
    }
