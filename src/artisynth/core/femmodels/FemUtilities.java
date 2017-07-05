@@ -735,6 +735,10 @@ public class FemUtilities {
       K.m33 += sKdd;
       K.m44 += sKdd;
       K.m55 += sKdd;
+      
+      // 1099 vs 158. Mag diff.
+//       System.out.println ("kuu: " + sKuu);
+//       System.out.println ("kdd: " + sKdd);
    }
    
    /** 
@@ -801,6 +805,10 @@ public class FemUtilities {
       df.x += fd.x*dv;
       df.y += fd.y*dv;
       df.z += fd.z*dv;
+      
+      // OK. Same signs
+//      System.out.println ("fxyz: " + f);
+//      System.out.println ("fuwv: " + df);
       
       // In FEBio, force are subtracted here.
       // Artisynth does this subtraction later in

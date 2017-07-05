@@ -27,8 +27,9 @@ public class ShellFemNode3d extends FemNode3d {
       new LinkedList<ShellFemElement3d>();
    
    /* Direction force */
+   protected Vector3d myDirForce = new Vector3d();
    protected Vector3d myInternalDirForce = new Vector3d();
-  
+   
    /* Direction */
    protected Vector3d myDir = new Vector3d();
    
@@ -172,25 +173,25 @@ public class ShellFemNode3d extends FemNode3d {
    @Override
    public int getForce (double[] f, int idx) {
       idx = super.getForce(f, idx);
-      f[idx++] = myInternalDirForce.x;
-      f[idx++] = myInternalDirForce.y;
-      f[idx++] = myInternalDirForce.z;
+      f[idx++] = myDirForce.x;
+      f[idx++] = myDirForce.y;
+      f[idx++] = myDirForce.z;
       return idx;
    }
    
    @Override
    public int setForce (double[] f, int idx) {
       idx = super.setForce(f, idx);
-      myInternalDirForce.x = f[idx++];
-      myInternalDirForce.y = f[idx++];
-      myInternalDirForce.z = f[idx++];
+      myDirForce.x = f[idx++];
+      myDirForce.y = f[idx++];
+      myDirForce.z = f[idx++];
       return idx;
    }
    
    @Override
    public void zeroForces() {
       super.zeroForces();
-      myInternalDirForce.setZero();
+      myDirForce.setZero();
    }
    
    public void getInternalForce(VectorNd f6) {
@@ -207,9 +208,9 @@ public class ShellFemNode3d extends FemNode3d {
    public void subForce (VectorNd f6) {
       Vector3d fxyz = new Vector3d(f6.get(0), f6.get(1), f6.get(2));
       super.subForce(fxyz);
-      this.myInternalDirForce.x -= f6.get(3);
-      this.myInternalDirForce.y -= f6.get(4);
-      this.myInternalDirForce.z -= f6.get(5);
+      this.myDirForce.x -= f6.get(3);
+      this.myDirForce.y -= f6.get(4);
+      this.myDirForce.z -= f6.get(5);
    }
    
    /*** Methods pertaining to the mass and solve blocks ***/

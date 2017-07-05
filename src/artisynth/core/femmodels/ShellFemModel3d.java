@@ -11,15 +11,18 @@ import artisynth.core.materials.SolidDeformation;
 import artisynth.core.materials.ViscoelasticBehavior;
 import artisynth.core.materials.ViscoelasticState;
 import artisynth.core.mechmodels.PointList;
+import artisynth.core.modelbase.ComponentUtils;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix3x3Block;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.Matrix6dBlock;
 import maspack.matrix.MatrixBlock;
+import maspack.matrix.NumericalException;
 import maspack.matrix.SparseNumberedBlockMatrix;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.matrix.Vector3d;
 import maspack.matrix.VectorNd;
+import maspack.util.InternalErrorException;
 
 public class ShellFemModel3d extends FemModel3d {
 
@@ -126,11 +129,14 @@ public class ShellFemModel3d extends FemModel3d {
          VectorNd v6 = new VectorNd(sn.getVelStateSize());
          sn.getVelocity(v6);
          
+         //System.out.println ("Node velo: " + v6);
+         
          // n.setForce (n.getExternalForce());
          if (hasGravity) {
             sn.addScaledForce(n.getMass(), myGravity);
          }
          
+         // Internal force already computed from updateStressAndStiffness().
          sn.getInternalForce(fk6);
          fd6.setZero();
          
@@ -167,6 +173,19 @@ public class ShellFemModel3d extends FemModel3d {
             sn.subForce(fd6);                   
          }
       }
+   }
+   
+   
+   @Override
+   public void updateStressAndStiffness() {
+      // Reset internal direction force which isn't done in 
+      // super.updateStressAndStiffness().
+      for (FemNode3d n : myNodes) {
+         ShellFemNode3d sn = (ShellFemNode3d) n;
+         sn.myInternalDirForce.setZero();
+      }
+      
+      super.updateStressAndStiffness();
    }
    
    
