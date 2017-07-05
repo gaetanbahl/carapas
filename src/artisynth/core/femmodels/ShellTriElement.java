@@ -402,11 +402,6 @@ public class ShellTriElement extends ShellFemElement3d {
    protected double computeVolume (boolean isRest) {
       isRest = true; // TODO. FEBio always relies on m_r0 (initial pos)
 
-//      if (myNodes[0].myDirector0 == null || myNodes[1].myDirector0 == null ||
-//          myNodes[2].myDirector0 == null) {
-//         ((ShellFemModel3d)(myParent.getParent ())).initNodeDirectors ();
-//      }
-
       Vector3d[] nodePos = new Vector3d[myNodes.length];
       for (int i = 0; i < myNodes.length; i++) {
          if (isRest) {

@@ -1441,7 +1441,7 @@ public class FemModel3d extends FemModel
       }
    }
 
-   private void addNeighborVelJacobian(
+   protected void addNeighborVelJacobian(
       SparseNumberedBlockMatrix M, FemNode3d node,
       NodeNeighbor nbr, double s) {
 
@@ -1507,7 +1507,7 @@ public class FemModel3d extends FemModel
       // System.out.println ("symmetric=" + mySolveMatrix.isSymmetric(1e-6));
    }
 
-   private void addNodeNeighborBlock(
+   protected void addNodeNeighborBlock(
       SparseNumberedBlockMatrix S, NodeNeighbor nbr, int bi) {
 
       int bj = nbr.getNode().getSolveIndex();

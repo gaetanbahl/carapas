@@ -108,15 +108,21 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
          }
          else if (ePosType == NODE_POS.CURRENT) {
             pos = node.getLocalPosition();
-            d = new Vector3d( node.myDirector );
-            //d.add(ele.myNodes[n].getDisplacement());
+            d = new Vector3d( node.myDirector0 );
+            d.add( node.getDisplacement() );
+            d.sub( node.getDir() );
          }
          else if (ePosType == NODE_POS.RENDER) {
             float[] rPos = node.myRenderCoords; 
             pos = new Point3d( rPos[0], rPos[1], rPos[2] );
-            d = new Vector3d( node.myDirector );
+            d = new Vector3d( node.myDirector0 );
          }
          
+//         if (n == 0) {
+//            System.out.println ("Node#0 direction: " + node.getDir());
+//            System.out.println ("Node#1 displacement: " + node.getDisplacement());
+//         }
+            
          //d0.sub(ele.myNodes[n].myDofd);
          
          //Vector3d nodeNormal = getNodeNormal(node);
@@ -332,7 +338,6 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * void. Gradient is stored in Fmat parameter.
     */
    public void computeGradientForRender (Matrix3d Fmat, ShellFemElement3d ele) {
-      System.out.println ("here");
       Vector3d[] gco = _getCoBaseVectors(ele, NODE_POS.RENDER);
       Vector3d[] gct = getContraBaseVectors0(ele);
       

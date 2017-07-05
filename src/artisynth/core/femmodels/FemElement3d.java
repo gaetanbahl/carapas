@@ -650,7 +650,7 @@ public abstract class FemElement3d extends FemElement
       }
       setMass(0);
 
-      myNbrs = new FemNodeNeighbor[numNodes()][numNodes()];
+      myNbrs = new NodeNeighbor[numNodes()][numNodes()];
       for (int i=0; i<myNodes.length; i++) {
          FemNode3d node = myNodes[i];
          int cnt = 0;

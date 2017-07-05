@@ -12,10 +12,14 @@ import artisynth.core.materials.ViscoelasticBehavior;
 import artisynth.core.materials.ViscoelasticState;
 import artisynth.core.mechmodels.PointList;
 import maspack.matrix.Matrix3d;
+import maspack.matrix.Matrix3x3Block;
 import maspack.matrix.Matrix6d;
+import maspack.matrix.Matrix6dBlock;
 import maspack.matrix.MatrixBlock;
+import maspack.matrix.SparseNumberedBlockMatrix;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.matrix.Vector3d;
+import maspack.matrix.VectorNd;
 
 public class ShellFemModel3d extends FemModel3d {
 
@@ -37,7 +41,7 @@ public class ShellFemModel3d extends FemModel3d {
       eles.add((ShellFemElement3d)newEle);
       
       // Use this new list to compute each node's director
-      refreshNodeDirectors(eles, /*isRest=*/true);
+      refreshNodeDirectors(eles);
       
       super.addElement (newEle);
    }
@@ -52,20 +56,14 @@ public class ShellFemModel3d extends FemModel3d {
     * Ordering of element's node matters
     * 
     */
-   protected void refreshNodeDirectors(LinkedList<ShellFemElement3d> eles,
-      boolean isRest) {
+   protected void refreshNodeDirectors(LinkedList<ShellFemElement3d> eles) {
       /* Absolute and relative position of nodes probably doesn't 
        * matter b/c vector sub and normalization is being used. */
       
       for (FemElement3d e : eles) {
          for (FemNode3d n : e.myNodes) {
             ShellFemNode3d sn = (ShellFemNode3d) n;
-            if (isRest) {
-               sn.myDirector0.setZero ();
-            }
-            else {
-               sn.myDirector.setZero ();
-            }
+            sn.myDirector0.setZero ();
          }
       }
       
@@ -92,34 +90,84 @@ public class ShellFemModel3d extends FemModel3d {
             dir.scale (sEle.getShellThickness());
             
             ShellFemNode3d sn = (ShellFemNode3d) sEle.myNodes[i];
-            if (isRest) {
-               sn.myDirector0.add(dir);
-            }
-            else {
-               sn.myDirector.add(dir);
-            }
+            sn.myDirector0.add(dir);
          }
       }
       
       // Average the directors.
       for (FemNode3d n : myNodes) {
          ShellFemNode3d sn = (ShellFemNode3d) n;
-         if (isRest) {
-            sn.myDirector0.scale(1.0/sn.myAdjElements.size());
-         }
-         else {
-            sn.myDirector.scale(1.0/sn.myAdjElements.size());
-         }
+         sn.myDirector0.scale(1.0/sn.myAdjElements.size());
       }
    }
    
-   
-      /* Add inertia force in updateNodeForces()*/
+   @Override
+   protected void updateNodeForces(double t) {
+      if (!myStressesValidP) {
+         updateStressAndStiffness();
+      }
+      
+      /* Add inertia force in updateNodeForces() */
 //      for (FemElement3d e : myElements) {
 //         ShellFemElement3d el = (ShellFemElement3d)e;
 //         FemUtilities.addShellInertiaForces(el);
 //      }
+      
+      boolean hasGravity = !myGravity.equals(Vector3d.ZERO);
+      
+      VectorNd fk6 = new VectorNd(6); // stiffness force
+      VectorNd fd6 = new VectorNd(6); // damping force
+      VectorNd md6 = new VectorNd(6); // mass damping (used with attached frames)
 
+      for (FemNode3d n : myNodes) {
+         ShellFemNode3d sn = (ShellFemNode3d) n;
+         
+         /* Get node velocity */
+         VectorNd v6 = new VectorNd(sn.getVelStateSize());
+         sn.getVelocity(v6);
+         
+         // n.setForce (n.getExternalForce());
+         if (hasGravity) {
+            sn.addScaledForce(n.getMass(), myGravity);
+         }
+         
+         sn.getInternalForce(fk6);
+         fd6.setZero();
+         
+         if (myStiffnessDamping != 0) {         // SKIPPED
+            for (NodeNeighbor nbr : getNodeNeighbors(n)) {
+               nbr.addDampingForce(fd6);
+            }
+            // used for soft nodal-based incompressibilty:
+            for (NodeNeighbor nbr : getIndirectNeighbors(n)) {
+               nbr.addDampingForce(fd6);
+            }
+            fd6.scale(myStiffnessDamping);
+         }
+         if (usingAttachedRelativeFrame()) {    // SKIPPED
+            md6.scale (myMassDamping * n.getMass(), v6);
+            sn.subForce (md6);
+            // if (n.isActive()) {
+            //    myFrame.addPointForce (n.getLocalPosition(), n.getForce());
+            // }
+            fk6.add (fd6);
+            
+            // DANNY: TODO commented out
+            //fk6.transform (myFrame.getPose().R);
+            //n.subLocalForce (fk6);
+            throw new RuntimeException("Unimplemented");
+            
+            //if (n.isActive()) {
+               // myFrame.addPointForce (n.getLocalPosition(), n.getForce());
+               //}
+         }
+         else {
+            fd6.scaledAdd(myMassDamping * sn.getMass(), v6, fd6);     
+            sn.subForce(fk6);                   
+            sn.subForce(fd6);                   
+         }
+      }
+   }
    
    
    @Override
@@ -424,7 +472,7 @@ public class ShellFemModel3d extends FemModel3d {
                            Vector3d[] gct = pt.getContraBaseVectors(e);
                            
                            /* Add shell-specific material stiffness */
-                           ((FemNodeNeighbor)e.myNbrs[i][j]).
+                           ((ShellFemNodeNeighbor)e.myNbrs[i][j]).
                               addMaterialStiffness (
                               iN, jN, idN, jdN, dv, t, gct, 
                               /*material stress=*/ pt.sigma, 
@@ -550,11 +598,11 @@ public class ShellFemModel3d extends FemModel3d {
       //flip();
       
       // Reset directors and refresh.
-      LinkedList<ShellFemElement3d> eles = new LinkedList<ShellFemElement3d>();
-      for (FemElement3d e : this.myElements) {
-         eles.add((ShellFemElement3d)e);
-      }
-      refreshNodeDirectors(eles, false);
+//      LinkedList<ShellFemElement3d> eles = new LinkedList<ShellFemElement3d>();
+//      for (FemElement3d e : this.myElements) {
+//         eles.add((ShellFemElement3d)e);
+//      }
+//      refreshNodeDirectors(eles, false);
       
       super.applyForces(t);
    }
@@ -588,6 +636,89 @@ public class ShellFemModel3d extends FemModel3d {
          }
          
          System.out.println ("FLIPPED. el.z: " + elNormal.z + " d0.z: " + d0.z);
+      }
+   }
+   
+   
+   /*** Methods pertaining to the mass and solve blocks ***/
+   
+   
+   /**
+    * Add the position jacobian to the blocks of the global solve matrix. Each
+    * block corresponds to a node neighbor (nbr) with respect to an observing 
+    * node (i). This (i,nbr) node pair have their own respective position 
+    * jacobian.
+    */
+   @Override
+   public void addPosJacobian(SparseNumberedBlockMatrix M, double s) {
+      if (!myStressesValidP || !myStiffnessesValidP) {
+         updateStressAndStiffness();
+      }
+      for (int i = 0; i < myNodes.size(); i++) {
+         FemNode3d node = myNodes.get(i);
+         if (node.getSolveIndex() != -1) {
+            for (NodeNeighbor nbr : getNodeNeighbors(node)) {
+               if (nbr.getNode().getSolveIndex() != -1) {
+                  Matrix6dBlock blk =
+                  (Matrix6dBlock)M.getBlockByNumber(nbr.myBlkNum);
+                  nbr.addPosJacobian(blk, s);
+               }
+            }
+            // used for soft nodal-based incompressibilty:
+            for (NodeNeighbor nbr : getIndirectNeighbors(node)) {
+               if (nbr.getNode().getSolveIndex() != -1) {
+                  Matrix6dBlock blk =
+                  (Matrix6dBlock)M.getBlockByNumber(nbr.myBlkNum);
+                  nbr.addPosJacobian(blk, s);
+               }
+            }
+         }
+      }
+      // System.out.println ("symmetric=" + mySolveMatrix.isSymmetric(1e-6));
+   }
+   
+   
+   /**
+    * Allocate and assign a 6x6 block from the global solve matrix to a 
+    * particular node neighbor.
+    */
+   @Override
+   protected void addNodeNeighborBlock(
+      SparseNumberedBlockMatrix S, NodeNeighbor nbr, int bi) {
+      int bj = nbr.getNode().getSolveIndex();
+      Matrix6dBlock blk = null;
+      int blkNum = -1;
+      if (bj != -1) {
+         blk = (Matrix6dBlock)S.getBlock(bi, bj);
+         if (blk == null) {
+            blk = new Matrix6dBlock();
+            S.addBlock(bi, bj, blk);
+         }
+         blkNum = blk.getBlockNumber();
+      }
+      // nbr.setBlock (blk);
+      nbr.setBlockNumber(blkNum);
+   }
+   
+   
+   /**
+    * Add the velocity jacobian to a block of the global solve matrix. A block
+    * corresponds to a node neighbor (node/nbr) of some node. The velocity 
+    * jacobian is a property of the node neighbor itself.
+    */
+   @Override
+   protected void addNeighborVelJacobian(
+      SparseNumberedBlockMatrix M, FemNode3d node, NodeNeighbor nbr, double s) {
+      if (nbr.getNode().getSolveIndex() != -1) {
+         Matrix6dBlock blk =
+         (Matrix6dBlock)M.getBlockByNumber(nbr.myBlkNum);
+         if (nbr.getNode() == node && node.isActive()) {
+            nbr.addVelJacobian(
+               blk, s, myStiffnessDamping, myMassDamping);
+         }
+         else {
+            nbr.addVelJacobian(blk, s, myStiffnessDamping, 0);
+         }
       }
    }
 }
