@@ -806,6 +806,9 @@ public class FemUtilities {
       df.y += fd.y*dv;
       df.z += fd.z*dv;
       
+      ((ShellFemNode3d)el.getNodes ()[n]).danF.set (f);
+      ((ShellFemNode3d)el.getNodes ()[n]).danDF.set (df);
+      
       // OK. Same signs
 //      System.out.println ("fxyz: " + f);
 //      System.out.println ("fuwv: " + df);

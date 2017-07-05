@@ -36,7 +36,8 @@ public class ShellFemNode3d extends FemNode3d {
    /* Direction velocity */
    protected Vector3d myDirVel = new Vector3d();
    
-   
+   public Vector3d danF = new Vector3d();
+   public Vector3d danDF = new Vector3d();
    
    
    public ShellFemNode3d() {

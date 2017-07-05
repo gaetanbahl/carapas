@@ -1,5 +1,6 @@
 package artisynth.core.femmodels;
 
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.LinkedList;
 
@@ -22,6 +23,7 @@ import maspack.matrix.SparseNumberedBlockMatrix;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.matrix.Vector3d;
 import maspack.matrix.VectorNd;
+import maspack.render.Renderer;
 import maspack.util.InternalErrorException;
 
 public class ShellFemModel3d extends FemModel3d {
@@ -737,6 +739,45 @@ public class ShellFemModel3d extends FemModel3d {
          }
          else {
             nbr.addVelJacobian(blk, s, myStiffnessDamping, 0);
+         }
+      }
+   }
+   
+   @Override
+   public void render (Renderer renderer, int flags) {
+      renderer.setLineWidth (5);
+      //renderDirectors(renderer);
+      renderForces(renderer);
+   }
+   
+   protected void renderDirectors(Renderer renderer) {
+      for (FemElement3d e : this.myElements) {
+         for (FemNode3d n : e.myNodes) {
+            ShellFemNode3d sn = (ShellFemNode3d) n;
+            Vector3d start = new Vector3d(sn.getPosition ());
+            
+            Vector3d end = new Vector3d(start);
+            //end.add(sn.myDir);
+            end.add(sn.myDirector0);
+            end.add(sn.getDisplacement ());
+            end.sub (sn.myDir);
+            
+            renderer.drawLine (start, end);
+         }
+      }
+   }
+   
+   protected void renderForces(Renderer renderer) {
+      renderer.setColor (Color.YELLOW);
+      for (FemElement3d e : this.myElements) {
+         for (FemNode3d n : e.myNodes) {
+            ShellFemNode3d sn = (ShellFemNode3d) n;
+            Vector3d start = new Vector3d(sn.getPosition ());
+            
+            Vector3d end = new Vector3d(start);
+            end.scaledAdd(5, sn.danF);
+            
+            renderer.drawLine(start, end);
          }
       }
    }
