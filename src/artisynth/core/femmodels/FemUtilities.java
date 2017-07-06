@@ -715,7 +715,7 @@ public class FemUtilities {
       Vector3d sjGradMd = new Vector3d( jGradMd ); 
       matStress.mul (sjGradMd);
                               
-      double sKuu = iGradMu.dot(sjGradMu) * dv;            
+      double sKuu = iGradMu.dot(sjGradMu) * dv;
       double sKud = iGradMu.dot(sjGradMd) * dv;
       double sKdu = iGradMd.dot(sjGradMu) * dv;
       double sKdd = iGradMd.dot(sjGradMd) * dv;
@@ -771,8 +771,8 @@ public class FemUtilities {
       
       double t = pt.coords.z;
       double N = pt.getShapeWeights ().get(n);
-      double dNdr = pt.getShapeGradient ()[n].x;
-      double dNds = pt.getShapeGradient ()[n].y;
+      double dNdr = pt.getGNs()[n].x;
+      double dNds = pt.getGNs()[n].y;
       
       Vector3d[] gct = pt.getContraBaseVectors (el);
       

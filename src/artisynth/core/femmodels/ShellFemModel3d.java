@@ -102,6 +102,13 @@ public class ShellFemModel3d extends FemModel3d {
       // Average the directors.
       for (FemNode3d n : myNodes) {
          ShellFemNode3d sn = (ShellFemNode3d) n;
+         
+         if (sn.myAdjElements.size() == 0) {
+            throw new RuntimeException("Node has no adjacent elements. "
+            + "Did you forget to call node.myAdjElements(this) in the element "
+            + "constructor?");
+         }
+         
          sn.myDirector0.scale(1.0/sn.myAdjElements.size());
       }
    }
@@ -266,8 +273,9 @@ public class ShellFemModel3d extends FemModel3d {
       }
       // SKIPPED
       else if (softIncomp == IncompMethod.NODAL) {
-         if (e instanceof ShellQuadTetElement) {
-            ((ShellQuadTetElement)e).getAreaWeightedNormals(myNodalConstraints);
+         if (e instanceof ShellQuadElement) {
+            // DANNY TODO
+            //((ShellQuadElement)e).getAreaWeightedNormals(myNodalConstraints);
             for (int i = 0; i < 4; i++) {
                myNodalConstraints[i].scale(-1 / 12.0);
             }
@@ -355,7 +363,7 @@ public class ShellFemModel3d extends FemModel3d {
             }
             // SKIPPED
             else if (softIncomp == IncompMethod.NODAL) {
-               if (e instanceof ShellQuadTetElement) {
+               if (e instanceof ShellQuadElement) {
                   // use the average pressure for all nodes
                   pressure = 0;
                   for (int i = 0; i < nodes.length; i++) {
@@ -603,6 +611,7 @@ public class ShellFemModel3d extends FemModel3d {
             // }
          }
          double dv = detJ * pt.getWeight();
+         // TODO shape gradient or shape derivative?
          Vector3d[] GNx = pt.updateShapeGradient(pt.myInvJ);
 
          double[] H = pt.getPressureWeights().getBuffer();
@@ -747,7 +756,7 @@ public class ShellFemModel3d extends FemModel3d {
    public void render (Renderer renderer, int flags) {
       renderer.setLineWidth (5);
       //renderDirectors(renderer);
-      renderForces(renderer);
+      //renderForces(renderer);
    }
    
    protected void renderDirectors(Renderer renderer) {
@@ -758,9 +767,9 @@ public class ShellFemModel3d extends FemModel3d {
             
             Vector3d end = new Vector3d(start);
             //end.add(sn.myDir);
-            end.add(sn.myDirector0);
-            end.add(sn.getDisplacement ());
-            end.sub (sn.myDir);
+            //end.add(sn.myDirector0);
+            //end.add(sn.getDisplacement ());
+            end.add (sn.myDir);
             
             renderer.drawLine (start, end);
          }

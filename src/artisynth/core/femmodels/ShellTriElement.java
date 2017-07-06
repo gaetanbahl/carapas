@@ -94,8 +94,7 @@ public class ShellTriElement extends ShellFemElement3d {
    protected static FemElementRenderer myRenderer;
 
    protected ShellIntegrationData3d[] myIntegrationData;
- 
-   protected final double myShellThickness = 1; 
+   
    
    /*** End of variables and static blocks declarations ****/
 
@@ -114,6 +113,8 @@ public class ShellTriElement extends ShellFemElement3d {
       p0.myAdjElements.add (this);
       p1.myAdjElements.add (this);
       p2.myAdjElements.add (this);
+      
+      myShellThickness = 0.01;
    }
 
    /**
@@ -350,7 +351,7 @@ public class ShellTriElement extends ShellFemElement3d {
    /**
     * Compute 1st derivative of shape function of particular node.
     * 
-    * FEBi: FEShellTri3G9::FEShellTri3G9()
+    * FEBio: FEShellTri3G9::FEShellTri3G9()
     */
    @Override
    public void getdNds (Vector3d dNds, int n, Vector3d rst) {
@@ -373,96 +374,10 @@ public class ShellTriElement extends ShellFemElement3d {
                + "]");
          }
       }
-      dNds.z = 0;
+      dNds.z = 0;               // unused
    }
 
    /*** Methods pertaining to volume **/
-
-   @Override
-   public double computeVolumes () {
-      double vol = computeVolume (/* isRest= */false);
-      myVolumes[0] = vol;
-      return vol;
-   }
-
-   @Override
-   public double computeRestVolumes () {
-      double vol = computeVolume (/* isRest= */true);
-      myRestVolumes[0] = vol;
-      return vol;
-   }
-
-   /**
-    * 
-    * FEMesh::ShellNewElementVolume
-    * 
-    * @param isRest
-    * @return
-    */
-   protected double computeVolume (boolean isRest) {
-      isRest = true; // TODO. FEBio always relies on m_r0 (initial pos)
-
-      Vector3d[] nodePos = new Vector3d[myNodes.length];
-      for (int i = 0; i < myNodes.length; i++) {
-         if (isRest) {
-            nodePos[i] = myNodes[i].myRest;
-         }
-         else {
-            nodePos[i] = myNodes[i].getPosition ();
-         }
-      }
-
-      double vol = 0;
-
-      Vector3d g0 = new Vector3d ();
-      Vector3d g1 = new Vector3d ();
-      Vector3d g2 = new Vector3d ();
-
-      // For each integration point...
-      ShellIntegrationPoint3d[] iPts = getIntegrationPoints ();
-      for (int i = 0; i < iPts.length; i++) {
-         ShellIntegrationPoint3d iPt = iPts[i];
-         double iPt_t = iPt.coords.z;
-         // Evaluate covariant basis vectors.
-         g0.setZero ();
-         g1.setZero ();
-         g2.setZero ();
-         // For each node...
-         for (int n = 0; n < myNodes.length; n++) {
-            ShellFemNode3d node = (ShellFemNode3d)myNodes[n];
-
-            Vector3d g0Term = new Vector3d (node.myDirector0);
-            g0Term.scale (iPt_t * 0.5);
-            g0Term.add (nodePos[n]);
-            double dNdr = iPt.getGNs ()[n].x;
-            g0Term.scale (dNdr);
-            g0.add (g0Term);
-
-            Vector3d g1Term = new Vector3d (node.myDirector0);
-            g1Term.scale (iPt_t * 0.5);
-            g1Term.add (nodePos[n]);
-            double dNds = iPt.getGNs ()[n].y;
-            g1Term.scale (dNds);
-            g1.add (g1Term);
-
-            Vector3d g2Term = new Vector3d (node.myDirector0);
-            double N = iPt.getShapeWeights ().get (n);
-            g2Term.scale (N * 0.5);
-            g2.add (g2Term);
-         }
-
-         Matrix3d J =
-            new Matrix3d (g0.x, g1.x, g2.x, g0.y, g1.y, g2.y, g0.z, g1.z, g2.z);
-
-         vol += J.determinant () * iPt.myWeight;
-      }
-
-      // TODO: 1.13, compared to original: 1.33
-      // System.out.println ("Vol: " + vol);
-      return vol;
-   }
-
-   
    
    @Override
    public int[] getEdgeIndices () {
@@ -512,7 +427,6 @@ public class ShellTriElement extends ShellFemElement3d {
          // compute rest Jacobians and such
          ShellIntegrationPoint3d[] ipnts = getIntegrationPoints();
          for (int i=0; i<idata.length; i++) {
-            // DANNY HERE
             idata[i].computeRestJacobian (ipnts[i], this);
          }
          myIntegrationDataValid = true;
@@ -533,24 +447,4 @@ public class ShellTriElement extends ShellFemElement3d {
       }
       return idata;
    }
-   
-   @Override
-   public double getShellThickness() {
-      return myShellThickness;
-   }
-   
-   
-   /**
-    * Get density of this shell element.
-    * 
-    * FEBio: FEElasticMaterial::FEElasticMaterial
-    * 
-    * Disabled for now. FEBio uses 1.0 constant but that constant will
-    * mess up with Artisynth's mass computation via computeMassFromDensity().
-    */
-//   @Override
-//   public double getDensity() {
-//      return 1.0;
-//   }
-   
 }

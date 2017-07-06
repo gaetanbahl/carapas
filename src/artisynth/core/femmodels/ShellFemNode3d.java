@@ -312,7 +312,7 @@ public class ShellFemNode3d extends FemNode3d {
    
    @Override
    public Frame getPointFrame() {
-      throw new RuntimeException("Unimplemented.");
+      return super.getPointFrame ();
    }
    
    @Override

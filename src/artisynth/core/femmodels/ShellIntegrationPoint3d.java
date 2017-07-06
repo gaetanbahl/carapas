@@ -103,11 +103,11 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
          
          Point3d pos = null;
          if (ePosType == NODE_POS.REST) {
-            pos = node.getLocalRestPosition();
+            pos = node.getRestPosition();
             d = new Vector3d( node.myDirector0 );
          }
          else if (ePosType == NODE_POS.CURRENT) {
-            pos = node.getLocalPosition();
+            pos = node.getPosition();
             d = new Vector3d( node.myDirector0 );
             d.add( node.getDisplacement() );
             d.sub( node.getDir() );
@@ -118,10 +118,10 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
             d = new Vector3d( node.myDirector0 );
          }
          
-         if (n == 0) {
-            System.out.println ("Node#0 direction: " + node.getDir());
-            System.out.println ("Node#0 displacement: " + node.getDisplacement());
-         }
+//         if (n == 0) {
+//            System.out.println ("Node#0 direction: " + node.getDir());
+//            System.out.println ("Node#0 displacement: " + node.getDisplacement());
+//         }
             
          //d0.sub(ele.myNodes[n].myDofd);
          

@@ -31,10 +31,10 @@ public class ShellPatch extends RootModel {
    protected MechModel m_mechModel = null;
 
    // 10,10,10,10
-   public final int mMeshX = 2;                
-   public final int mMeshY = 1;
-   public final int mMeshXDiv = 2;
-   public final int mMeshYDiv = 1;
+   public final int mMeshX = 10;                
+   public final int mMeshY = 10;
+   public final int mMeshXDiv = 10;
+   public final int mMeshYDiv = 10;
    
    protected PolygonalMesh mMesh = null;
    
@@ -83,6 +83,12 @@ public class ShellPatch extends RootModel {
          m_femShellModel.addElement(ele);
       }
       
+//      for (ShellFemNode3d node : m_nodes) {
+//         if (node.getNodeNeighbors().size() < 4) {
+//            //node.setDynamic( false );
+//         }
+//      }
+      
       m_femShellModel.setSurfaceRendering (SurfaceRender.Shaded);
 
       RenderProps.setFaceColor (m_femShellModel, Color.PINK);
@@ -115,5 +121,15 @@ public class ShellPatch extends RootModel {
       double edge12 = (v2.x - v1.x)*(v2.y + v1.y);
       double edge20 = (v0.x - v2.x)*(v0.y + v2.y);
       return (edge01 + edge12 + edge20 > 0);
+   }
+   
+   @Override
+   public void render (Renderer renderer, int flags) {
+      super.render(renderer, flags);
+//      for (FemElement3d el : this.m_femShellModel.getElements()) {
+//         RenderProps rp = el.createRenderProps ();
+//         el.setRenderProps (rp);
+//         el.getRenderProps ().setVisible (false);
+//      }
    }
 }

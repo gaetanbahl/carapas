@@ -7,15 +7,17 @@ import maspack.render.RenderProps;
 import maspack.render.Renderer;
 import maspack.util.InternalErrorException;
 
-public class ShellQuadTetElement extends ShellFemElement3d {
+/* Implementation of FEShellQuad4G8::FEShellQuad4G8() */
+public class ShellQuadElement extends ShellFemElement3d {
 
    /*** Variables and static blocks declarations ****/
 
    protected static double[] myNodeCoords = new double[] {
-      0, 0, 0,
       1, 0, 0,
+      0, 0, 0,
       0, 1, 0,
-      0, 0, 1 };
+      1, 1, 0 
+   };
 
    protected static double[] myDefaultIntegrationCoords;
    public static final double[] INTEGRATION_COORDS_GAUSS_8;
@@ -25,10 +27,13 @@ public class ShellQuadTetElement extends ShellFemElement3d {
       INTEGRATION_COORDS_GAUSS_8 = new double[] { 
          -a, -a, -a, w,
          +a, -a, -a, w,
+         
          +a, +a, -a, w,
          -a, +a, -a, w,
+         
          -a, -a, +a, w,
          +a, -a, +a, w,
+         
          +a, +a, +a, w,
          -a, +a, +a, w };
       myDefaultIntegrationCoords = INTEGRATION_COORDS_GAUSS_8;
@@ -66,11 +71,9 @@ public class ShellQuadTetElement extends ShellFemElement3d {
     */
    static int[] myEdgeIdxs = new int[] { 
       2, 0, 1,
-      2, 0, 2, 
-      2, 0, 3, 
-      2, 1, 2,
+      2, 1, 2, 
       2, 2, 3, 
-      2, 3, 1 
+      2, 3, 0,
    };
 
    /*
@@ -80,21 +83,17 @@ public class ShellQuadTetElement extends ShellFemElement3d {
     * face.
     */
    static int[] myFaceIdxs = new int[] { 
-      3, 0, 2, 1,
-      3, 0, 1, 3,
-      3, 1, 2, 3,
-      3, 2, 0, 3 
+      4, 0, 1, 2, 3
    };
 
    protected static FemElementRenderer myRenderer;
 
    protected ShellIntegrationData3d[] myIntegrationData;
-   
-   protected final double myShellThickness = 1;
+
    
    /*** End of variables and static blocks declarations ****/
 
-   public ShellQuadTetElement () {
+   public ShellQuadElement () {
       myNodes = new FemNode3d[myNodeCoords.length/3];
    }
 
@@ -102,11 +101,17 @@ public class ShellQuadTetElement extends ShellFemElement3d {
     * Creates a new TetraHedral element from four nodes. The first three nodes
     * should define a clockwise arrangement about a particular face.
     */
-   public ShellQuadTetElement (FemNode3d p0, FemNode3d p1, FemNode3d p2,
-   FemNode3d p3) {
-
+   public ShellQuadElement(
+      ShellFemNode3d p0, ShellFemNode3d p1, ShellFemNode3d p2, ShellFemNode3d p3) {
       this ();
       setNodes (p0, p1, p2, p3);
+      
+      p0.myAdjElements.add (this);
+      p1.myAdjElements.add (this);
+      p2.myAdjElements.add (this);
+      p3.myAdjElements.add (this);
+      
+      myShellThickness = 0.01;
    }
 
    /**
@@ -114,7 +119,7 @@ public class ShellQuadTetElement extends ShellFemElement3d {
     * define a clockwise arrangement about a particular face.
     */
    public void setNodes (
-      FemNode3d p0, FemNode3d p1, FemNode3d p2, FemNode3d p3) {
+      ShellFemNode3d p0, ShellFemNode3d p1, ShellFemNode3d p2, ShellFemNode3d p3) {
       myNodes[0] = p0;
       myNodes[1] = p1;
       myNodes[2] = p2;
@@ -265,7 +270,7 @@ public class ShellQuadTetElement extends ShellFemElement3d {
          //
          myNodalExtrapolationMatrix =
             createNodalExtrapolationMatrix (
-               ncoords, numIntegrationPoints (), new ShellQuadTetElement ());
+               ncoords, numIntegrationPoints (), new ShellQuadElement ());
 
          // For now, just use integration point values at corresponding nodes
          myNodalExtrapolationMatrix =
@@ -392,96 +397,6 @@ public class ShellQuadTetElement extends ShellFemElement3d {
    }
 
    /*** Methods pertaining to volume **/
-
-   @Override
-   public double computeVolumes () {
-      double vol = computeVolume (/* isRest= */false);
-      myVolumes[0] = vol;
-      return vol;
-   }
-
-   @Override
-   public double computeRestVolumes () {
-      double vol = computeVolume (/* isRest= */true);
-      myRestVolumes[0] = vol;
-      return vol;
-   }
-
-   /**
-    * 
-    * FEMesh::ShellNewElementVolume
-    * 
-    * @param isRest
-    * @return
-    */
-   protected double computeVolume (boolean isRest) {
-      isRest = true; // TODO. FEBio always relies on m_r0 (initial pos)
-
-//      if (myNodes[0].myDirector0 == null) {
-//         ((ShellFemModel3d)(myParent.getParent ())).initNodeDirectors ();
-//      }
-
-      Vector3d[] nodePos = new Vector3d[myNodes.length];
-      for (int i = 0; i < myNodes.length; i++) {
-         if (isRest) {
-            nodePos[i] = myNodes[i].myRest;
-         }
-         else {
-            nodePos[i] = myNodes[i].getPosition ();
-         }
-      }
-
-      double vol = 0;
-
-      Vector3d g0 = new Vector3d ();
-      Vector3d g1 = new Vector3d ();
-      Vector3d g2 = new Vector3d ();
-
-      // For each integration point...
-      ShellIntegrationPoint3d[] iPts = getIntegrationPoints ();
-      for (int i = 0; i < iPts.length; i++) {
-         ShellIntegrationPoint3d iPt = iPts[i];
-         double iPt_t = iPt.coords.z;
-         // Evaluate covariant basis vectors.
-         g0.setZero ();
-         g1.setZero ();
-         g2.setZero ();
-         // For each node...
-         for (int n = 0; n < myNodes.length; n++) {
-            ShellFemNode3d node = (ShellFemNode3d) myNodes[n];
-
-            Vector3d g0Term = new Vector3d (node.myDirector0);
-            g0Term.scale (iPt_t * 0.5);
-            g0Term.add (nodePos[n]);
-            double dNdr = iPt.getGNs ()[n].x;
-            g0Term.scale (dNdr);
-            g0.add (g0Term);
-
-            Vector3d g1Term = new Vector3d (node.myDirector0);
-            g1Term.scale (iPt_t * 0.5);
-            g1Term.add (nodePos[n]);
-            double dNds = iPt.getGNs ()[n].y;
-            g1Term.scale (dNds);
-            g1.add (g1Term);
-
-            Vector3d g2Term = new Vector3d (node.myDirector0);
-            double N = iPt.getShapeWeights ().get (n);
-            g2Term.scale (N * 0.5);
-            g2.add (g2Term);
-         }
-
-         Matrix3d J =
-            new Matrix3d (g0.x, g1.x, g2.x, g0.y, g1.y, g2.y, g0.z, g1.z, g2.z);
-
-         vol += J.determinant () * iPt.myWeight;
-      }
-
-      // TODO: 1.13, compared to original: 1.33
-      // System.out.println ("Vol: " + vol);
-      return vol;
-   }
-
-   
    
    @Override
    public int[] getEdgeIndices () {
@@ -531,7 +446,6 @@ public class ShellQuadTetElement extends ShellFemElement3d {
          // compute rest Jacobians and such
          ShellIntegrationPoint3d[] ipnts = getIntegrationPoints();
          for (int i=0; i<idata.length; i++) {
-            // DANNY HERE
             idata[i].computeRestJacobian (ipnts[i], this);
          }
          myIntegrationDataValid = true;
@@ -551,54 +465,5 @@ public class ShellQuadTetElement extends ShellFemElement3d {
          myIntegrationData = idata;
       }
       return idata;
-   }
-   
-   /**
-    * Compute the area-weighted normals for this tetrahedron. An area-weighted
-    * normal is an outward-facing normal for a face, scaled by the area of that
-    * face. The normals are returned in an array of four Vector3d objects, with
-    * the i-th normal corresponding to the face opposite the i-th vertex.
-    * 
-    * Code taken from TetElement.java.
-    * 
-    * DANNY TODO: Need to be shell-specific.
-    * 
-    * @param anormals
-    * returns the area-weight normals
-    */
-   public void getAreaWeightedNormals (Vector3d[] anormals) {
-      if (anormals.length < 4) {
-         throw new IllegalArgumentException (
-            "result array 'anormals' is too small");
-      }
-      Point3d p0 = myNodes[0].getPosition();
-      Point3d p1 = myNodes[1].getPosition();
-      Point3d p2 = myNodes[2].getPosition();
-      Point3d p3 = myNodes[3].getPosition();
-
-      getWeightedNormal (anormals[0], p1, p2, p3);
-      getWeightedNormal (anormals[1], p0, p3, p2);
-      getWeightedNormal (anormals[2], p0, p1, p3);
-      getWeightedNormal (anormals[3], p0, p2, p1);
-   }
-
-   private final void getWeightedNormal (
-      Vector3d awn, Point3d p0, Point3d p1, Point3d p2) {
-      double ux = p1.x - p0.x;
-      double uy = p1.y - p0.y;
-      double uz = p1.z - p0.z;
-
-      double vx = p2.x - p0.x;
-      double vy = p2.y - p0.y;
-      double vz = p2.z - p0.z;
-
-      awn.x = 0.5 * (uy * vz - uz * vy);
-      awn.y = 0.5 * (uz * vx - ux * vz);
-      awn.z = 0.5 * (ux * vy - uy * vx);
-   }
-
-   @Override
-   public double getShellThickness() {
-      return myShellThickness;
    }
 }

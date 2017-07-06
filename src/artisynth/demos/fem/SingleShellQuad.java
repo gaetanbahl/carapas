@@ -22,7 +22,7 @@ import maspack.render.*;
 import maspack.geometry.Vertex3d;
 import maspack.matrix.*;
 
-public class SingleShellTri extends RootModel {
+public class SingleShellQuad extends RootModel {
    ShellFemModel3d m_femShellModel;
    MechModel m_mechModel;
 
@@ -39,39 +39,26 @@ public class SingleShellTri extends RootModel {
    public void build (String[] args) {
       m_femShellModel = new ShellFemModel3d();
       
-//      m_node0 = new FemNode3d (-1, -1, 1);
-//      m_node1 = new FemNode3d (-1, 0, -1);
-//      m_node2 = new FemNode3d (-1, 1, 1);
-//      m_node3 = new FemNode3d (1, 0, 0);
-
-//      QuadTetShellElement tetShell = new QuadTetShellElement (m_node0, m_node1, m_node2, m_node3);
-//
-//      m_femShellModel.addNode (m_node0);
-//      m_femShellModel.addNode (m_node1);
-//      m_femShellModel.addNode (m_node2);
-//      m_femShellModel.addNode (m_node3);
-      
-//      m_femShellModel.addElement (tetShell);
-//      
-//      m_node0.setDynamic (false);
-//      m_node1.setDynamic (false);
-//      m_node2.setDynamic (false);
-      
-      m_node0 = new ShellFemNode3d (0, 0, 0);        // base
-      m_node1 = new ShellFemNode3d (1, 0, 0);        // right
-      m_node2 = new ShellFemNode3d (1, 1, 0);        // right-top
-      
+//      m_node0 = new ShellFemNode3d (0, 0, 0);        
+//      m_node1 = new ShellFemNode3d (1, 0, 0);      
+//      m_node2 = new ShellFemNode3d (1, 1, 0);    
+//      m_node3 = new ShellFemNode3d (0, 1, 0);  
+      m_node0 = new ShellFemNode3d (1, 0, 0);        
+      m_node1 = new ShellFemNode3d (0, 0, 0);      
+      m_node2 = new ShellFemNode3d (0, 1, 0);    
+      m_node3 = new ShellFemNode3d (1, 1, 0);        
       System.out.println ("Clockwise: " + isClockwise(
          m_node0.getPosition (), m_node1.getPosition (), m_node2.getPosition ()));
 //      m_node0.transformGeometry (new RigidTransform3d(0,0,0));
 //      m_node1.transformGeometry (new RigidTransform3d(0,0,1));
 //      m_node2.transformGeometry (new RigidTransform3d(0,0,2));
      
-      ShellTriElement triShell = new ShellTriElement(m_node0, m_node1, m_node2);
+      ShellQuadElement el = new ShellQuadElement(m_node0, m_node1, m_node2, m_node3);
       m_femShellModel.addNode (m_node0);
       m_femShellModel.addNode (m_node1);
       m_femShellModel.addNode (m_node2);
-      m_femShellModel.addElement (triShell);
+      m_femShellModel.addNode (m_node3);
+      m_femShellModel.addElement (el);
 
       m_femShellModel.setSurfaceRendering (SurfaceRender.Shaded);
 
