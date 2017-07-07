@@ -39,9 +39,11 @@ public class ShellPatch extends RootModel {
    protected PolygonalMesh mMesh = null;
    
    protected ShellFemNode3d[] m_nodes = null;
-
+   protected LinkedList<ShellFemNode3d> m_borderNodes = null;
+   
    final double m_density = 10000;
-   final double m_damping = 100;
+   final double m_damping = 10;
+   final double m_stiffnessDamping = 2;                
    
    public final double mNodeRadius = 0.1;
    
@@ -51,6 +53,7 @@ public class ShellPatch extends RootModel {
 
       mMesh = MeshFactory.createPlane(mMeshX, mMeshY, mMeshXDiv, mMeshYDiv);
       m_nodes = new ShellFemNode3d[mMesh.numVertices()];
+      m_borderNodes = new LinkedList<ShellFemNode3d>();
       
       for (Face face : mMesh.getFaces()) {
          Vertex3d[] triVtx = face.getTriVertices();
@@ -73,6 +76,8 @@ public class ShellPatch extends RootModel {
             }
          }
          
+         m_femShellModel.setStiffnessDamping (m_stiffnessDamping);
+         
          ShellFemNode3d n0 = m_nodes[ triVtx[0].getIndex() ];
          ShellFemNode3d n1 = m_nodes[ triVtx[1].getIndex() ];
          ShellFemNode3d n2 = m_nodes[ triVtx[2].getIndex() ];
@@ -82,13 +87,7 @@ public class ShellPatch extends RootModel {
          ShellTriElement ele = new ShellTriElement(n0, n1, n2);
          m_femShellModel.addElement(ele);
       }
-      
-//      for (ShellFemNode3d node : m_nodes) {
-//         if (node.getNodeNeighbors().size() < 4) {
-//            //node.setDynamic( false );
-//         }
-//      }
-      
+
       m_femShellModel.setSurfaceRendering (SurfaceRender.Shaded);
 
       RenderProps.setFaceColor (m_femShellModel, Color.PINK);
@@ -105,11 +104,19 @@ public class ShellPatch extends RootModel {
       RenderProps.setPointStyle (m_femShellModel.getNodes(), Renderer.PointStyle.SPHERE);
       RenderProps.setPointRadius (m_femShellModel.getNodes(), mNodeRadius);
 
-      m_femShellModel.setGravity (0, 0, 0);
+      m_femShellModel.setGravity (0, 0, -9.81);
       m_femShellModel.setDensity (m_density);
       m_femShellModel.setParticleDamping (m_damping);
 
       //m_mechModel.setProfiling (true);
+      
+      for (ShellFemNode3d node : m_nodes) {
+         node.setRenderProps( node.createRenderProps() );
+         if (isBorderNode(node.getIndex())) {
+            node.getRenderProps ().setPointColor (Color.GREEN);
+            node.setDynamic (false);
+         }
+      }
    }   
    
    public boolean isClockwise(Vertex3d[] triVtx) {
@@ -131,5 +138,33 @@ public class ShellPatch extends RootModel {
 //         el.setRenderProps (rp);
 //         el.getRenderProps ().setVisible (false);
 //      }
+//      for (ShellFemNode3d node : m_nodes) {
+//         if (isBorderNode(node.getIndex())) {
+//            //node.setPosition(m_nodeInitPositions[node.getIndex()]);
+//         }
+//      }
+   }
+   
+   
+   public boolean isBorderNode(int idx) {
+//      if (idx == 0 || idx == 1)
+//         return true;
+//      else 
+//         return false;
+      
+      if (idx <= mMeshXDiv ||
+              idx % (mMeshXDiv+1) == 0 || 
+              idx >= mMeshXDiv*mMeshYDiv+mMeshXDiv &&
+              idx <= mMeshXDiv*(mMeshYDiv+2))
+         return true;
+      
+      int leftDigit = idx % 10;
+      int rightDigit = idx - leftDigit;
+      rightDigit /= 10;
+      
+      if (rightDigit == leftDigit+1)
+         return true;
+      
+      return false;
    }
 }

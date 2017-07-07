@@ -13,10 +13,10 @@ public class ShellQuadElement extends ShellFemElement3d {
    /*** Variables and static blocks declarations ****/
 
    protected static double[] myNodeCoords = new double[] {
-      1, 0, 0,
       0, 0, 0,
-      0, 1, 0,
-      1, 1, 0 
+      1, 0, 0,
+      1, 1, 0,
+      0, 1, 0 
    };
 
    protected static double[] myDefaultIntegrationCoords;
@@ -110,8 +110,6 @@ public class ShellQuadElement extends ShellFemElement3d {
       p1.myAdjElements.add (this);
       p2.myAdjElements.add (this);
       p3.myAdjElements.add (this);
-      
-      myShellThickness = 0.01;
    }
 
    /**

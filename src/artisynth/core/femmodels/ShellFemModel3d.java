@@ -625,49 +625,36 @@ public class ShellFemModel3d extends FemModel3d {
    
    @Override
    public void applyForces (double t) {
-      //flip();
-      
-      // Reset directors and refresh.
-//      LinkedList<ShellFemElement3d> eles = new LinkedList<ShellFemElement3d>();
-//      for (FemElement3d e : this.myElements) {
-//         eles.add((ShellFemElement3d)e);
-//      }
-//      refreshNodeDirectors(eles, false);
-      
       super.applyForces(t);
+      
+//      for (FemNode3d node : this.getNodes()) {
+//         if (isBorderNode(node.getIndex())) {
+//            node.setPosition (node.getRestPosition ());
+//            ((ShellFemNode3d)node).myDir.setZero ();
+//         }
+//      }
    }
    
-   boolean flipped = false;
-   public void flip()
-   {
-      Vector3d elNormal = ShellIntegrationPoint3d.getElementNormal (this.myElements.get (0));
-      Vector3d d0 = ((ShellFemNode3d)this.myElements.get (0).myNodes[0]).myDirector0;
+   public final int mMeshXDiv = 10;
+   public final int mMeshYDiv = 10;
+   public boolean isBorderNode(int idx) {
+      if (idx <= mMeshXDiv ||
+              idx % (mMeshXDiv+1) == 0 || 
+              idx >= mMeshXDiv*mMeshYDiv+mMeshXDiv &&
+              idx <= mMeshXDiv*(mMeshYDiv+2))
+         return true;
       
-      if (flipped == true)
-         elNormal.scale (-1);
+      int leftDigit = idx % 10;
+      int rightDigit = idx - leftDigit;
+      rightDigit /= 10;
       
-      if ((elNormal.z < 0 && d0.z > 0) || (elNormal.z > 0 && d0.z < 0)) 
-      {
-         flipped = !flipped;
-         
-         FemElement3d el = this.myElements.get(0);
-         
-         FemNode3d n0 = el.myNodes[0];
-         FemNode3d n1 = el.myNodes[1];
-         FemNode3d n2 = el.myNodes[2];
-         
-         el.myNodes[0] = n2;
-         el.myNodes[1] = n1;
-         el.myNodes[2] = n0;
-         
-         for (FemNode3d n : el.myNodes) {
-            ShellFemNode3d sn = (ShellFemNode3d) n;
-            sn.myDirector0.scale(-1);
-         }
-         
-         System.out.println ("FLIPPED. el.z: " + elNormal.z + " d0.z: " + d0.z);
-      }
+      if (rightDigit == leftDigit+1)
+         return true;
+      
+      return false;
    }
+   
+   
    
    
    /*** Methods pertaining to the mass and solve blocks ***/

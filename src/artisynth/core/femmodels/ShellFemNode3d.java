@@ -4,6 +4,7 @@ import java.util.LinkedList;
 
 import artisynth.core.mechmodels.Frame;
 import artisynth.core.mechmodels.Point;
+import artisynth.core.mechmodels.PointTarget;
 import maspack.matrix.Matrix;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix3x3DiagBlock;
@@ -38,6 +39,10 @@ public class ShellFemNode3d extends FemNode3d {
    
    public Vector3d danF = new Vector3d();
    public Vector3d danDF = new Vector3d();
+   
+   protected Vector3d myTargetDir = new Vector3d();
+   protected Vector3d myTargetDirVel = new Vector3d();
+  
    
    
    public ShellFemNode3d() {
@@ -320,10 +325,75 @@ public class ShellFemNode3d extends FemNode3d {
       throw new RuntimeException("Unimplemented.");
    }
    
+   
+   /*** Methods pertaining to target states. Need for node.setDynamic(false) to
+        work ***/
+   
+   
+   @Override 
+   public void resetTargets() {
+      super.resetTargets ();
+      myTargetDir.set (myDir);
+      myTargetDirVel.set(myDirVel);
+   }
+   
+   @Override
+   public Point3d getTargetPosition() {
+      throw new RuntimeException("Unimplemented.");
+   }
+   
+   @Override
+   public void setTargetPosition (Point3d pos) {
+      throw new RuntimeException("Unimplemented.");
+   }
+   
    @Override
    public int addTargetJacobian (SparseBlockMatrix J, int bi) {
       throw new RuntimeException("Unimplemented.");
    }
+   
+   @Override
+   public Vector3d getTargetVelocity () {
+      throw new RuntimeException("Unimplemented.");
+   }
+   
+   @Override
+   public void setTargetVelocity (Vector3d vel) {
+      throw new RuntimeException("Unimplemented.");
+   }
+
+   public int getTargetVel (double[] velt, double s, double h, int idx) {
+      idx = super.getTargetVel (velt, s, h, idx);
+      velt[idx++] = myTargetDirVel.x;
+      velt[idx++] = myTargetDirVel.y;
+      velt[idx++] = myTargetDirVel.z;
+      return idx;
+   }
+
+   public int setTargetVel (double[] velt, int idx) {
+      idx = super.setTargetVel(velt, idx);
+      myTargetDirVel.x = velt[idx++];
+      myTargetDirVel.y = velt[idx++];
+      myTargetDirVel.z = velt[idx++];
+      return idx;
+   }
+
+   public int getTargetPos (double[] post, double s, double h, int idx) {
+      idx = super.getTargetPos (post, s, h, idx);
+      post[idx++] = myTargetDir.x;
+      post[idx++] = myTargetDir.y;
+      post[idx++] = myTargetDir.z;
+      return idx;
+   }
+
+   public int setTargetPos (double[] post, int idx) {
+      idx = super.setTargetPos(post, idx);
+      myTargetDir.x = post[idx++];
+      myTargetDir.y = post[idx++];
+      myTargetDir.z = post[idx++];
+      return idx;
+   }
+   
    
    
    /*** Methods pertaining to node neighbors. Override those methods that 

@@ -43,10 +43,10 @@ public class SingleShellQuad extends RootModel {
 //      m_node1 = new ShellFemNode3d (1, 0, 0);      
 //      m_node2 = new ShellFemNode3d (1, 1, 0);    
 //      m_node3 = new ShellFemNode3d (0, 1, 0);  
-      m_node0 = new ShellFemNode3d (1, 0, 0);        
-      m_node1 = new ShellFemNode3d (0, 0, 0);      
-      m_node2 = new ShellFemNode3d (0, 1, 0);    
-      m_node3 = new ShellFemNode3d (1, 1, 0);        
+      m_node0 = new ShellFemNode3d (0, 0, 0);        
+      m_node1 = new ShellFemNode3d (1, 0, 0);      
+      m_node2 = new ShellFemNode3d (1, 1, 0);    
+      m_node3 = new ShellFemNode3d (0, 1, 0);        
       System.out.println ("Clockwise: " + isClockwise(
          m_node0.getPosition (), m_node1.getPosition (), m_node2.getPosition ()));
 //      m_node0.transformGeometry (new RigidTransform3d(0,0,0));
@@ -60,6 +60,8 @@ public class SingleShellQuad extends RootModel {
       m_femShellModel.addNode (m_node3);
       m_femShellModel.addElement (el);
 
+      m_node3.setDynamic (false);
+      
       m_femShellModel.setSurfaceRendering (SurfaceRender.Shaded);
 
       RenderProps.setFaceColor (m_femShellModel, Color.PINK);
