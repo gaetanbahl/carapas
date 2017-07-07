@@ -3,6 +3,11 @@
 // fragment color output
 out vec4 fragment_color;
 
+// fragment colors from previous shader
+in ColorData {
+   vec4 diffuse;
+} colorIn;
+
 // material properties
 struct Material {
    vec4 diffuse;   // alpha is diffuse.a
@@ -30,22 +35,36 @@ in LightColorData {
 // main fragment shader
 void main() {
 
-   vec3 ambient = vec3(0.0);
-   vec3 diffuse = vec3(1.0);
-   vec3 specular = vec3(0.0);
-   vec3 emission = vec3(0.0);
+   vec3 ambient, diffuse, specular, emission;
    Material material;
+   // imported per-vertex lighting
+   if( gl_FrontFacing ) {
+      ambient  = lightIn.front_ambient;
+      diffuse  = lightIn.front_diffuse;
+      specular = lightIn.front_specular;
+      material = front_material;
+   } else {
+      diffuse  = lightIn.back_diffuse;
+      ambient  = lightIn.back_ambient;
+      specular = lightIn.back_specular;
+      material = back_material;
+   }
 
    // compute final color, starting with material
    vec4 fdiffuse = material.diffuse;
    vec3 fspecular = material.specular.rgb;
    vec3 femission = material.emission.rgb;
 
+   // incoming vertex color
+   vec4 vcolor = colorIn.diffuse;
+   // mix
+   fdiffuse  = vcolor;     // replace
+   femission = vcolor.rgb; // replace
    // apply lighting
    ambient  = fdiffuse.rgb*ambient*material.power.x;
    diffuse  = fdiffuse.rgb*diffuse*material.power.y;
    specular = fspecular*specular*material.power.z;
-   emission = femission*material.power.w;  // emission only material-related
-   fragment_color = vec4(max(diffuse+specular+emission, ambient), fdiffuse.a);
+   emission = femission*material.power.w;
+   fragment_color = vec4(max(emission, ambient), fdiffuse.a);
 
 }

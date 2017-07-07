@@ -12,10 +12,12 @@ layout (std140) uniform Matrices {
 // vertex inputs
 in vec3 vertex_position;
 in vec3 vertex_normal;
+in vec4 vertex_color;
 
-// instance inputs
-in float instance_scale;
-in vec3  instance_position;
+// per-vertex color info
+out ColorData {
+   vec4 diffuse;
+} colorOut;
 
 // material properties
 struct Material {
@@ -75,11 +77,12 @@ void main() {
    vec3 position;  // transformed vertex position
    vec3 normal;  // transformed vertex normal
 
-   // instance vertex, scale-translate
-   position = instance_scale * vertex_position + instance_position;
+   position = vertex_position;
    normal = vertex_normal;
    // vertex output
    gl_Position = pvm_matrix * vec4(position, 1.0);
+
+   colorOut.diffuse = vertex_color;
 
    // per-vertex lighting computations
    // compute camera position/normal
@@ -98,7 +101,7 @@ void main() {
    vec3 blspec = vec3(0.0);
    
    // lights
-   for (int i=0; i<1; ++i) {
+   for (int i=0; i<3; ++i) {
       vec3  light_to_vertex = camera_position.xyz-light[i].position.xyz;
       float lightdist = length(light_to_vertex);
       light_to_vertex = light_to_vertex/lightdist;
