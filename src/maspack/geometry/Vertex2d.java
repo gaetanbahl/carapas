@@ -15,7 +15,6 @@ public class Vertex2d { // extends Feature {
    public Point2d pnt;
 
    public Vertex2d() {
-      // super (VERTEX_2D);
       pnt = new Point2d();
    }
 

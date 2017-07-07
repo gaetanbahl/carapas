@@ -8,18 +8,27 @@
 package maspack.geometry;
 
 import java.awt.Color;
-import java.util.*;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 
-import maspack.geometry.BVFeatureQuery.PointFeatureDistanceCalculator;
-import maspack.matrix.*;
-import maspack.render.*;
-import maspack.render.Renderer.DrawMode;
-import maspack.render.Renderer.Shading;
-import maspack.render.Renderer.PointStyle;
-import maspack.render.Renderer.LineStyle;
+import maspack.matrix.AffineTransform3dBase;
+import maspack.matrix.Point3d;
+import maspack.matrix.Vector3d;
+import maspack.matrix.Vector3i;
+import maspack.render.PointLineRenderProps;
+import maspack.render.RenderList;
 import maspack.render.RenderObject;
-import maspack.util.Logger;
+import maspack.render.RenderProps;
+import maspack.render.Renderable;
+import maspack.render.Renderer;
+import maspack.render.Renderer.DrawMode;
+import maspack.render.Renderer.LineStyle;
+import maspack.render.Renderer.PointStyle;
+import maspack.render.Renderer.Shading;
 import maspack.util.StringHolder;
 
 /**
@@ -46,11 +55,11 @@ import maspack.util.StringHolder;
  * of vertex values across each cell is used to compute the distance and normal
  * for a general point within the grid volume.
  */
-public class DistanceGrid implements Renderable, DistanceQueryable {
+public class DistanceGrid implements Renderable {
 
-   private Vector3d myCellWidths;     // cell widths along x, y, z
-   private double[] myPhi;            // distance values at each vertex
-   private Vector3d[] myNormals;      // normal values at each vertex
+   protected Vector3d myCellWidths;     // cell widths along x, y, z
+   protected double[] myPhi;            // distance values at each vertex
+   protected Vector3d[] myNormals;      // normal values at each vertex
    public static double OUTSIDE = Double.MAX_VALUE;
 
    // colors, colorMap and color indices which can be used to assign colors to
@@ -68,47 +77,81 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
    /**
     * Maximum of the distance field, in mesh coordinates.
     */
-   private Point3d myMaxCoord = new Point3d();
+   protected Point3d myMaxCoord = new Point3d();
    /**
     * Minimum of the distance field, in mesh coordinates.
     */
-   private Point3d myMinCoord = new Point3d();
+   protected Point3d myMinCoord = new Point3d();
 
    /**
     * Diamter of the grid
     */
    private double myDiameter;
 
-   private int numVX = 0;  // number of vertices along X
-   private int numVY = 0;  // number of vertices along Y
-   private int numVZ = 0;  // number of vertices along Z
-   private int numVXxVY = 0; // numVX*numVY
+   protected int numVX = 0;  // number of vertices along X
+   protected int numVY = 0;  // number of vertices along Y
+   protected int numVZ = 0;  // number of vertices along Z
+   protected int numVXxVY = 0; // numVX*numVY
 
    /**
     * An array giving the index of the nearest Feature to each vertex.
     */
-   private int[] myClosestFeatureIdxs;
+   protected int[] myClosestFeatureIdxs;
    
-   Feature[] myFeatures;
-   AffineTransform3dBase myWorldTransform;
+   protected Feature[] myFeatures;
+   protected AffineTransform3dBase myWorldTransform;
 
    DistanceGrid () {
       myRenderProps = createRenderProps();
    }
    
+   /**
+    * Sets a transform to be used to map between local and world coordinates
+    * @param trans local-to-world transform
+    */
    public void setWorldTransform(AffineTransform3dBase trans) {
       myWorldTransform = trans;
    }
    
    /**
-    * Converts v to local coordinates, if the distance grid has a world transform
+    * Converts point to local coordinates, if the distance grid has a world transform
     * @param local populated local coordinates
     * @param world world coordinates
     */
-   public void getLocalCoordinates(Point3d local, Point3d world) {
-      local.set(world);
+   private void getLocalCoordinates(Point3d local, Point3d world) {
+      if (local != world) {
+         local.set(world);
+      }
       if (myWorldTransform != null) {
          local.inverseTransform(myWorldTransform);
+      }
+   }
+   
+   /**
+    * Converts point to world coordinates, if the distance grid has a world transform
+    * @param world populated world coordinates
+    * @param local local coordinates
+    */
+   private void getWorldCoordinates(Point3d world, Point3d local) {
+      if (local != world) {
+         world.set(local);
+      }
+      if (myWorldTransform != null) {
+         world.transform(myWorldTransform);
+      }
+   }
+   
+   /**
+    * Converts a normal to world coordinates
+    * @param world populated world normal
+    * @param local local normal
+    */
+   private void getWorldNormal(Vector3d world, Vector3d local) {
+      if (local != world) {
+         world.set(local);
+      }
+      if (myWorldTransform != null) {
+         myWorldTransform.getMatrix().mulInverseTranspose(world);
       }
    }
 
@@ -302,7 +345,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
    /** 
     * Calculates the distance field.
     */
-   private void calculatePhi (Feature[] features, double marginDist) {
+   protected void calculatePhi (Feature[] features, double marginDist) {
       // Logger logger = Logger.getSystemLogger();
       //logger.info ("Calculating Distance Field...");
 
@@ -406,83 +449,6 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
       
    }
 
-
-   /** 
-    * Calculates the distance field, using bounding volume
-    * hierarchy queries at each vertex. This method can be considerably
-    * slower than the default approach and so is not currently used.
-    */
-   private void calculatePhiBVH (Feature[] features, double marginDist) {
-      Logger logger = Logger.getSystemLogger();
-      logger.info ("Calculating Distance Field...");
-
-      // gridSize represents the maximum point in grid coordinates, rounded
-      // up to the nearest full cell.
-      // +1 for rounding up after casting to an integer.
-      // +1 because it is a node count, not cell count
-      // numVX = (int)(Math.ceil((myMaxCoord.x-myMinCoord.x) / myCellWidths.x))+1; 
-      // numVY = (int)(Math.ceil((myMaxCoord.y-myMinCoord.y) / myCellWidths.y))+1;
-      // numVZ = (int)(Math.ceil((myMaxCoord.z-myMinCoord.z) / myCellWidths.z))+1;
-      // numVXxVY = numVX*numVY;
-      
-      myFeatures = features;
-      
-      int numV = numVX*numVY*numVZ;
-
-      myPhi = new double [numV];
-      myNormals = new Vector3d [numV];
-      myColorIndices = new int [numV];
-
-      // The index of closestFeature matches with phi.
-      // Each entry in closestFeature is the index of the closest 
-      // Feature to the grid vertex.
-      myClosestFeatureIdxs = new int[myPhi.length];
-
-      BVFeatureQuery query = new BVFeatureQuery();
-      // create our own bvtree for the features, since we can then dispose of it
-      // after we are down building the SD field
-      AABBTree bvtree = new AABBTree (); //features, 2, marginDist);
-      bvtree.setMargin(marginDist);
-      bvtree.setMaxLeafElements(2);
-      bvtree.build(features, features.length);
-      System.out.println ("tree done");
-
-      // Now go through the entire parallelpiped. Calculate distance and
-      // closestFeature.
-      Vector3i vxyz = new Vector3i();
-      Point3d near = new Point3d();
-      Point3d coords = new Point3d();
-      double tol = 1e-12*myMaxCoord.distance(myMinCoord);
-      
-      HashMap<Feature,Integer> featureIdxMap = new HashMap<>();
-      for (int i=0; i<features.length; ++i) {
-         featureIdxMap.put(features[i], i);
-      }
-      
-      PointFeatureDistanceCalculator calc = new PointFeatureDistanceCalculator();
-      
-      for (int idx=0; idx<myPhi.length; idx++) {
-         vertexToXyzIndices (vxyz, idx);
-         getLocalVertexCoords (coords, vxyz);
-         
-         // Get the distance from this point to the Feature.
-         calc.setPoint(coords);
-         calc.reset();
-         Feature ftr = (Feature)query.nearestObjectToPoint(near, bvtree, calc);
-         
-         Vector3d diff = new Vector3d();
-         Vector3d normal = new Vector3d();
-         diff.sub (coords, near);
-         double dist = diff.norm();
-         normal.normalize(diff);
-         myPhi[idx] = dist;
-         
-         //myNormals[idx] = normal;
-         myClosestFeatureIdxs[idx] = featureIdxMap.get(ftr);
-      }
-      logger.println ("done.");
-   }
-
    /** 
     * Calculates the normal at a vertex on the grid, using numeric
     * differentiation.
@@ -552,19 +518,77 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * @param z z coordinate of point (in local coordinates).
     * @return distance to the nearest feature
     */
-   public double getDistanceAndNormal (
+   public double getLocalDistanceAndNormal (
       Vector3d norm, double x, double y, double z) {
       Point3d point = new Point3d (x, y, z);
-      return getDistanceAndNormal (norm, point);
+      return getLocalDistanceAndNormal (norm, point);
+   }
+   
+   /** 
+    * Calculates the distance and normal at an arbitrary world point. These values
+    * are determined by multilinear interpolation of the vertex values
+    * for the grid cell containing the point. If the point lies outside
+    * the grid volume, {@link #OUTSIDE} is returned.
+    *
+    * @param norm returns the normal (in world coordinates)
+    * @param x x coordinate of point (in world coordinates).
+    * @param y y coordinate of point (in world coordinates).
+    * @param z z coordinate of point (in world coordinates).
+    * @return distance to the nearest feature
+    */
+   public double getWorldDistanceAndNormal(Vector3d norm, double x, double y, double z) {
+      Point3d point = new Point3d(x,y,z);
+      getLocalCoordinates(point, point);
+      double d = getLocalDistanceAndNormal(norm, point);
+      // transform normal by inverse transform
+      if (norm != null) {
+         getWorldNormal(norm, norm);
+      }
+      return d;
+   }
+   
+   /** 
+    * Calculates the distance and gradient at an arbitrary point. These values
+    * are determined by multilinear interpolation of the vertex values
+    * for the grid cell containing the point. If the point lies outside
+    * the grid volume, {@link #OUTSIDE} is returned.
+    *
+    * @param grad returns the gradient (in local coordinates)
+    * @param x x coordinate of point (in local coordinates).
+    * @param y y coordinate of point (in local coordinates).
+    * @param z z coordinate of point (in local coordinates).
+    * @return distance to the nearest feature
+    */
+   public double getLocalDistanceAndGradient(
+      Vector3d grad, double x, double y, double z) {
+      Point3d point = new Point3d(x, y, z);
+      return getLocalDistanceAndGradient(grad, point);
+   }
+   
+   /** 
+    * Calculates the distance and gradient at an arbitrary world point. These values
+    * are determined by multilinear interpolation of the vertex values
+    * for the grid cell containing the point. If the point lies outside
+    * the grid volume, {@link #OUTSIDE} is returned.
+    *
+    * @param norm returns the grad (in world coordinates)
+    * @param x x coordinate of point (in world coordinates).
+    * @param y y coordinate of point (in world coordinates).
+    * @param z z coordinate of point (in world coordinates).
+    * @return distance to the nearest feature
+    */
+   public double getWorldDistanceAndGradient(Vector3d grad, double x, double y, double z) {
+      Point3d point = new Point3d(x,y,z);
+      return getWorldDistanceAndGradient(grad, point);
    }
    
    /**
     * Determines nearest feature to a point
     * @param nearest populates with the nearest point on the feature
-    * @param point point for which to find nearest feature
+    * @param point point for which to find nearest feature (in local coordinates)
     * @return nearest feature, or null if outside of domain
     */
-   public Feature getNearestFeature(Point3d nearest, Point3d point) {
+   public Feature getNearestLocalFeature(Point3d nearest, Point3d point) {
       
       // Change to grid coordinates
       double tempPointX = (point.x - myMinCoord.x) / myCellWidths.x;
@@ -627,6 +651,20 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
       return nf; 
       
    }
+   
+   /**
+    * Determines nearest feature to a point
+    * @param nearest populates with the nearest point on the feature
+    * @param point point for which to find nearest feature (in world coordinates)
+    * @return nearest feature, or null if outside of domain
+    */
+   public Feature getNearestWorldFeature(Point3d nearest, Point3d point) {
+      Point3d lpnt = new Point3d();
+      getLocalCoordinates(lpnt, point);
+      Feature out = getNearestLocalFeature(nearest, lpnt);
+      getWorldCoordinates(nearest, nearest);
+      return out;
+   }
 
    /** 
     * Calculates the distance at an arbitrary point. These values
@@ -638,8 +676,14 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * (in local coordinates).
     * @return distance to the nearest feature
     */
-   public double getDistance(Point3d point) {
-      return getDistanceAndNormal(null, point);
+   public double getLocalDistance(Point3d point) {
+      return getLocalDistanceAndNormal(null, point);
+   }
+   
+   public double getWorldDistance(Point3d point) {
+      Point3d lpnt = new Point3d();
+      getLocalCoordinates(lpnt, point);
+      return getLocalDistance(lpnt);
    }
    
    /** 
@@ -653,7 +697,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * (in local coordinates).
     * @return distance to the nearest feature
     */
-   public double getDistanceAndNormal (Vector3d norm, Point3d point) {
+   public double getLocalDistanceAndNormal (Vector3d norm, Point3d point) {
       // Change to grid coordinates
       double tempPointX = (point.x - myMinCoord.x) / myCellWidths.x;
       double tempPointY = (point.y - myMinCoord.y) / myCellWidths.y;
@@ -695,14 +739,14 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
 
       if (norm != null) {
 
-         Vector3d nrm000 = getVertexNormal (minx  , miny  , minz  );
-         Vector3d nrm001 = getVertexNormal (minx  , miny  , minz+1);
-         Vector3d nrm010 = getVertexNormal (minx  , miny+1, minz  );
-         Vector3d nrm011 = getVertexNormal (minx  , miny+1, minz+1);
-         Vector3d nrm100 = getVertexNormal (minx+1, miny  , minz  );
-         Vector3d nrm101 = getVertexNormal (minx+1, miny  , minz+1);
-         Vector3d nrm110 = getVertexNormal (minx+1, miny+1, minz  );
-         Vector3d nrm111 = getVertexNormal (minx+1, miny+1, minz+1);
+         Vector3d nrm000 = getLocalVertexNormal (minx  , miny  , minz  );
+         Vector3d nrm001 = getLocalVertexNormal (minx  , miny  , minz+1);
+         Vector3d nrm010 = getLocalVertexNormal (minx  , miny+1, minz  );
+         Vector3d nrm011 = getLocalVertexNormal (minx  , miny+1, minz+1);
+         Vector3d nrm100 = getLocalVertexNormal (minx+1, miny  , minz  );
+         Vector3d nrm101 = getLocalVertexNormal (minx+1, miny  , minz+1);
+         Vector3d nrm110 = getLocalVertexNormal (minx+1, miny+1, minz  );
+         Vector3d nrm111 = getLocalVertexNormal (minx+1, miny+1, minz+1);
 
          norm.setZero();
          norm.scaledAdd (w000, nrm000);
@@ -725,7 +769,130 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
       w110*getVertexDistance (minx+1, miny+1, minz  ) +
       w111*getVertexDistance (minx+1, miny+1, minz+1);
    }
+   
+   /** 
+    * Calculates the distance and normal at an arbitrary point. These values
+    * are determined by multilinear interpolation of the vertex values
+    * for the grid cell containing the point. If the point lies outside
+    * the grid volume, {@link #OUTSIDE} is returned.
+    *
+    * @param norm returns the normal (in world coordinates)
+    * @param point point at which to calculate the normal and distance
+    * (in world coordinates).
+    * @return distance to the nearest feature
+    */
+   public double getWorldDistanceAndNormal (Vector3d norm, Point3d point) {
+      Point3d lpnt = new Point3d();
+      getLocalCoordinates(lpnt, point);
+      double d = getLocalDistanceAndNormal(norm, lpnt);
+      if (norm != null) {
+         getWorldNormal(norm, norm);
+      }
+      return d;
+   }
 
+   /** 
+    * Calculates the distance and gradient at an arbitrary point. These values
+    * are determined by multilinear interpolation of the vertex values
+    * for the grid cell containing the point. If the point lies outside
+    * the grid volume, {@link #OUTSIDE} is returned.
+    *
+    * @param grad returns the gradient direction (in local coordinates)
+    * @param point point at which to calculate the gradient and distance
+    * (in local coordinates).
+    * @return distance to the nearest feature
+    */
+   public double getLocalDistanceAndGradient (Vector3d grad, Point3d point) {
+      // Change to grid coordinates
+      double tempPointX = (point.x - myMinCoord.x) / myCellWidths.x;
+      double tempPointY = (point.y - myMinCoord.y) / myCellWidths.y;
+      double tempPointZ = (point.z - myMinCoord.z) / myCellWidths.z;
+      int minx = (int)tempPointX;
+      int miny = (int)tempPointY;
+      int minz = (int)tempPointZ;
+
+      if (tempPointX < 0 || tempPointX > numVX - 1 ||
+          tempPointY < 0 || tempPointY > numVY - 1 ||
+          tempPointZ < 0 || tempPointZ > numVZ - 1) {
+         return OUTSIDE;
+      }
+      double dx = tempPointX - minx;
+      double dy = tempPointY - miny;
+      double dz = tempPointZ - minz;
+      if (tempPointX == numVX - 1) {
+         minx -= 1;
+         dx = 1;
+      }
+      if (tempPointY == numVY - 1) {
+         miny -= 1;
+         dy = 1;
+      }
+      if (tempPointZ == numVZ - 1) {
+         minz -= 1;
+         dz = 1;
+      }
+
+      // Now use trilinear interpolation to get the normal at 'point'.
+      double w000 = (1-dx)*(1-dy)*(1-dz);
+      double w001 = (1-dx)*(1-dy)*dz;
+      double w010 = (1-dx)*dy*(1-dz);
+      double w011 = (1-dx)*dy*dz;
+      double w100 = dx*(1-dy)*(1-dz);
+      double w101 = dx*(1-dy)*dz;
+      double w110 = dx*dy*(1-dz);
+      double w111 = dx*dy*dz;
+
+      double d000 = getVertexDistance (minx  , miny  , minz  );
+      double d001 = getVertexDistance (minx  , miny  , minz+1);
+      double d010 = getVertexDistance (minx  , miny+1, minz  );
+      double d011 = getVertexDistance (minx  , miny+1, minz+1);
+      double d100 = getVertexDistance (minx+1, miny  , minz  );
+      double d101 = getVertexDistance (minx+1, miny  , minz+1);
+      double d110 = getVertexDistance (minx+1, miny+1, minz  );
+      double d111 = getVertexDistance (minx+1, miny+1, minz+1);
+
+      if (grad != null) {
+         grad.x = -(1-dy)*(1-dz)*d000 -(1-dy)*dz*d001
+            -dy*(1-dz)*d010 - dy*dz*d011
+            + (1-dy)*(1-dz)*d100 + (1-dy)*dz*d101
+            + dy*(1-dz)*d110 + dy*dz*d111;
+         grad.y = -(1-dx)*(1-dz)*d000 -(1-dx)*dz*d001 
+            +(1-dx)*(1-dz)*d010 + (1-dx)*dz*d011
+            - dx*(1-dz)*d100 - dx*dz*d101
+            + dx*(1-dz)*d110 + dx*dz*d111;
+         grad.z = -(1-dx)*(1-dy)*d000+(1-dx)*(1-dy)*d001
+            -(1-dx)*dy*d010+(1-dx)*dy*d011
+            -dx*(1-dy)*d100+dx*(1-dy)*d101
+            -dx*dy*d110+dx*dy*d111;
+      }      
+      
+      return w000*d000 + w001*d001 + w010*d010 + w011*d011 + w100*d100 +
+         w101*d101 + w110*d110 + w111*d111;
+   }
+   
+   /** 
+    * Calculates the distance and gradient at an arbitrary point. These values
+    * are determined by multilinear interpolation of the vertex values
+    * for the grid cell containing the point. If the point lies outside
+    * the grid volume, {@link #OUTSIDE} is returned.
+    *
+    * @param grad returns the gradient (in world coordinates)
+    * @param point point at which to calculate the gradient and distance
+    * (in world coordinates).
+    * @return distance to the nearest feature
+    */
+   public double getWorldDistanceAndGradient (Vector3d grad, Point3d point) {
+      Point3d lpnt = new Point3d();
+      getLocalCoordinates(lpnt, point);
+      double d = getLocalDistanceAndNormal(grad, lpnt);
+      if (grad != null) {
+         // gradients transform like normals
+         getWorldNormal(grad, grad);
+      }
+      return d;
+   }
+   
+   
    /**
     * Given a vertex index <code>vi</code>, compute the corresponding
     * x, y, z indices.
@@ -734,7 +901,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * @param vi global index
     * @return reference to <code>vxyz</code> 
     */
-   private Vector3i vertexToXyzIndices (Vector3i vxyz, int vi) {
+   public Vector3i vertexToXyzIndices (Vector3i vxyz, int vi) {
       vxyz.z = vi / (numVXxVY);
       vxyz.y = (vi - vxyz.z * numVXxVY) / numVX;
       vxyz.x = vi % numVX;
@@ -761,7 +928,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * @param zk z vertex index
     * @return vertex index
     */
-   private int xyzIndicesToVertex (int xi, int yj, int zk) {
+   protected int xyzIndicesToVertex (int xi, int yj, int zk) {
       return xi + yj*numVX + zk*numVXxVY;
    }
    
@@ -824,7 +991,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * @param zk z vertex index
     * @return nearest feature normal at the vertex (must not be modified)
     */
-   private Vector3d getVertexNormal (int xi, int yj, int zk) {
+   protected Vector3d getLocalVertexNormal (int xi, int yj, int zk) {
       Vector3d nrm = myNormals[xyzIndicesToVertex(xi, yj, zk)];
       if (nrm == null) {
          nrm = calcNormal (xi, yj, zk);
@@ -839,7 +1006,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * @param vxyz x, y, z vertex indices
     * @return nearest feature distance at the vertex (must not be modified)
     */
-   private Vector3d getVertexNormal (Vector3i vxyz) {
+   private Vector3d getLocalVertexNormal (Vector3i vxyz) {
       Vector3d nrm = myNormals[xyzIndicesToVertex(vxyz)];
       if (nrm == null) {
          nrm = calcNormal (vxyz.x, vxyz.y, vxyz.z);
@@ -870,7 +1037,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * @param vxyz x, y, z vertex indices
     * @return mesh distance at the vertex
     */
-   private double getVertexDistance (Vector3i vxyz) {
+   protected double getVertexDistance (Vector3i vxyz) {
       return myPhi[xyzIndicesToVertex(vxyz)];
    }
    
@@ -883,7 +1050,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * @param zk z vertex index
     * @return nearest feature distance at the vertex
     */   
-   private double getVertexDistance (int xi, int yj, int zk) {
+   protected double getVertexDistance (int xi, int yj, int zk) {
       return myPhi[xyzIndicesToVertex(xi, yj, zk)];
    }
 
@@ -929,7 +1096,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * @param dz z direction of sweep
     * @param pc temporary variable
     */
-   private void sweep (int dx, int dy, int dz, Point3d pc, Point3d p1) {
+   protected void sweep (int dx, int dy, int dz, Point3d pc, Point3d p1) {
       int x0, x1;
       if (dx > 0) {
          x0 = 1;
@@ -1001,7 +1168,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
                int cidx = myColorMap != null ? myColorIndices[vi] : -1;
                rob.addPosition (coords);
                rob.addVertex (vidx, -1, cidx, -1);
-               coords.scaledAdd (len, getVertexNormal (xi, yj, zk));
+               coords.scaledAdd (len, getLocalVertexNormal (xi, yj, zk));
                rob.addPosition (coords);
                rob.addVertex (vidx+1, -1, cidx, -1);
 
@@ -1147,8 +1314,11 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * {@inheritDoc}
     */
    public void updateBounds (Vector3d pmin, Vector3d pmax) {
-      myMinCoord.updateBounds(pmin, pmax);
-      myMaxCoord.updateBounds(pmin, pmax);
+      Point3d w = new Point3d();
+      getWorldCoordinates(w, myMinCoord);
+      w.updateBounds(pmin, pmax);
+      getWorldCoordinates(w, myMaxCoord);
+      w.updateBounds(pmin, pmax);
    }
 
    /**
@@ -1164,7 +1334,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * @param idx vertex index
     * @return nearest Feature to the vertex
     */
-   private Feature getClosestFeature(int idx) {
+   public Feature getClosestFeature(int idx) {
       return myFeatures[myClosestFeatureIdxs[idx]];
    }
 
@@ -1212,7 +1382,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * @param zk z vertex index
     * @return coords
     */
-   private Vector3d getLocalVertexCoords (
+   protected Vector3d getLocalVertexCoords (
       Vector3d coords, int xi, int yj, int zk) {
       coords.x = xi * myCellWidths.x + myMinCoord.x;
       coords.y = yj * myCellWidths.y + myMinCoord.y;
@@ -1228,7 +1398,7 @@ public class DistanceGrid implements Renderable, DistanceQueryable {
     * @param vxyz x, y, z vertex indices
     * @return coords
     */
-   private Vector3d getLocalVertexCoords (Vector3d coords, Vector3i vxyz) {
+   public Vector3d getLocalVertexCoords (Vector3d coords, Vector3i vxyz) {
       coords.x = vxyz.x * myCellWidths.x + myMinCoord.x;
       coords.y = vxyz.y * myCellWidths.y + myMinCoord.y;
       coords.z = vxyz.z * myCellWidths.z + myMinCoord.z;
