@@ -78,6 +78,7 @@ public class SignedDistanceGrid extends DistanceGrid implements Renderable {
    public SignedDistanceGrid (
       PolygonalMesh mesh, double marginFraction, int maxResolution) {
       super(mesh.getFaces().toArray(new Face[mesh.numFaces()]), marginFraction, maxResolution);
+      setWorldTransform(mesh.getMeshToWorld());
    }
    
    /**
@@ -100,7 +101,8 @@ public class SignedDistanceGrid extends DistanceGrid implements Renderable {
     */
    public SignedDistanceGrid (
       PolygonalMesh mesh, double marginFraction, Vector3i resolution) {
-	   super(mesh.getFaces().toArray(new Face[mesh.numFaces()]), marginFraction, resolution);
+      super(mesh.getFaces().toArray(new Face[mesh.numFaces()]), marginFraction, resolution);
+      setWorldTransform(mesh.getMeshToWorld());
    }
 
 //   /**

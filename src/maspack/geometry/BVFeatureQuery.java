@@ -1301,7 +1301,7 @@ public class BVFeatureQuery {
       }
    }
    
-   public static class PointFeatureDistanceCalculator implements ObjectDistanceCalculator {
+   private static class PointFeatureDistanceCalculator implements ObjectDistanceCalculator {
 
       Point3d myPnt;
       Point3d myNearest;

@@ -20,7 +20,7 @@ public abstract class Feature implements Boundable {
    public static final int VERTEX_3D = 1;
    public static final int HALF_EDGE = 2;
    public static final int FACE = 3;
-   public static final int VERTEX_2D = 4;
+   public static final int LINE_SEGMENT = 4;
    public static final int EDGE = 5;
    public static final int FACET = 6;
    public static final int CELL = 7;
@@ -52,8 +52,8 @@ public abstract class Feature implements Boundable {
          case VERTEX_3D: {
             return "VERTEX_3D";
          }
-         case VERTEX_2D: {
-            return "VERTEX_2D";
+         case LINE_SEGMENT: {
+            return "LINE_SEGMENT";
          }
          case HALF_EDGE: {
             return "HALF_EDGE";

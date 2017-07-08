@@ -17,6 +17,7 @@ import java.util.LinkedList;
 
 import maspack.matrix.AffineTransform3dBase;
 import maspack.matrix.Point3d;
+import maspack.matrix.RigidTransform3d;
 import maspack.matrix.Vector3d;
 import maspack.matrix.Vector3i;
 import maspack.render.PointLineRenderProps;
@@ -1037,7 +1038,7 @@ public class DistanceGrid implements Renderable {
     * @param vxyz x, y, z vertex indices
     * @return mesh distance at the vertex
     */
-   protected double getVertexDistance (Vector3i vxyz) {
+   public double getVertexDistance (Vector3i vxyz) {
       return myPhi[xyzIndicesToVertex(vxyz)];
    }
    
@@ -1619,6 +1620,14 @@ public class DistanceGrid implements Renderable {
 
       return marcher.createMesh (
          myPhi, myMinCoord, myCellWidths, getResolution(), val);
+   }
+
+   public AffineTransform3dBase getWorldTransform() {
+      return myWorldTransform;
+   }
+   
+   public double getRadius() {
+      return myMaxCoord.distance(myMinCoord)/2;
    }
 
 }

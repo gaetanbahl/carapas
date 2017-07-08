@@ -9,6 +9,7 @@ package maspack.geometry;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Point3d;
 import maspack.matrix.Vector3d;
+import maspack.matrix.RigidTransform3d;
 
 public class LineSegment extends Feature implements Boundable {
 
@@ -208,6 +209,12 @@ public class LineSegment extends Feature implements Boundable {
          ps.combine (1-s, p0, s, p1);
          return px.distance (ps);
       }
+   }
+   
+   public double getProjectionParameter(Point3d pnt) {
+      Point3d p0 = myVtx0.getWorldPoint();
+      Point3d p1 = myVtx1.getWorldPoint();
+      return projectionParameter(p0, p1, pnt);
    }
    
    @Override
