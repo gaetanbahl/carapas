@@ -766,15 +766,8 @@ public class FemUtilities {
     * FEBio: FEElasticShellDomain::ElementInternalForce
     */
    public static void addShellStressForce (
-      Vector3d f, Vector3d df, SymmetricMatrix3d sig, double dv, int n, 
-      ShellIntegrationPoint3d pt, ShellFemElement3d el) {
-      
-      double t = pt.coords.z;
-      double N = pt.getShapeWeights ().get(n);
-      double dNdr = pt.getGNs()[n].x;
-      double dNds = pt.getGNs()[n].y;
-      
-      Vector3d[] gct = pt.getContraBaseVectors (el);
+      Vector3d f, Vector3d df, SymmetricMatrix3d sig, double t, double dv, int n, 
+      double N, double dNdr, double dNds, Vector3d[] gct) {
       
       Vector3d gradM = new Vector3d();
       gradM.scaledAdd(dNdr, gct[0]);
@@ -806,8 +799,8 @@ public class FemUtilities {
       df.y += fd.y*dv;
       df.z += fd.z*dv;
       
-      ((ShellFemNode3d)el.getNodes ()[n]).danF.set (f);
-      ((ShellFemNode3d)el.getNodes ()[n]).danDF.set (df);
+//      ((ShellFemNode3d)el.getNodes ()[n]).danF.set (f);
+//      ((ShellFemNode3d)el.getNodes ()[n]).danDF.set (df);
       
       // OK. Same signs
 //      System.out.println ("fxyz: " + f);
@@ -851,7 +844,7 @@ public class FemUtilities {
       
       VectorNd Ns = iPt.getShapeWeights();
       
-      iPt.computeJacobian0(el);
+      //iPt.computeJacobian0(el);
       double detJ0 = iPt.getJ().determinant () * iPt.getWeight();
       
       double t = iPt.coords.z;
@@ -900,7 +893,7 @@ public class FemUtilities {
       for (int k = 0; k < iPts.length; k++) {
          ShellIntegrationPoint3d iPt = iPts[k];
       
-         iPt.computeJacobian0(el);
+         //iPt.computeJacobian0(el);
          double detJ0 = iPt.getJ().determinant ()*iPt.getWeight();
          
          VectorNd Ns = iPt.getShapeWeights();

@@ -6,29 +6,89 @@ import maspack.matrix.Point3d;
 import maspack.matrix.Vector3d;
 import maspack.matrix.VectorNd;
 
+/**
+ * Integration coordinate/point for a shell element.
+ * 
+ * Implementation is based on FEBio FESSIShellDomain::
+ * 
+ * @author Danny Huang (dah208@mail.usask.ca). Feel free to contact me for help.
+ */
 public class ShellIntegrationPoint3d extends IntegrationPoint3d {
 
+   /* Node position type: Rest, Current, Render */
    protected enum NODE_POS { REST, CURRENT, RENDER };
    
-   public ShellIntegrationPoint3d(
+   /* Element that this integration point belongs to */
+   protected ShellFemElement3d myEle = null;
+   
+   /* Computed covariant and contravariant bases vectors are stored here.
+    * These should be updated at every timestep via updateCoContrVectors().
+    * 
+    * gco = 3 covariant bases vectors.
+    * gct = 3 convariant bases vectors.
+    * 
+    * 0 = rest node position
+    * <no_suffix> = current node position
+    * Rend = renderer node position
+    */
+   protected Vector3d[] myGco = null;
+   protected Vector3d[] myGct = null;
+   protected Vector3d[] myGco0 = null;
+   protected Vector3d[] myGct0 = null;
+   protected Vector3d[] myGcoRend = null;
+   protected Vector3d[] myGctRend = null;
+   
+   
+   
+   public ShellIntegrationPoint3d(ShellFemElement3d ele,
       int nnodes, int npvals, double s0, double s1, double s2, double w) {
       super(nnodes, npvals, s0, s1, s2, w);
+      initEleAndCoContraVectors(ele);
    }
    
-   public ShellIntegrationPoint3d(int nnodes) {
+   public ShellIntegrationPoint3d(ShellFemElement3d ele, int nnodes) {
       super(nnodes);
+      initEleAndCoContraVectors(ele);
    }
+   
+   protected void initEleAndCoContraVectors(ShellFemElement3d ele) {
+      myEle = ele;
+      
+      myGco = new Vector3d[3];
+      myGct = new Vector3d[3];
+      myGco0 = new Vector3d[3];
+      myGct0 = new Vector3d[3];
+      myGcoRend = new Vector3d[3];
+      myGctRend = new Vector3d[3];
+      for (int i = 0; i < 3; i++) {
+         myGco[i] = new Vector3d();
+         myGct[i] = new Vector3d();
+         myGco0[i] = new Vector3d();
+         myGct0[i] = new Vector3d();
+         myGcoRend[i] = new Vector3d();
+         myGctRend[i] = new Vector3d();
+      }
+   }
+   
    
    /** 
-    * Create an integration point for a given element at a specific set of
+    * Create an integration point for a given shell element at a specific set of
     * natural coordinates.
     *
-    * @param elem element to create the integration point for
-    * @param s0 first coordinate value
-    * @param s1 second coordinate value
-    * @param s2 third coordinate value
-    * @param w weight 
-    * @return new integration point
+    * @param elem 
+    * Shell element to create the integration point for.
+    * 
+    * @param s0 
+    * First coordinate value (known as r in FEBio, and x in Artisynth)
+    * 
+    * @param s1
+    * Second coordinate value (known as s in FEBio, and y in Artisynth)
+    * 
+    * @param s2
+    * Third coordinate value (known as t in FEBio, and z in Artisynth)
+    * 
+    * @param w 
+    * Weighting
     */
    public static ShellIntegrationPoint3d create (ShellFemElement3d elem,
          double s0, double s1, double s2, double w) {
@@ -42,7 +102,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
       VectorNd pressureWeights = new VectorNd(npvals);
 
       ShellIntegrationPoint3d pnt =
-            new ShellIntegrationPoint3d (nnodes, npvals, s0, s1, s2, w);
+            new ShellIntegrationPoint3d (elem, nnodes, npvals, s0, s1, s2, w);
       coords.set (s0, s1, s2);
       for (int i=0; i<nnodes; i++) {
          shapeWeights.set (i, elem.getN (i, coords));
@@ -54,51 +114,91 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
       }
       pnt.setShapeWeights (shapeWeights);
       pnt.setPressureWeights (pressureWeights);
+      
+      pnt.updateCoContraVectors();
+      
       return pnt;
    }
    
    
    
    
-   /*** Methods for computing covariant and contravariant bases vectors ***/
+   /* Methods for computing covariant and contravariant bases vectors.
+    * These vectors are used to compute the gradients and eventual
+    * shell stress and stiffness. */
    
-   public Vector3d[] getCoBaseVectors(ShellFemElement3d ele) {
-      return _getCoBaseVectors(ele, NODE_POS.CURRENT);
-   }
-   
-   public Vector3d[] getCoBaseVectors0(ShellFemElement3d ele) {
-      return _getCoBaseVectors(ele, NODE_POS.REST);
-   }
    
    /**
-    * Compute the bases of this integration point in covector form.
+    * Compute the covariant and contravariant bases vectors for all 3 node 
+    * position types: (REST, CURRENT, RENDER).
+    * 
+    * Afterwards, these methods can now be called for the current timestep.
+    *   getCoBaseVectors()
+    *   getContraBaseVectors()
+    *   computeJacobian()
+    *   computeJacobianAndGradient()
+    *   
+    * This method should be called at the beginning of every time step, such 
+    * as in ShellFemModel.applyForces() 
+    */
+   public void updateCoContraVectors() {
+      computeCoBaseVectors(NODE_POS.REST);
+      computeCoBaseVectors(NODE_POS.CURRENT);
+//      computeCoBaseVectors(NODE_POS.RENDER);
+      
+      computeJacobian(NODE_POS.REST);
+      computeInverseJacobian();
+      computeContraBaseVectors(NODE_POS.REST);
+      
+      computeJacobian(NODE_POS.CURRENT);
+      computeInverseJacobian();
+      computeContraBaseVectors(NODE_POS.CURRENT);
+      
+//      computeJacobian(NODE_POS.RENDER);
+//      computeInverseJacobian();
+//      computeContraBaseVectors(NODE_POS.RENDER);
+   }
+   
+   
+   /**
+    * Compute the covariant bases vectors.
     * 
     * FEBio: FESSIShellDomain::CoBaseVectors
     * 
     * @param ePosType
     * Type of node position to use.
-    *   REST -> getLocalRestPosition()
-    *   CURRENT -> getLocalPosition()
+    *   REST -> getRestPosition()
+    *   CURRENT -> getPosition()
     *   RENDER -> myRenderCoords
     * 
-    * @return
-    * Three covector bases.
+    * Postcond:
+    *   Results are stored in this.myGco, myGco0, or myGcoRend, depending
+    *   on ePosType.
+    * 
+    * @return 
+    * void. Use getCoBaseVectors() to retrieve results.
     */
-   protected Vector3d[] _getCoBaseVectors(
-      ShellFemElement3d ele, NODE_POS ePosType) {
-      Vector3d[] g = new Vector3d[3];
+   protected void computeCoBaseVectors(NODE_POS ePosType) {
+      Vector3d[] g = null;
+      if (ePosType == NODE_POS.REST) {
+         g = myGco0;
+      }
+      else if (ePosType == NODE_POS.CURRENT) {
+         g = myGco;
+      }
+      else if (ePosType == NODE_POS.RENDER) {
+         g = myGcoRend;
+      }
+      
       for (int i = 0; i < 3; i++) {
-         g[i] = new Vector3d();
+         g[i].setZero ();
       }
       
       double t = getCoords().z;
-      // DANNY TODO: account for m_dof
-      
-      //System.out.println ("----");
-      
+
       // For each node...
-      for (int n = 0; n < ele.getNodes().length; n++) {
-         ShellFemNode3d node = (ShellFemNode3d) ele.getNodes()[n];
+      for (int n = 0; n < myEle.getNodes().length; n++) {
+         ShellFemNode3d node = (ShellFemNode3d) myEle.getNodes()[n];
          Vector3d d = null;
          
          Point3d pos = null;
@@ -116,34 +216,10 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
             float[] rPos = node.myRenderCoords; 
             pos = new Point3d( rPos[0], rPos[1], rPos[2] );
             d = new Vector3d( node.myDirector0 );
+            d.add( node.getDisplacement() );
+            d.sub( node.getDir() );
          }
-         
-//         if (n == 0) {
-//            System.out.println ("Node#0 direction: " + node.getDir());
-//            System.out.println ("Node#0 displacement: " + node.getDisplacement());
-//         }
-            
-         //d0.sub(ele.myNodes[n].myDofd);
-         
-         //Vector3d nodeNormal = getNodeNormal(node);
-         //nodeNormal.normalize ();
-         
-         //nodeNormal.scale (d0.norm ());
-         
-         //d0.add(ele.myNodes[n].myDofu);
-         //nodeNormal.sub (nodeNormal, d0);
-         
-         //d0.add(ele.myNodes[n].myDofu);
-         //d0.sub (nodeNormal);
-         //d0.absolute ();
-         
-         //d0.set (nodeNormal);
-         
-         //System.out.println ("Node #" + n + " normal: " + d0);
-       
-         //System.out.printf ("Node #%d director: %s\n", n, node.myDirector);
-         //System.out.printf ("Surface normal: %s\n", nodeNormal);
- 
+     
          Vector3d g0Term = new Vector3d( d );
          g0Term.scale( -(1 - t)*0.5 );
          g0Term.add( pos );
@@ -153,7 +229,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
          // dN
          g0Term.scale( getGNs()[n].x );
          g1Term.scale( getGNs()[n].y );
-         
+
          Vector3d g2Term = new Vector3d( d );
          // N
          g2Term.scale( getShapeWeights().get(n) * 0.5 );
@@ -162,42 +238,8 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
          g[1].add (g1Term);
          g[2].add (g2Term);
       }
-      
-      return g;
-   }
-
-   public static Vector3d getNodeNormal(ShellFemNode3d node) {
-      Vector3d normal = new Vector3d();
-      for (ShellFemElement3d el : node.myAdjElements) {
-         Vector3d elNormal = getElementNormal(el);
-         normal.add (elNormal);
-      }
-      // Avg
-      normal.scale (1.0/node.myAdjElements.size ());
-      return normal;
    }
    
-   public static Vector3d getElementNormal(FemElement3d el) {
-      Point3d n0 = el.myNodes[0].getPosition ();
-      Point3d n1 = el.myNodes[1].getPosition ();
-      Point3d n2 = el.myNodes[2].getPosition ();
-      Vector3d n1_0 = new Vector3d();
-      n1_0.sub (n1, n0);
-      Vector3d n2_0 = new Vector3d();
-      n2_0.sub (n2, n0);
-      Vector3d cross = new Vector3d();
-      cross.cross (n1_0, n2_0);
-      cross.normalize ();
-      return cross;
-   }
-   
-   public Vector3d[] getContraBaseVectors(ShellFemElement3d ele) {
-      return _getContraBaseVectors(ele, NODE_POS.CURRENT);
-   }
-   
-   public Vector3d[] getContraBaseVectors0(ShellFemElement3d ele) {
-      return _getContraBaseVectors(ele, NODE_POS.REST);
-   }
    
    /**
     * Compute the bases for this integration point in contravector
@@ -205,47 +247,110 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * 
     * FEBio: FESSIShellDomain::ContraBaseVectors
     * 
+    * Precond:
+    *   computeJacobian(ePosType) and computeInverseJacobian() were called
+    *   immediately before this method.
+    *   
     * @param ePosType
     * Type of node position to use.
-    *   REST -> getLocalRestPosition()
-    *   CURRENT -> getLocalPosition()
+    *   REST -> getRestPosition()
+    *   CURRENT -> getPosition()
     *   RENDER -> myRenderCoords
     * 
-    * @return
-    * Three contravector bases.
+    * Postcond:
+    *   Results are stored in this.myGct, myGct0, or myGctRend, depending
+    *   on ePosType.
+    * 
+    * @return 
+    * void. Use getContraBaseVectors() to retrieve results.
     */
-   protected Vector3d[] _getContraBaseVectors(
-      ShellFemElement3d ele, NODE_POS ePosType) {
-      Vector3d[] g = _getCoBaseVectors(ele, ePosType);
-      
-      Matrix3d J = new Matrix3d (g[0].x, g[1].x, g[2].x, 
-                                 g[0].y, g[1].y, g[2].y,
-                                 g[0].z, g[1].z, g[2].z);
-      double Jdet = J.fastInvert(J);
-      if (Jdet <= 0) {
-         throw new RuntimeException("Warning: getContraBaseVectors() detected "
-                                    + "determinant <= 0: " + Jdet);
+   protected void computeContraBaseVectors(NODE_POS ePosType) {
+      Vector3d[] g = null;
+      if (ePosType == NODE_POS.REST) {
+         g = myGct0;
+      }
+      else if (ePosType == NODE_POS.CURRENT) {
+         g = myGct;
+      }
+      else if (ePosType == NODE_POS.RENDER) {
+         g = myGctRend;
       }
       
       // Compute contravectors using inverted J.
-      g[0].set( J.m00, J.m01, J.m02 );
-      g[1].set( J.m10, J.m11, J.m12 );
-      g[2].set( J.m20, J.m21, J.m22 );
-      
-      return g;
+      g[0].set( myInvJ.m00, myInvJ.m01, myInvJ.m02 );
+      g[1].set( myInvJ.m10, myInvJ.m11, myInvJ.m12 );
+      g[2].set( myInvJ.m20, myInvJ.m21, myInvJ.m22 );
    }
+   
+   
+   /**
+    * Retrieve the computed covariant bases vectors.
+    * 
+    * Precond:
+    *   computeCoBaseVectors(eNodePos) or updateCoContrVectors() 
+    *   was called beforehand in the current timestep.
+    * 
+    * @param ePosType
+    * Type of node position to use.
+    *   REST -> getRestPosition()
+    *   CURRENT -> getPosition()
+    *   RENDER -> myRenderCoords
+    *   
+    * @return
+    * 3 covariant bases vectors.
+    */
+   public Vector3d[] getCoBaseVectors(NODE_POS eNodePos) {
+      if (eNodePos == NODE_POS.REST) {
+         return myGco0;
+      }
+      else if (eNodePos == NODE_POS.CURRENT) {
+         return myGco;
+      }
+      else if (eNodePos == NODE_POS.RENDER) {
+         return myGcoRend;
+      }
+      else {
+         return null;
+      }
+   }
+
+   
+   /**
+    * Retrieve the computed contravariant bases vectors.
+    * 
+    * Precond:
+    *   computeContraBaseVectors(eNodePos) or updateCoContrVectors() was 
+    *   called beforehand in the current timestep.
+    * 
+    * @param ePosType
+    * Type of node position to use.
+    *   REST -> getRestPosition()
+    *   CURRENT -> getPosition()
+    *   RENDER -> myRenderCoords
+    *   
+    * @return
+    * 3 contravariant bases vectors.
+    */
+   public Vector3d[] getContraBaseVectors(NODE_POS eNodePos) {
+      if (eNodePos == NODE_POS.REST) {
+         return myGct0;
+      }
+      else if (eNodePos == NODE_POS.CURRENT) {
+         return myGct;
+      }
+      else if (eNodePos == NODE_POS.RENDER) {
+         return myGctRend;
+      }
+      else {
+         return null;
+      }
+   }
+   
+
    
    
    
    /*** Methods for computing jacobian and gradients ***/
-   
-   public void computeJacobian(ShellFemElement3d ele) { 
-      _computeJacobian(ele, NODE_POS.CURRENT, null);
-   }
-   
-   public void computeJacobian0(ShellFemElement3d ele) { 
-      _computeJacobian(ele, NODE_POS.REST, null);
-   }
    
    /**
     * Compute 3x3 jacobian matrix that represents dN/dx in matrix form. N is
@@ -256,30 +361,37 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * 
     * FEBio: Top portion of FESSIShellDomain::invjac0
     * 
+    * Precond:
+    *   computeCoBaseVectors(ePosType) 
+    *     was called beforehand in the current timestep.
+    * 
     * @param ePosType
     * Type of node position to use.
-    *   REST -> getLocalRestPosition()
-    *   CURRENT -> getLocalPosition()
+    *   REST -> getRestPosition()
+    *   CURRENT -> getPosition()
     *   RENDER -> myRenderCoords
     * 
-    * @param gco 
-    * Pre-computed covariant base vectors of this integration point. Otherwise,
-    * pass null let function compute it from stratch.
+    * Postcond:
+    *   Result stored in this.myJ
     * 
     * @return
     * void. Call getJ() afterwards to retrieve result.
     */
-   protected void _computeJacobian (
-      ShellFemElement3d ele, NODE_POS ePosType, Vector3d[] gco) {
-      myJ.setZero();
-      
-      if (gco == null) {
-         gco = _getCoBaseVectors(ele, ePosType);
+   public void computeJacobian (NODE_POS ePosType) {
+      Vector3d[] g = null;
+      if (ePosType == NODE_POS.REST) {
+         g = myGco0;
+      }
+      else if (ePosType == NODE_POS.CURRENT) {
+         g = myGco;
+      }
+      else if (ePosType == NODE_POS.RENDER) {
+         g = myGcoRend;
       }
       
-      myJ.m00 = gco[0].x; myJ.m01 = gco[1].x; myJ.m02 = gco[2].x;
-      myJ.m10 = gco[0].y; myJ.m11 = gco[1].y; myJ.m12 = gco[2].y;
-      myJ.m20 = gco[0].z; myJ.m21 = gco[1].z; myJ.m22 = gco[2].z;
+      myJ.m00 = g[0].x; myJ.m01 = g[1].x; myJ.m02 = g[2].x;
+      myJ.m10 = g[0].y; myJ.m11 = g[1].y; myJ.m12 = g[2].y;
+      myJ.m20 = g[0].z; myJ.m21 = g[1].z; myJ.m22 = g[2].z;
    }
    
    /**
@@ -288,18 +400,25 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * FEBio: FESSIShellDomain::defgrad.
     *        Called by FEElasticShellDomain::Update
     * 
+    * Precond:
+    *   computeCoBaseVectors(NODE_POS.CURRENT) and 
+    *   computeContraBaseVectors(NODE_POS.REST)
+    *   
+    *   or
+    *   
+    *   updateCoContraVectors()
+    *   
+    *      were called beforehand for the current timestep.
+    * 
     * @return 
     * void. Call getJ(), getF(), and getDetF() to retrieve results.
     */
-   public void computeJacobianAndGradient (ShellFemElement3d ele) {
-      Vector3d[] gco = getCoBaseVectors(ele);
-      Vector3d[] gct = getContraBaseVectors0(ele);
-      
-      _computeJacobian(ele, NODE_POS.CURRENT, gco);
+   public void computeJacobianAndGradient () {
+      computeJacobian(NODE_POS.CURRENT);
       
       F.setZero();
       for (int i = 0; i < 3; i++) {
-         F.addOuterProduct (gco[i], gct[i]);
+         F.addOuterProduct (myGco[i], myGct0[i]);
       }
       
       detF = F.determinant ();
@@ -310,20 +429,26 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * 
     * FEBio: FESSIShellDomain::defgrad
     * 
+    * Precond:
+    *   computeCoBaseVectors(NODE_POS.CURRENT) and 
+    *   computeContraBaseVectors(NODE_POS.REST)
+    *   
+    *   or
+    *   
+    *   updateCoContraVectors()
+    *   
+    *      were called beforehand for the current timestep.
+    * 
     * @return
     * void. Call getJ() afterwards to retrieve Jacobian result. Gradient is 
     * stored in def parameter.
     */
-   public void computeJacobianAndGradient (
-      SolidDeformation def, ShellFemElement3d ele) {
-      Vector3d[] gco = getCoBaseVectors(ele);
-      Vector3d[] gct = getContraBaseVectors0(ele);
-      
-      _computeJacobian(ele, NODE_POS.CURRENT, gco);
+   public void computeJacobianAndGradient (SolidDeformation def) {
+      computeJacobian(NODE_POS.CURRENT);
       
       Matrix3d F = new Matrix3d();
       for (int i = 0; i < 3; i++) {
-         F.addOuterProduct (gco[i], gct[i]);
+         F.addOuterProduct (myGco[i], myGct0[i]);
       }
       
       def.setF (F);
@@ -334,68 +459,37 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * 
     * FEBio: FESSIShellDomain::defgrad
     * 
+    * Precond:
+    *   computeCoBaseVectors(NODE_POS.CURRENT) and 
+    *   computeContraBaseVectors(NODE_POS.REST)
+    *   
+    *   or
+    *   
+    *   updateCoContraVectors()
+    *   
+    *      were called beforehand for the current timestep.
+    * 
     * @return
-    * void. Gradient is stored in Fmat parameter.
+    * void. Gradient is stored in Fmat argument.
     */
-   public void computeGradientForRender (Matrix3d Fmat, ShellFemElement3d ele) {
-      Vector3d[] gco = _getCoBaseVectors(ele, NODE_POS.RENDER);
-      Vector3d[] gct = getContraBaseVectors0(ele);
-      
-      _computeJacobian(ele, NODE_POS.RENDER, gco);
+   public void computeGradientForRender (Matrix3d Fmat) {
+      computeJacobian(NODE_POS.RENDER);
       
       Fmat.setZero();
       for (int i = 0; i < 3; i++) {
-         Fmat.addOuterProduct (gco[i], gct[i]);
+         Fmat.addOuterProduct (myGco[i], myGct0[i]);
       }
    }      
 
-   
-   /**
-    * Evaluate a vector function over the shell.
-    * 
-    * FEBio: FESSIShellDomain::evaluate
-    * 
-    * @param el
-    * Shell element to evaluate the vector function over.
-    * 
-    * @param vn
-    * Computed xyz-related vectors for each node. E.g. acceleration.
-    * 
-    * @param dvn
-    * Computed uvw-related vectors for each node. E.g. rotational acceleration.
-    * 
-    * @return 
-    * Scalar. Generalized vector for the entire shell based on vn and dvn.
-    */
-   public Vector3d evaluate(ShellFemElement3d el, Vector3d[] vn, Vector3d[] dvn) {
-      Vector3d v = new Vector3d(); 
-      double t = coords.z;
-      VectorNd Ns = getShapeWeights();
-      
-      for (int n = 0; n < el.getNodes().length; n++) {
-         ShellFemNode3d node = (ShellFemNode3d) el.getNodes()[n];
-         
-         double N = Ns.get(n);
-         
-         double mu = (1+t)/2.0*N;
-         double md = (1-t)/2.0*N;
-         
-         v.scaledAdd(mu, vn[n]);
-         v.scaledAdd(md, dvn[n]);
+   @Override
+   public double computeInverseJacobian () {
+      double detJ = super.computeInverseJacobian ();
+      if (detJ <= 0) {
+         System.out.println ("Warning: computeInverseJacobian() computed "
+         + "detJ <= 0!");
       }
-      
-      return v;
+      return detJ;
    }
-   
-   /*** FEBio: FEElasticShellDomain::Update relies on existing vec3d evaluate()
-               function for its shell implementation. This means that 
-               computePosition() here shouldn't need to be overridden. ***/
-   
-   // DANNY TODO: Need to override computeShapeGradient()?
-   // In FEBio, shape_gradient is implemented in 
-   // FEElasticSolidDomain2O::shape_gradient(). FEElasticSolidDomain2O is a 
-   // subclass of FEElasticSolidDomain. The class implements 
-   // discontinuous-Galerkin formulation for gradient elasticity.
    
    @Override
    @Deprecated

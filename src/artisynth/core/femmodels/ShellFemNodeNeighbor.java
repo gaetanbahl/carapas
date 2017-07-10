@@ -10,6 +10,18 @@ import maspack.matrix.Vector3d;
 import maspack.matrix.VectorBase;
 import maspack.matrix.VectorNd;
 
+/**
+ * Handles the 6x6 stiffness block for a neighboring shell node, relative to a
+ * shell node.
+ * 
+ * The 6x6 stiffness block is a subset of the global stiffness matrix that
+ * represents the stiffness between every node pair.
+ * 
+ * The 6 accounts for the 3 displacement dof (x,y,z) and 3 direction dof 
+ * (u,w,v).
+ * 
+ * @author Danny Huang (dah208@mail.usask.ca). Feel free to contact me for help.
+ */
 public class ShellFemNodeNeighbor extends NodeNeighbor {
    protected ShellFemNode3d myNode;
    protected Matrix6d myK;
@@ -19,8 +31,7 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
    protected Matrix6d myKX; 
  
    
-   
-   
+ 
    public ShellFemNodeNeighbor(ShellFemNode3d node) {
       myNode = node;
       myK = new Matrix6d();
@@ -56,15 +67,14 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
    }
    
    /**
-    * Set the stiffness of this node neighbour to the transpose of 
-    * the stiffness component of another node neighbour. Transpose is done
-    * to abide to the symmetrical global stiffness matrix. 
-    * @param nbr
+    * Copy the transposed stiffness from a node neighbor to this node neighbor.
+    * 
+    * Stiffness is transposed to abide to the global stiffness matrix's
+    * symmetric property.
     */
    @Override
    public void setTransposedStiffness(NodeNeighbor nbr) {
       ShellFemNodeNeighbor sNbr = (ShellFemNodeNeighbor) nbr;
-      
       myK.transpose( sNbr.myK );
       if (sNbr.myKX != null) {
          if (myKX == null) {
@@ -80,13 +90,20 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
    }
    
    /**
-    * Apply both stiffness damping and diagonal mass damping from this
-    * node neighbour to a given 6x6 block.
+    * Apply both stiffness dampingand diagonal mass damping from this node
+    * neighbour to a given 6x6 block.
     * 
     * @param blk
+    * 6x6 block to apply the damping to
+    * 
     * @param s
+    * Overall scaling factor
+    * 
     * @param stiffnessDamping
+    * Scaling factor for stiffness damping 
+    * 
     * @param massDamping
+    * Scaling factor for mass damping
     */
    @Override
    public void addVelJacobian (
@@ -107,10 +124,13 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
    }
    
    /**
-    * Apply stiffness from this node neighour to a given 6x6 block. 
+    * Apply stiffness from this node neighbor to a given 6x6 block. 
     * 
     * @param blk
+    * 6x6 block to apply stiffness to
+    * 
     * @param s
+    * Scaling factor for stiffness
     */
    @Override
    public void addPosJacobian (DenseMatrixBase blk, double s) {
@@ -122,10 +142,11 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
    }
    
    /**
-    * Add the damping force (node neighbour stiffness * velocity) to 
+    * Add the damping force (node neighbor stiffness * velocity) to 
     * a given force vector.
     * 
     * @param fd
+    * 6x1 vector
     */
    @Override
    public void addDampingForce(VectorBase fd) {
@@ -236,6 +257,4 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
       
       addPressureStiffness(gi, p, gj, dv);
    }
-
-
 }

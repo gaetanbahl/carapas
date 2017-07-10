@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 
 import artisynth.core.femmodels.FemModel.IncompMethod;
+import artisynth.core.femmodels.ShellIntegrationPoint3d.NODE_POS;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.IncompressibleMaterial;
 import artisynth.core.materials.LinearMaterial;
@@ -13,6 +14,7 @@ import artisynth.core.materials.ViscoelasticBehavior;
 import artisynth.core.materials.ViscoelasticState;
 import artisynth.core.mechmodels.PointList;
 import artisynth.core.modelbase.ComponentUtils;
+import artisynth.core.modelbase.StepAdjustment;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix3x3Block;
 import maspack.matrix.Matrix6d;
@@ -194,6 +196,12 @@ public class ShellFemModel3d extends FemModel3d {
          sn.myInternalDirForce.setZero();
       }
       
+      for (FemElement3d ele : this.getElements ()) {
+         for (IntegrationPoint3d iPt : ele.getIntegrationPoints()) {
+            ((ShellIntegrationPoint3d)iPt).updateCoContraVectors();
+         }
+      }
+      
       super.updateStressAndStiffness();
    }
    
@@ -240,7 +248,7 @@ public class ShellFemModel3d extends FemModel3d {
          corotated = linMat.isCorotated();
          wpnt = e.getWarpingPoint();
          ShellIntegrationData3d data = e.getWarpingData();
-         wpnt.computeJacobianAndGradient(e);       
+         wpnt.computeJacobianAndGradient();       
          wpnt.sigma.setZero();
          if (corotated) {
             e.computeWarping(wpnt.F, myEps);
@@ -335,7 +343,7 @@ public class ShellFemModel3d extends FemModel3d {
          for (int k = 0; k < ipnts.length; k++) {
             ShellIntegrationPoint3d pt = ipnts[k];
             ShellIntegrationData3d dt = idata[k];
-            pt.computeJacobianAndGradient(e);           // DANNY HERE
+            pt.computeJacobianAndGradient();           
             def.setF(pt.F);
             double detJ = pt.computeInverseJacobian();
             if (detJ < myMinDetJ) {
@@ -345,12 +353,16 @@ public class ShellFemModel3d extends FemModel3d {
             // SKIPPED
             if (detJ <= 0 && !e.materialsAreInvertible()) {
                e.setInverted(true);
-               // TODO DANNY: problem here
                myNumInverted++;
             }
+            
+            double t = pt.coords.z; 
             double dv = detJ * pt.getWeight();
             Vector3d[] GNx = pt.updateShapeGradient(pt.myInvJ);
-
+            Vector3d[] gct = pt.getContraBaseVectors(NODE_POS.CURRENT);
+            VectorNd Ns = pt.getShapeWeights ();
+            Vector3d[] dNs = pt.getGNs();
+            
             // compute pressure
             pressure = 0;
             double[] H = null;
@@ -450,7 +462,7 @@ public class ShellFemModel3d extends FemModel3d {
                // Add stress (pt.sigma) to node force
                FemUtilities.addShellStressForce(
                   nodei.myInternalForce, nodei.myInternalDirForce,
-                  pt.sigma, dv, i, pt, e);
+                  pt.sigma, t, dv, i, Ns.get(i), dNs[i].x, dNs[i].y, gct);
 
                if (D != null) {
                   double p = 0;
@@ -487,18 +499,11 @@ public class ShellFemModel3d extends FemModel3d {
                         int bj = e.myNodes[j].getSolveIndex();
                         if (!mySolveMatrixSymmetricP || bj >= bi) {
                            
-                           double iN = e.getN(i, pt.coords);
-                           double jN = e.getN(j, pt.coords);
+                           double iN = Ns.get(i);
+                           double jN = Ns.get(j);
                            
-                           Vector3d idN = new Vector3d();
-                           e.getdNds(idN, i, pt.coords);
-                           
-                           Vector3d jdN = new Vector3d();
-                           e.getdNds(jdN, j, pt.coords);
-                           
-                           double t = pt.coords.z; 
-                           
-                           Vector3d[] gct = pt.getContraBaseVectors(e);
+                           Vector3d idN = dNs[i];
+                           Vector3d jdN = dNs[j];
                            
                            /* Add shell-specific material stiffness */
                            ((ShellFemNodeNeighbor)e.myNbrs[i][j]).
@@ -602,7 +607,7 @@ public class ShellFemModel3d extends FemModel3d {
       e.setInverted(false);
       for (int k = 0; k < ipnts.length; k++) {
          ShellIntegrationPoint3d pt = ipnts[k];
-         pt.computeJacobianAndGradient(e);
+         pt.computeJacobianAndGradient();
          double detJ = pt.computeInverseJacobian();
          if (detJ <= 0) {
             e.setInverted(true);
@@ -622,40 +627,7 @@ public class ShellFemModel3d extends FemModel3d {
       }
    }
    
-   
-   @Override
-   public void applyForces (double t) {
-      super.applyForces(t);
-      
-//      for (FemNode3d node : this.getNodes()) {
-//         if (isBorderNode(node.getIndex())) {
-//            node.setPosition (node.getRestPosition ());
-//            ((ShellFemNode3d)node).myDir.setZero ();
-//         }
-//      }
-   }
-   
-   public final int mMeshXDiv = 10;
-   public final int mMeshYDiv = 10;
-   public boolean isBorderNode(int idx) {
-      if (idx <= mMeshXDiv ||
-              idx % (mMeshXDiv+1) == 0 || 
-              idx >= mMeshXDiv*mMeshYDiv+mMeshXDiv &&
-              idx <= mMeshXDiv*(mMeshYDiv+2))
-         return true;
-      
-      int leftDigit = idx % 10;
-      int rightDigit = idx - leftDigit;
-      rightDigit /= 10;
-      
-      if (rightDigit == leftDigit+1)
-         return true;
-      
-      return false;
-   }
-   
-   
-   
+
    
    /*** Methods pertaining to the mass and solve blocks ***/
    

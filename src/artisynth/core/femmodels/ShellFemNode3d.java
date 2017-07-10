@@ -339,7 +339,7 @@ public class ShellFemNode3d extends FemNode3d {
    
    @Override
    public Point3d getTargetPosition() {
-      throw new RuntimeException("Unimplemented.");
+      return super.getTargetPosition();
    }
    
    @Override
@@ -354,7 +354,7 @@ public class ShellFemNode3d extends FemNode3d {
    
    @Override
    public Vector3d getTargetVelocity () {
-      throw new RuntimeException("Unimplemented.");
+      return super.getTargetVelocity ();
    }
    
    @Override
