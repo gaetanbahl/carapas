@@ -7,8 +7,6 @@ import maspack.matrix.Vector3d;
 /**
  * Mainly used to copy integration point data into (e.g. computed jacobian)
  * and transfer to other methods to use like computeVolume() 
- * 
- * @author Danny Huang (dah208@mail.usask.ca). Feel free to contact me for help.
  */
 public class ShellIntegrationData3d extends IntegrationData3d {
 

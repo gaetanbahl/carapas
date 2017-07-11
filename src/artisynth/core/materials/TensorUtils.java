@@ -884,25 +884,24 @@ public class TensorUtils {
    
    /**
     * Computes the following formula:
-    *   v3a (dot) T4S (dot) v3b
+    *   v3a . T4S . v3b
     * 
     * where v3a and v3b are both vector-3, T4S is a symmetrical 4th order 
-    * tensor, and (dot) is the dot product symbol.
+    * tensor, and . is the dot product symbol.
     * 
-    * Implementation borrowed from tens4ds.hpp in FEBio:
-    *   mat3d vdotTdotv(const vec3d& a, const tens4ds& T, const vec3d& b)
+    * FEBio: tens4ds::vdotTdotv
     * 
     * @param out
     * Result to be stored in. 3x3 matrix.
     * 
     * @param a
-    * First vector3
+    * Left vector3
     * 
     * @param T
     * Symmetrical 4th order tensor.
     * 
     * @param b
-    * Second vector3
+    * Right vector3
     */
    public static void v3DotTens4sDotv3(
       Matrix3d out, Vector3d a, Matrix6d T, Vector3d b) {

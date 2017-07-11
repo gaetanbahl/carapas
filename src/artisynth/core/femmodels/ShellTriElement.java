@@ -1,13 +1,8 @@
 package artisynth.core.femmodels;
 
-import maspack.matrix.Matrix3d;
-import maspack.matrix.Point3d;
-import maspack.matrix.Vector2d;
 import maspack.matrix.Vector3d;
-import maspack.matrix.VectorNd;
 import maspack.render.RenderProps;
 import maspack.render.Renderer;
-import maspack.util.InternalErrorException;
 
 /** 
  * Implementation of a triangle shell element with 3 shell nodes and 9 gauss 
@@ -55,7 +50,6 @@ public class ShellTriElement extends ShellFemElement3d {
     * objects: */
 
    protected ShellIntegrationPoint3d[] myIntegrationPoints = null;
-   protected ShellIntegrationPoint3d[] myDefaultIntegrationPoints;
 
    /* Mainly used to transfer integration point data (e.g. computed jacobian)
     * for other methods to use like computeVolume() */
@@ -134,13 +128,10 @@ public class ShellTriElement extends ShellFemElement3d {
    @Override
    public ShellIntegrationPoint3d[] getIntegrationPoints () {
       if (myIntegrationPoints == null) {
-         if (myDefaultIntegrationPoints == null) {
-            // Wrap each Gauss coordinate (r, s, t, w) in an Integration
-            // Point object.
-            myDefaultIntegrationPoints =
-               createIntegrationPoints (myDefaultIntegrationCoords);
-         }
-         myIntegrationPoints = myDefaultIntegrationPoints;
+         // Wrap each Gauss coordinate (r, s, t, w) in an Integration
+         // Point object.
+         myIntegrationPoints =
+            createIntegrationPoints (myDefaultIntegrationCoords);
       }
 
       return myIntegrationPoints;

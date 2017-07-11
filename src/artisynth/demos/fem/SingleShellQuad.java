@@ -24,7 +24,7 @@ import maspack.matrix.*;
 
 /**
  * Interactive demo of a single square shell element of 4 shell nodes and 
- * 8 guass points. Drag the nodes around via force.
+ * 8 gauss points. Drag the nodes around via force.
  * 
  * @author Danny Huang (dah208@mail.usask.ca). Feel free to contact me for help.
  */
@@ -39,7 +39,6 @@ public class SingleShellQuad extends RootModel {
    
    protected final double m_density = 1000;
    protected final double m_particleDamping = 10;              
-   
    protected final double m_nodeRadius = 0.05;
 
    public void build (String[] args) {

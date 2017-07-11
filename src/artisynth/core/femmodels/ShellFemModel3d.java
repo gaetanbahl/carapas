@@ -1,10 +1,8 @@
 package artisynth.core.femmodels;
 
 import java.awt.Color;
-import java.util.ArrayList;
 import java.util.LinkedList;
 
-import artisynth.core.femmodels.FemModel.IncompMethod;
 import artisynth.core.femmodels.ShellIntegrationPoint3d.NODE_POS;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.IncompressibleMaterial;
@@ -12,21 +10,15 @@ import artisynth.core.materials.LinearMaterial;
 import artisynth.core.materials.SolidDeformation;
 import artisynth.core.materials.ViscoelasticBehavior;
 import artisynth.core.materials.ViscoelasticState;
-import artisynth.core.mechmodels.PointList;
-import artisynth.core.modelbase.ComponentUtils;
-import artisynth.core.modelbase.StepAdjustment;
 import maspack.matrix.Matrix3d;
-import maspack.matrix.Matrix3x3Block;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.Matrix6dBlock;
 import maspack.matrix.MatrixBlock;
-import maspack.matrix.NumericalException;
 import maspack.matrix.SparseNumberedBlockMatrix;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.matrix.Vector3d;
 import maspack.matrix.VectorNd;
 import maspack.render.Renderer;
-import maspack.util.InternalErrorException;
 
 public class ShellFemModel3d extends FemModel3d {
 
@@ -40,33 +32,41 @@ public class ShellFemModel3d extends FemModel3d {
    
    @Override
    public void addElement(FemElement3d newEle) {
-      // Create a new list of the existing elements + new element
+      // Create a new list of the existing elements + new element.
+      // This list will then be passed immediately to 
+      // refreshNodeDirectors(newList).
+      // This is done because we cannot call
+      // refreshNodeDirectors(this.myElements) after super.addElement(newEle)
+      // due to the fact that super.addElement(newEle) computes volume()
+      // which in turn requires knowing the node directors.
       LinkedList<ShellFemElement3d> eles = new LinkedList<ShellFemElement3d>();
       for (FemElement3d e : this.myElements) {
          eles.add((ShellFemElement3d)e);
       }
+      newEle.setIndex ( eles.size() );
       eles.add((ShellFemElement3d)newEle);
       
       // Use this new list to compute each node's director
-      refreshNodeDirectors(eles);
+      refreshNodeDirectors0(eles);
       
       super.addElement (newEle);
    }
    
    /**
-    * Compute the director vector for each node of this model. Should be invoked 
-    * after the nodes and elements are added to this model.
+    * Compute the rest director vector for each node of this model. This should
+    * be invoked after the nodes and elements are added to this model.
     * 
-    * FEBio port notes:
-    *   FEMesh::InitShellsNew().
-    *   
-    * Ordering of element's node matters
+    * Implementation is simply finding the vertex normal for each node.
     * 
+    * FEBio: FEMesh::InitShellsNew().
+    * 
+    * Postcond:
+    * node.myDirector0 is initialized for shell element node.
+    * 
+    * @param eles
+    * List of all the shell elements in the shell model.
     */
-   protected void refreshNodeDirectors(LinkedList<ShellFemElement3d> eles) {
-      /* Absolute and relative position of nodes probably doesn't 
-       * matter b/c vector sub and normalization is being used. */
-      
+   protected void refreshNodeDirectors0(LinkedList<ShellFemElement3d> eles) {
       for (FemElement3d e : eles) {
          for (FemNode3d n : e.myNodes) {
             ShellFemNode3d sn = (ShellFemNode3d) n;
@@ -115,17 +115,19 @@ public class ShellFemModel3d extends FemModel3d {
       }
    }
    
+   
+   /**
+    * Compute the force of each shell node due to stress, stiffness,
+    * and damping.
+    * 
+    * Postcond:
+    * node.myForce and node.myDirForce are set for each node.
+    */
    @Override
    protected void updateNodeForces(double t) {
       if (!myStressesValidP) {
          updateStressAndStiffness();
       }
-      
-      /* Add inertia force in updateNodeForces() */
-//      for (FemElement3d e : myElements) {
-//         ShellFemElement3d el = (ShellFemElement3d)e;
-//         FemUtilities.addShellInertiaForces(el);
-//      }
       
       boolean hasGravity = !myGravity.equals(Vector3d.ZERO);
       
@@ -140,8 +142,6 @@ public class ShellFemModel3d extends FemModel3d {
          VectorNd v6 = new VectorNd(sn.getVelStateSize());
          sn.getVelocity(v6);
          
-         //System.out.println ("Node velo: " + v6);
-         
          // n.setForce (n.getExternalForce());
          if (hasGravity) {
             sn.addScaledForce(n.getMass(), myGravity);
@@ -151,7 +151,7 @@ public class ShellFemModel3d extends FemModel3d {
          sn.getInternalForce(fk6);
          fd6.setZero();
          
-         if (myStiffnessDamping != 0) {         // SKIPPED
+         if (myStiffnessDamping != 0) {    
             for (NodeNeighbor nbr : getNodeNeighbors(n)) {
                nbr.addDampingForce(fd6);
             }
@@ -196,6 +196,10 @@ public class ShellFemModel3d extends FemModel3d {
          sn.myInternalDirForce.setZero();
       }
       
+      /* At this point, all the node positions and directions have updated 
+       * from the previous timestep, so we need to update the co and contra
+       * vectors for each integration point. This is required before calling 
+       * any subsequent integration point method in this timestep. */
       for (FemElement3d ele : this.getElements ()) {
          for (IntegrationPoint3d iPt : ele.getIntegrationPoints()) {
             ((ShellIntegrationPoint3d)iPt).updateCoContraVectors();
@@ -206,6 +210,15 @@ public class ShellFemModel3d extends FemModel3d {
    }
    
    
+   /**
+    * Compute the force and neighbor stiffness for each node of a shell
+    * element.
+    * 
+    * Postcond:
+    * node.myInternalForce and node.myInternalDirForce are incremented.
+    * nodeNeighbor[i][j].myK is incremented where (i,j) is every possible
+    * node neighbor pair between the shell element nodes.
+    */
    @Override
    protected void computeNonlinearStressAndStiffness(
       FemElement3d ele, FemMaterial mat, Matrix6d D, IncompMethod softIncomp) {
@@ -462,7 +475,7 @@ public class ShellFemModel3d extends FemModel3d {
                // Add stress (pt.sigma) to node force
                FemUtilities.addShellStressForce(
                   nodei.myInternalForce, nodei.myInternalDirForce,
-                  pt.sigma, t, dv, i, Ns.get(i), dNs[i].x, dNs[i].y, gct);
+                  pt.sigma, t, dv, Ns.get(i), dNs[i].x, dNs[i].y, gct);
 
                if (D != null) {
                   double p = 0;
@@ -589,44 +602,6 @@ public class ShellFemModel3d extends FemModel3d {
    }
 
    
-   @Override 
-   protected void computeAvgGNx(FemElement3d ele) {
-      ShellFemElement3d e = (ShellFemElement3d)ele;
-      
-      ShellIntegrationPoint3d[] ipnts = e.getIntegrationPoints();
-      ShellIntegrationData3d[] idata = e.getIntegrationData();
-
-      Vector3d[] avgGNx = null;
-      MatrixBlock[] constraints = null;
-
-      constraints = e.getIncompressConstraints();
-      for (int i = 0; i < e.myNodes.length; i++) {
-         constraints[i].setZero();
-      }
-
-      e.setInverted(false);
-      for (int k = 0; k < ipnts.length; k++) {
-         ShellIntegrationPoint3d pt = ipnts[k];
-         pt.computeJacobianAndGradient();
-         double detJ = pt.computeInverseJacobian();
-         if (detJ <= 0) {
-            e.setInverted(true);
-            // if (abortOnInvertedElems) {
-            // throw new NumericalException ("Inverted elements");
-            // }
-         }
-         double dv = detJ * pt.getWeight();
-         // TODO shape gradient or shape derivative?
-         Vector3d[] GNx = pt.updateShapeGradient(pt.myInvJ);
-
-         double[] H = pt.getPressureWeights().getBuffer();
-         for (int i = 0; i < e.myNodes.length; i++) {
-            FemUtilities.addToIncompressConstraints(
-               constraints[i], H, GNx[i], dv);
-         }
-      }
-   }
-   
 
    
    /*** Methods pertaining to the mass and solve blocks ***/
@@ -637,6 +612,8 @@ public class ShellFemModel3d extends FemModel3d {
     * block corresponds to a node neighbor (nbr) with respect to an observing 
     * node (i). This (i,nbr) node pair have their own respective position 
     * jacobian.
+    * 
+    * Method is overridden to be compatible with 6x6 blocks.
     */
    @Override
    public void addPosJacobian(SparseNumberedBlockMatrix M, double s) {
@@ -668,8 +645,10 @@ public class ShellFemModel3d extends FemModel3d {
    
    
    /**
-    * Allocate and assign a 6x6 block from the global solve matrix to a 
+    * Allocate and assign a block from the global solve matrix to a 
     * particular node neighbor.
+    * 
+    * Method is overridden to be compatible with 6x6 blocks.
     */
    @Override
    protected void addNodeNeighborBlock(
@@ -694,6 +673,8 @@ public class ShellFemModel3d extends FemModel3d {
     * Add the velocity jacobian to a block of the global solve matrix. A block
     * corresponds to a node neighbor (node/nbr) of some node. The velocity 
     * jacobian is a property of the node neighbor itself.
+    * 
+    * Method is overridden to be compatible with 6x6 blocks.
     */
    @Override
    protected void addNeighborVelJacobian(
@@ -707,45 +688,6 @@ public class ShellFemModel3d extends FemModel3d {
          }
          else {
             nbr.addVelJacobian(blk, s, myStiffnessDamping, 0);
-         }
-      }
-   }
-   
-   @Override
-   public void render (Renderer renderer, int flags) {
-      renderer.setLineWidth (5);
-      //renderDirectors(renderer);
-      //renderForces(renderer);
-   }
-   
-   protected void renderDirectors(Renderer renderer) {
-      for (FemElement3d e : this.myElements) {
-         for (FemNode3d n : e.myNodes) {
-            ShellFemNode3d sn = (ShellFemNode3d) n;
-            Vector3d start = new Vector3d(sn.getPosition ());
-            
-            Vector3d end = new Vector3d(start);
-            //end.add(sn.myDir);
-            //end.add(sn.myDirector0);
-            //end.add(sn.getDisplacement ());
-            end.add (sn.myDir);
-            
-            renderer.drawLine (start, end);
-         }
-      }
-   }
-   
-   protected void renderForces(Renderer renderer) {
-      renderer.setColor (Color.YELLOW);
-      for (FemElement3d e : this.myElements) {
-         for (FemNode3d n : e.myNodes) {
-            ShellFemNode3d sn = (ShellFemNode3d) n;
-            Vector3d start = new Vector3d(sn.getPosition ());
-            
-            Vector3d end = new Vector3d(start);
-            end.scaledAdd(5, sn.danF);
-            
-            renderer.drawLine(start, end);
          }
       }
    }

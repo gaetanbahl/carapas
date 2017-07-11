@@ -1,11 +1,8 @@
 package artisynth.core.femmodels;
 
-import maspack.matrix.Matrix3d;
-import maspack.matrix.Point3d;
 import maspack.matrix.Vector3d;
 import maspack.render.RenderProps;
 import maspack.render.Renderer;
-import maspack.util.InternalErrorException;
 
 /** 
  * Implementation of a square shell element with 4 shell nodes and 8 gauss 
@@ -50,7 +47,6 @@ public class ShellQuadElement extends ShellFemElement3d {
     * as individual objects: */
 
    protected ShellIntegrationPoint3d[] myIntegrationPoints = null;
-   protected static ShellIntegrationPoint3d[] myDefaultIntegrationPoints;
    
    /* Mainly used to copy integration point data into (e.g. computed jacobian)
     * and transfer to other methods to use like computeVolume() */
@@ -133,13 +129,10 @@ public class ShellQuadElement extends ShellFemElement3d {
    @Override
    public ShellIntegrationPoint3d[] getIntegrationPoints () {
       if (myIntegrationPoints == null) {
-         if (myDefaultIntegrationPoints == null) {
-            // Wrap each Gauss coordinate (r, s, t, w) in an Integration
-            // Point object.
-            myDefaultIntegrationPoints =
-               createIntegrationPoints (myDefaultIntegrationCoords);
-         }
-         myIntegrationPoints = myDefaultIntegrationPoints;
+         // Wrap each Gauss coordinate (r, s, t, w) in an Integration
+         // Point object.
+         myIntegrationPoints =
+            createIntegrationPoints (myDefaultIntegrationCoords);
       }
 
       return myIntegrationPoints;

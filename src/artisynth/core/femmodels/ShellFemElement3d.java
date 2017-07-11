@@ -2,11 +2,16 @@ package artisynth.core.femmodels;
 
 import artisynth.core.femmodels.ShellIntegrationPoint3d.NODE_POS;
 import maspack.matrix.Matrix3d;
-import maspack.matrix.Vector3d;
-import maspack.render.RenderProps;
-import maspack.render.Renderer;
 import maspack.util.InternalErrorException;
 
+/**
+ * Base class for a shell element. Compared to traditional elements, 
+ * shell elements are thin elements that can better model surfaces.
+ * Examples include water surfaces, clothing, and aluminium sheet.
+ * 
+ * The shell logic is mainly found in ShellIntegrationPoint3d,
+ * ShellFemModel3d, ShellNodeNeighbor, and FemUtilties.
+ */
 public abstract class ShellFemElement3d extends FemElement3d {
    
    /* Default thickness. Stability problems can occur if raised too high. */
@@ -65,20 +70,17 @@ public abstract class ShellFemElement3d extends FemElement3d {
    @Override
    protected ShellIntegrationPoint3d[] createIntegrationPoints (
       double[] integCoords) {
-      return _createIntegrationPoints (this, integCoords);
-   }
-
-   protected ShellIntegrationPoint3d[] _createIntegrationPoints(
-      ShellFemElement3d ele, double[] cdata) {
-      int numi = cdata.length/4;
+      int numi = integCoords.length/4;
       ShellIntegrationPoint3d[] pnts = new ShellIntegrationPoint3d[numi];
-      if (cdata.length != 4*numi) {
+      if (integCoords.length != 4*numi) {
          throw new InternalErrorException (
-            "Coordinate data length is "+cdata.length+", expecting "+4*numi);
+            "Coordinate data length is "+integCoords.length+","
+            + " expecting "+4*numi);
       }
       for (int k=0; k<numi; k++) {
          pnts[k] = ShellIntegrationPoint3d.create (
-            ele, cdata[k*4], cdata[k*4+1], cdata[k*4+2], cdata[k*4+3]);
+            this, integCoords[k*4], integCoords[k*4+1], integCoords[k*4+2],
+            integCoords[k*4+3]);
          pnts[k].setNumber (k);
       }
       return pnts;

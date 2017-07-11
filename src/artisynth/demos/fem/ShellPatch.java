@@ -1,34 +1,25 @@
 package artisynth.demos.fem;
 
-import artisynth.core.femmodels.FemModel.SurfaceRender;
-import artisynth.core.femmodels.FemModel.IncompMethod;
-import artisynth.core.femmodels.*;
-import artisynth.core.modelbase.*;
-import artisynth.core.materials.*;
-import artisynth.core.mechmodels.*;
-import artisynth.core.workspace.RootModel;
-import artisynth.core.gui.*;
-import artisynth.core.driver.*;
-
 import java.awt.Color;
-import java.awt.Point;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedList;
 
-import javax.swing.JFrame;
-
-import maspack.properties.PropertyList;
-import maspack.render.*;
+import artisynth.core.femmodels.FemModel.SurfaceRender;
+import artisynth.core.femmodels.ShellFemModel3d;
+import artisynth.core.femmodels.ShellFemNode3d;
+import artisynth.core.femmodels.ShellTriElement;
+import artisynth.core.materials.NeoHookeanMaterial;
+import artisynth.core.mechmodels.MechModel;
+import artisynth.core.workspace.RootModel;
 import maspack.geometry.Face;
 import maspack.geometry.MeshFactory;
 import maspack.geometry.PolygonalMesh;
 import maspack.geometry.Vertex3d;
-import maspack.matrix.*;
+import maspack.matrix.Vector3d;
+import maspack.render.RenderProps;
+import maspack.render.Renderer;
 
 /**
- * Square patch of triangular shell elements (10x10), subjected to 
- * gravity. The boundary nodes will be held in-place.
+ * Square patch of triangular shell elements, subjected to gravity. 
+ * The boundary nodes will be held in-place.
  * 
  * @author Danny Huang (dah208@mail.usask.ca). Feel free to contact me for help.
  */
@@ -37,16 +28,16 @@ public class ShellPatch extends RootModel {
    protected MechModel m_mechModel = null;
 
    // Width and length of square patch of shell elements
-   public final int mMeshX = 10;                
-   public final int mMeshY = 10;
+   public final int mMeshX = 15;                
+   public final int mMeshY = 15;
    
    // Number of shell elements per row
-   public final int mMeshXDiv = 10;
+   public final int mMeshXDiv = 15;
    
    // Number of shell elements per column
-   public final int mMeshYDiv = 10;
+   public final int mMeshYDiv = 15;
    
-   // Not part of shell elements but used to generated a lattice of node
+   // Not part of shell elements but used to generate a square lattice of node
    // positions.
    protected PolygonalMesh mMesh = null;
    
@@ -55,11 +46,11 @@ public class ShellPatch extends RootModel {
    // Overall density of shell patch
    protected final double m_density = 10000;
    
-   // Generic particle damping
-   protected final double m_particleDamping = 1;
+   // Generic particle velocity damping
+   protected final double m_particleDamping = 2;
    
-   // Element stiffness. 0 for water-like, 100 for leaf-like
-   protected final double m_stiffnessDamping = 0;                
+   // Element stiffness. 0 for water-like, 100 for aluminium-like
+   protected final double m_stiffnessDamping = 0.5;                
    
    // Rendering radius of nodes
    protected final double mNodeRadius = 0.1;
@@ -132,6 +123,9 @@ public class ShellPatch extends RootModel {
       RenderProps.setPointStyle (m_femShellModel.getNodes(), 
                                  Renderer.PointStyle.SPHERE);
       RenderProps.setPointRadius (m_femShellModel.getNodes(), mNodeRadius);
+      
+      System.out.println ("Number of elements: " +
+                              m_femShellModel.numElements());
    }   
    
    

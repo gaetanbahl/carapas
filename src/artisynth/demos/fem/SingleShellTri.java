@@ -1,30 +1,20 @@
 package artisynth.demos.fem;
 
-import artisynth.core.femmodels.FemModel.SurfaceRender;
-import artisynth.core.femmodels.FemModel.IncompMethod;
-import artisynth.core.femmodels.*;
-import artisynth.core.modelbase.*;
-import artisynth.core.materials.*;
-import artisynth.core.mechmodels.*;
-import artisynth.core.mechmodels.MechSystemSolver.Integrator;
-import artisynth.core.workspace.RootModel;
-import artisynth.core.gui.*;
-import artisynth.core.driver.*;
-
 import java.awt.Color;
-import java.awt.Point;
-import java.util.ArrayList;
 
-import javax.swing.JFrame;
-
-import maspack.properties.PropertyList;
-import maspack.render.*;
-import maspack.geometry.Vertex3d;
-import maspack.matrix.*;
+import artisynth.core.femmodels.FemModel.SurfaceRender;
+import artisynth.core.femmodels.ShellFemModel3d;
+import artisynth.core.femmodels.ShellFemNode3d;
+import artisynth.core.femmodels.ShellTriElement;
+import artisynth.core.materials.NeoHookeanMaterial;
+import artisynth.core.mechmodels.MechModel;
+import artisynth.core.workspace.RootModel;
+import maspack.render.RenderProps;
+import maspack.render.Renderer;
 
 /**
  * Interactive demo of a single triangle shell element of 3 shell nodes and 
- * 9 guass points. Drag the nodes around via force.
+ * 9 gauss points. Drag the nodes around via force.
  * 
  * @author Danny Huang (dah208@mail.usask.ca). Feel free to contact me for help.
  */
@@ -37,9 +27,8 @@ public class SingleShellTri extends RootModel {
    protected ShellFemNode3d m_node2;
    protected ShellFemNode3d m_node3;
    
-   protected final double m_density = 100;
-   protected final double m_particleDamping = 100;            
-   
+   protected final double m_density = 10000;
+   protected final double m_particleDamping = 10;       
    protected final double m_nodeRadius = 0.05;
 
    public void build (String[] args) {

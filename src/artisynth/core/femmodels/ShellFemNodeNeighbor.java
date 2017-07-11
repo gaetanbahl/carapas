@@ -1,7 +1,6 @@
 package artisynth.core.femmodels;
 
 import maspack.matrix.DenseMatrixBase;
-import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.MatrixBlock;
 import maspack.matrix.MatrixNd;
@@ -90,7 +89,7 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
    }
    
    /**
-    * Apply both stiffness dampingand diagonal mass damping from this node
+    * Apply both stiffness and mass damping from this node
     * neighbour to a given 6x6 block.
     * 
     * @param blk
@@ -208,6 +207,7 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
     * This material stiffness also accounts for geometrical stiffness.
     * 
     * Standard pressure stiffness is added as well (non-shell specific).
+    * Not implemented yet.
     * 
     * @param iN
     * Shape function of i-th node and integration point.
@@ -245,7 +245,7 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
     * @param p
     * Pressure.
     * 
-    * @postcond
+    * Postcond:
     * this.myK (6x6 stiffness block for this i-j node pair) is increased.
     */
    public void addMaterialStiffness(

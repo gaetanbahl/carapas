@@ -9,13 +9,24 @@ import maspack.matrix.VectorNd;
 /**
  * Integration coordinate/point for a shell element.
  * 
- * Implementation is based on FEBio FESSIShellDomain::
+ * Compared to the IntegrationPoint3d superclass, shell integration points
+ * have methods to compute the co and contra bases vectors which the
+ * shell integration points' jacobian and gradients rely on. In addition, 
+ * the contra bases vectors are used directly when computing the
+ * node stress force and stiffness.
  * 
- * @author Danny Huang (dah208@mail.usask.ca). Feel free to contact me for help.
+ * The co and contra bases vectors are pre-emptively computed at the 
+ * beginning of every timestep and then re-used throughout the timestep.
+ * 
+ * It's worth noting that this is done by calling updateCoContraVectors()
+ * in ShellFemModel3d.updateStressAndStiffness() to pre-emptively compute the
+ * co and contra base vectors at the beginning of every timestep.
+ * 
+ * Implementation is based on FEBio FESSIShellDomain::
  */
 public class ShellIntegrationPoint3d extends IntegrationPoint3d {
 
-   /* Node position type: Rest, Current, Render */
+   /* Node position type: Rest (i.e. Initial), Current, Render */
    protected enum NODE_POS { REST, CURRENT, RENDER };
    
    /* Element that this integration point belongs to */
@@ -37,6 +48,8 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
    protected Vector3d[] myGct0 = null;
    protected Vector3d[] myGcoRend = null;
    protected Vector3d[] myGctRend = null;
+   protected boolean isGco0Computed = false;
+   protected boolean isGct0Computed = false;
    
    
    
@@ -75,6 +88,9 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * Create an integration point for a given shell element at a specific set of
     * natural coordinates.
     *
+    * Co and contra bases vectors are automatically updated for each 
+    * integration point.
+    *
     * @param elem 
     * Shell element to create the integration point for.
     * 
@@ -88,7 +104,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * Third coordinate value (known as t in FEBio, and z in Artisynth)
     * 
     * @param w 
-    * Weighting
+    * Weighing of the integration point.
     */
    public static ShellIntegrationPoint3d create (ShellFemElement3d elem,
          double s0, double s1, double s2, double w) {
@@ -123,37 +139,44 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
    
    
    
-   /* Methods for computing covariant and contravariant bases vectors.
+   /* --- Methods for computing covariant and contravariant bases vectors.
     * These vectors are used to compute the gradients and eventual
-    * shell stress and stiffness. */
+    * shell stress and stiffness. --- */
    
    
    /**
-    * Compute the covariant and contravariant bases vectors for all 3 node 
+    * Update the covariant and contravariant bases vectors for all 3 node 
     * position types: (REST, CURRENT, RENDER).
     * 
-    * Afterwards, these methods can now be called for the current timestep.
+    * Afterwards, these methods can now be called for the current timestep
+    * in O(1) time.
     *   getCoBaseVectors()
     *   getContraBaseVectors()
     *   computeJacobian()
     *   computeJacobianAndGradient()
     *   
     * This method should be called at the beginning of every time step, such 
-    * as in ShellFemModel.applyForces() 
+    * as in ShellFemModel3d.updateStressAndStiffness() 
     */
    public void updateCoContraVectors() {
-      computeCoBaseVectors(NODE_POS.REST);
+      if (!this.isGco0Computed) {              
+         computeCoBaseVectors(NODE_POS.REST);
+         isGco0Computed = true;
+      }
       computeCoBaseVectors(NODE_POS.CURRENT);
-//      computeCoBaseVectors(NODE_POS.RENDER);
+      computeCoBaseVectors(NODE_POS.RENDER);
       
-      computeContraBaseVectors(NODE_POS.REST);
+      if (!this.isGct0Computed) {
+         computeContraBaseVectors(NODE_POS.REST);
+         isGct0Computed = true;
+      }
       computeContraBaseVectors(NODE_POS.CURRENT);
-//      computeContraBaseVectors(NODE_POS.RENDER);
+      computeContraBaseVectors(NODE_POS.RENDER);
    }
    
    
    /**
-    * Compute the covariant bases vectors.
+    * Compute the covariant bases vectors of this integration point.
     * 
     * FEBio: FESSIShellDomain::CoBaseVectors
     * 
@@ -234,8 +257,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
    
    
    /**
-    * Compute the bases for this integration point in contravector
-    * form.
+    * Compute the contravariant bases vectors of this integration point.
     * 
     * FEBio: FESSIShellDomain::ContraBaseVectors
     * 
@@ -357,7 +379,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * FEBio: Top portion of FESSIShellDomain::invjac0
     * 
     * Precond:
-    *   computeCoBaseVectors(ePosType) 
+    *   computeCoBaseVectors(ePosType) or updateCoContraVectors()
     *     was called beforehand in the current timestep.
     * 
     * @param ePosType
@@ -474,17 +496,8 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
       for (int i = 0; i < 3; i++) {
          Fmat.addOuterProduct (myGcoRend[i], myGct0[i]);
       }
-   }      
-
-   @Override
-   public double computeInverseJacobian () {
-      double detJ = super.computeInverseJacobian ();
-      if (detJ <= 0) {
-         System.out.println ("Warning: computeInverseJacobian() computed "
-         + "detJ <= 0!");
-      }
-      return detJ;
    }
+
    
    @Override
    @Deprecated

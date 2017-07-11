@@ -4,10 +4,7 @@ import java.util.LinkedList;
 
 import artisynth.core.mechmodels.Frame;
 import artisynth.core.mechmodels.Point;
-import artisynth.core.mechmodels.PointTarget;
 import maspack.matrix.Matrix;
-import maspack.matrix.Matrix3d;
-import maspack.matrix.Matrix3x3DiagBlock;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.Matrix6dBlock;
 import maspack.matrix.Matrix6dDiagBlock;
@@ -17,11 +14,33 @@ import maspack.matrix.SparseBlockMatrix;
 import maspack.matrix.SparseNumberedBlockMatrix;
 import maspack.matrix.Vector3d;
 import maspack.matrix.VectorNd;
-import maspack.util.InternalErrorException;
 
+/**
+ * Shell node for shell element. This extends FemNode3d to include 
+ * 3 additional dof which is referred as the direction (u,w,v).
+ * 
+ * The node's director, which is distinct from the direction, is a vector
+ * that lies through the node to represent the element thickness at that
+ * node point. The director is dependent on the direction. Aside from
+ * representing thickness, the director is used to compute the node stress and 
+ * stiffness.
+ * 
+ * Currently, there are no implemented thickness nodes that sit above and below
+ * the shell node.
+ */
 public class ShellFemNode3d extends FemNode3d {
    
-   public Vector3d myDirector0 = new Vector3d();
+   /* Director vector when node is at rest. This is ultimately used to compute
+    * the current (i.e. non-rest) director vector:
+    *   
+    *   d = node.myDirector0 + node.position - node.myDir
+    *   
+    * This d vector is used to compute co and contra vectors to subsequently
+    * compute the node stress and stiffness.
+    * 
+    * node.myDir is the node's current direction.
+    */
+   protected Vector3d myDirector0 = new Vector3d();
    
    /* Adjacent elements of this node */
    public LinkedList<ShellFemElement3d> myAdjElements = 
@@ -37,9 +56,8 @@ public class ShellFemNode3d extends FemNode3d {
    /* Direction velocity */
    protected Vector3d myDirVel = new Vector3d();
    
-   public Vector3d danF = new Vector3d();
-   public Vector3d danDF = new Vector3d();
-   
+   /* Target direction and direction velocity. Mainly used by setDynamic(false)
+    * which holds the node at a fixed (i.e. target) position and direction */
    protected Vector3d myTargetDir = new Vector3d();
    protected Vector3d myTargetDirVel = new Vector3d();
   
@@ -59,6 +77,13 @@ public class ShellFemNode3d extends FemNode3d {
    
    
    
+   public Vector3d getDirector0() {
+      return myDirector0;
+   }
+   
+   public void setDirector0(Vector3d d0) {
+      myDirector0 = d0;
+   }
    
    public Vector3d getDir() {
       return myDir;
@@ -140,9 +165,7 @@ public class ShellFemNode3d extends FemNode3d {
    @Override
    public void setState(Point pt) {
       super.setState(pt);
-      
-      /* Pos and velo only. No director nor force */
-      
+ 
       ShellFemNode3d node = (ShellFemNode3d) pt;
       myDir.set( node.myDir );
       myDirVel.set( node.myDirVel );
@@ -153,8 +176,6 @@ public class ShellFemNode3d extends FemNode3d {
       idx = super.setState(x, idx);
       
       double[] xb = x.getBuffer();
-      
-      /* Pos and velo only. No director nor force */
       
       myDir.x = xb[idx++];
       myDir.y = xb[idx++];
@@ -219,7 +240,8 @@ public class ShellFemNode3d extends FemNode3d {
       this.myDirForce.z -= f6.get(5);
    }
    
-   /*** Methods pertaining to the mass and solve blocks ***/
+   
+   /* --- Methods pertaining to the mass and solve blocks --- */
    
    
    @Override
@@ -326,8 +348,8 @@ public class ShellFemNode3d extends FemNode3d {
    }
    
    
-   /*** Methods pertaining to target states. Need for node.setDynamic(false) to
-        work ***/
+   /* --- Methods pertaining to target states. Needed for 
+    *     node.setDynamic(false) to work ***/
    
    
    @Override 
@@ -362,6 +384,7 @@ public class ShellFemNode3d extends FemNode3d {
       throw new RuntimeException("Unimplemented.");
    }
 
+   @Override
    public int getTargetVel (double[] velt, double s, double h, int idx) {
       idx = super.getTargetVel (velt, s, h, idx);
       velt[idx++] = myTargetDirVel.x;
@@ -370,6 +393,7 @@ public class ShellFemNode3d extends FemNode3d {
       return idx;
    }
 
+   @Override
    public int setTargetVel (double[] velt, int idx) {
       idx = super.setTargetVel(velt, idx);
       myTargetDirVel.x = velt[idx++];
@@ -378,6 +402,7 @@ public class ShellFemNode3d extends FemNode3d {
       return idx;
    }
 
+   @Override
    public int getTargetPos (double[] post, double s, double h, int idx) {
       idx = super.getTargetPos (post, s, h, idx);
       post[idx++] = myTargetDir.x;
@@ -386,6 +411,7 @@ public class ShellFemNode3d extends FemNode3d {
       return idx;
    }
 
+   @Override
    public int setTargetPos (double[] post, int idx) {
       idx = super.setTargetPos(post, idx);
       myTargetDir.x = post[idx++];
@@ -396,9 +422,9 @@ public class ShellFemNode3d extends FemNode3d {
    
    
    
-   /*** Methods pertaining to node neighbors. Override those methods that 
+   /* --- Methods pertaining to node neighbors. Override those methods that 
     * require instantiating a new fem node neighbor. In that case, we want to 
-    * specifically instantiate shell-specific node neighbors. ***/
+    * specifically instantiate shell-specific node neighbors. --- */
    
  
    @Override

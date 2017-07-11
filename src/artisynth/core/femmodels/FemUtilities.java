@@ -6,10 +6,21 @@
  */
 package artisynth.core.femmodels;
 
-import javax.swing.plaf.synth.SynthSplitPaneUI;
-
 import artisynth.core.materials.TensorUtils;
-import maspack.matrix.*;
+import maspack.matrix.Matrix3d;
+import maspack.matrix.Matrix3x1;
+import maspack.matrix.Matrix3x1Block;
+import maspack.matrix.Matrix3x2;
+import maspack.matrix.Matrix3x2Block;
+import maspack.matrix.Matrix3x4;
+import maspack.matrix.Matrix3x4Block;
+import maspack.matrix.Matrix6d;
+import maspack.matrix.MatrixBlock;
+import maspack.matrix.MatrixNd;
+import maspack.matrix.MatrixNdBlock;
+import maspack.matrix.SymmetricMatrix3d;
+import maspack.matrix.Vector3d;
+import maspack.matrix.VectorNd;
 
 /** 
  * Provides some general utilities for FEM computations. Some of these
@@ -592,8 +603,12 @@ public class FemUtilities {
     * (represented by 3x3 stiffness block), relative to a particular integration
     * point of the shell element.
     * 
+    * This material stiffness also accounts for geometrical stiffness.
+    * 
+    * FEBio: FEElasticShellDomain::ElementStiffness
+    * 
     * @param K
-    * 3x3 stiffness block, belonging to i-j node pair, to be increased with 
+    * 6x6 stiffness block, belonging to i-j node pair, to be increased with 
     * material stiffness.
     * 
     * @param iN
@@ -609,7 +624,7 @@ public class FemUtilities {
     * Derivative of shape function of j-th node and integration point.
     * 
     * @param dv
-    * Weighted determinant of integration point jacobian.
+    * integrationPt.detJ * integrationPt.weight
     * 
     * @param t
     * t-component of (r,s,t) integration point coordinates (i.e. gauss point)
@@ -623,16 +638,8 @@ public class FemUtilities {
     * @param matTangent
     * Material tangent of integration point.
     * 
-    * @postcond
+    * Postcond:
     * K is increased.
-    * 
-    * FEBio: FEElasticShellDomain::ElementStiffness
-    *   
-    *   TODO: Shell-element in FEBio uses 6 dof (3 for x,y,z displacement, 
-    *         and 3 for x,y,z rotation). Artisynth is only hard coded for 
-    *         3 dof, so individual stiffness block of i,j node pair is only 
-    *         3x3 rather than 6x6. This function was adjusted for 3dof only.
-    *         Not sure if the full 6dof is needed.
     */
    public static void addShellMaterialStiffness (
       Matrix6d K, double iN, double jN, Vector3d idN, Vector3d jdN, double dv,
@@ -735,38 +742,46 @@ public class FemUtilities {
       K.m33 += sKdd;
       K.m44 += sKdd;
       K.m55 += sKdd;
-      
-      // 1099 vs 158. Mag diff.
-//       System.out.println ("kuu: " + sKuu);
-//       System.out.println ("kdd: " + sKdd);
    }
    
+   
    /** 
-    * Adds the force on a node resulting from a given stress at a given 
-    * integration point. This only applies to shell elements.
+    * Adds the material+geometric forces on a node resulting from a given stress
+    * at a given shell integration point.
+    * 
+    * FEBio: FEElasticShellDomain::ElementInternalForce
     * 
     * @param f
-    * Force vector of node to modify
+    * Displacement force vector (x,y,z) of node to append
+    * 
+    * @param f
+    * Direction force vector (u,w,v) of node to append
     * 
     * @param sig
     * Computed material stress
     * 
+    * @param t 
+    * t-component of (r,s,t) integration point coordinates (i.e. gauss point)
+    * 
     * @param dv
-    * 3D displacement increment. detJ * integrationPt.weight
+    * integrationPt.detJ * integrationPt.weight
     * 
-    * @param n
-    * Node index
+    * @param N
+    * Shape function of node and integration point.
     * 
-    * @param pt 
-    * Integration point 
+    * @param dNdr 
+    * x (i.e. r) component of derivative of shape function of node and
+    * integration point.
     * 
-    * @param el 
-    * Integration point's shell element
+    * @param dNds
+    * y (i.e. s) component of derivative of shape function of node and
+    * integration point.
     * 
-    * FEBio: FEElasticShellDomain::ElementInternalForce
+    * @param gct 
+    * Contravariant base vectors of integration point.
     */
    public static void addShellStressForce (
-      Vector3d f, Vector3d df, SymmetricMatrix3d sig, double t, double dv, int n, 
+      Vector3d f, Vector3d df, SymmetricMatrix3d sig, double t, double dv, 
       double N, double dNdr, double dNds, Vector3d[] gct) {
       
       Vector3d gradM = new Vector3d();
@@ -798,128 +813,5 @@ public class FemUtilities {
       df.x += fd.x*dv;
       df.y += fd.y*dv;
       df.z += fd.z*dv;
-      
-//      ((ShellFemNode3d)el.getNodes ()[n]).danF.set (f);
-//      ((ShellFemNode3d)el.getNodes ()[n]).danDF.set (df);
-      
-      // OK. Same signs
-//      System.out.println ("fxyz: " + f);
-//      System.out.println ("fuwv: " + df);
-      
-      // In FEBio, force are subtracted here.
-      // Artisynth does this subtraction later in
-      // FemModel3d.updateNodeForces().
-   }
-   
-   /**
-    * Add inertia stiffness between a pair of nodes. This is specific for
-    * shell-elements.
-    * 
-    * FEBio: FEElasticShellDomain::InertialForces
-    * 
-    * @param K
-    * 6x6 (i.e. 6dof) stiffness matrix to add the stiffness into.
-    * 
-    * @param el
-    * Shell element that iPt, i, and j belong to.
-    * 
-    * @param iPt
-    * Integration point of the pair of nodes.
-    * 
-    * @param i
-    * First node index of pair.
-    * 
-    * @param j
-    * Second node index of pair.
-    * 
-    * @param scale
-    * Scaler for added stiffness. Use 1.0 unless timestep is fractured into 
-    * smaller integration steps (e.g. 1.0 / beta*h*h).
-    */
-   public static void addShellInertialStiffness(Matrix6d K, 
-      ShellFemElement3d el, ShellIntegrationPoint3d iPt, int i, int j, 
-      double scale) {
-      
-      double density = el.getDensity();
-      
-      VectorNd Ns = iPt.getShapeWeights();
-      
-      //iPt.computeJacobian0(el);
-      double detJ0 = iPt.getJ().determinant () * iPt.getWeight();
-      
-      double t = iPt.coords.z;
-      
-      double iN = Ns.get(i);
-      double jN = Ns.get(i);
-         
-      double Kuu = (1+t)/2.0*iN*(1+t)/2.0*jN*scale*density*detJ0;
-      double Kud = (1+t)/2.0*iN*(1-t)/2.0*jN*scale*density*detJ0;
-      double Kdu = (1-t)/2.0*iN*(1+t)/2.0*jN*scale*density*detJ0;
-      double Kdd = (1-t)/2.0*iN*(1-t)/2.0*jN*scale*density*detJ0;
-         
-      K.m00 += Kuu;
-      K.m11 += Kuu;
-      K.m22 += Kuu;
-      
-      K.m03 += Kud;
-      K.m14 += Kud;
-      K.m25 += Kud;
-      
-      K.m30 += Kdu;
-      K.m41 += Kdu;
-      K.m52 += Kdu;
-      
-      K.m33 += Kdd;
-      K.m44 += Kdd;
-      K.m55 += Kdd;
-   }
-   
-   
-   /**
-    * Add inertia forces to each node for a particular shell element.
-    * 
-    * @param el
-    * Shell-element to have its node forces summed with inertia forces.
-    * 
-    * @postcond
-    * node.myInternalForce and node.myInternalDirForce are increased with 
-    * inertia forces.
-    */
-   public static void addShellInertiaForces(ShellFemElement3d el) {
-      double density = el.getDensity();
-      
-      // For each integration point...
-      ShellIntegrationPoint3d[] iPts = el.getIntegrationPoints();
-      for (int k = 0; k < iPts.length; k++) {
-         ShellIntegrationPoint3d iPt = iPts[k];
-      
-         //iPt.computeJacobian0(el);
-         double detJ0 = iPt.getJ().determinant ()*iPt.getWeight();
-         
-         VectorNd Ns = iPt.getShapeWeights();
-         
-         double t = iPt.coords.z;
-
-         // For each node...
-         for (int n = 0; n < el.numNodes(); n++) {
-            ShellFemNode3d sn = (ShellFemNode3d)el.myNodes[n];
-            
-            // TODO
-            Vector3d a = null;
-            
-            double N = Ns.get(n);
-            
-            Vector3d fu = new Vector3d(a);
-            fu.scale( density*N*(1+t)/2.0*detJ0 );
-            
-            Vector3d fd = new Vector3d(a);
-            fd.scale( density*N*(1-t)/2.0*detJ0 );
-            
-            sn.myInternalForce.add( fu );
-            sn.myInternalDirForce.add( fd );
-         }
-      }
-      
-      throw new RuntimeException("Unimplemented");
    }
 }
