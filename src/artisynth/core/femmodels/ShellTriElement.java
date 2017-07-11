@@ -55,7 +55,7 @@ public class ShellTriElement extends ShellFemElement3d {
     * objects: */
 
    protected ShellIntegrationPoint3d[] myIntegrationPoints = null;
-   protected static ShellIntegrationPoint3d[] myDefaultIntegrationPoints;
+   protected ShellIntegrationPoint3d[] myDefaultIntegrationPoints;
 
    /* Mainly used to transfer integration point data (e.g. computed jacobian)
     * for other methods to use like computeVolume() */

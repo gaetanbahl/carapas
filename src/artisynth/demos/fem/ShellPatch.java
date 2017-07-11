@@ -70,7 +70,7 @@ public class ShellPatch extends RootModel {
    // Non-dynamic (i.e. frozen) nodes will be given this color.
    protected final Color mNodeNonDynamicColor = Color.GRAY;
    
-   protected final Vector3d mGravity = new Vector3d(0, 0, 0);
+   protected final Vector3d mGravity = new Vector3d(0, 0, -9.81);
    
    public void build (String[] args) {
       m_mechModel = new MechModel ("mech");
