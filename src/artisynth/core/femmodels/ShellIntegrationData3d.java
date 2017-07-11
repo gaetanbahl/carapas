@@ -19,15 +19,11 @@ public class ShellIntegrationData3d extends IntegrationData3d {
    public static double computeRestJacobian (
       Matrix3d invJ0, ShellIntegrationPoint3d iPt) {
 
-      Matrix3d J0 = new Matrix3d();
+      iPt.computeJacobian(NODE_POS.REST);
+      double detJ = iPt.computeInverseJacobian();
+      invJ0.set( iPt.getInvJ() );
       
-      Vector3d[] gco = iPt.getCoBaseVectors(NODE_POS.REST);
-      
-      J0.m00 = gco[0].x; J0.m01 = gco[1].x; J0.m02 = gco[2].x;
-      J0.m10 = gco[0].y; J0.m11 = gco[1].y; J0.m12 = gco[2].y;
-      J0.m20 = gco[0].z; J0.m21 = gco[1].z; J0.m22 = gco[2].z;
-      
-      return invJ0.fastInvert (J0);
+      return detJ;
    }
    
    public void computeRestJacobian (ShellIntegrationPoint3d iPt) {

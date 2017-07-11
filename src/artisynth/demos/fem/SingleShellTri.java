@@ -38,7 +38,7 @@ public class SingleShellTri extends RootModel {
    protected ShellFemNode3d m_node3;
    
    protected final double m_density = 100;
-   protected final double m_particleDamping = 1;            
+   protected final double m_particleDamping = 100;            
    
    protected final double m_nodeRadius = 0.05;
 

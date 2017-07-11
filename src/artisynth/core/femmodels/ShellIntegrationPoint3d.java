@@ -146,16 +146,8 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
       computeCoBaseVectors(NODE_POS.CURRENT);
 //      computeCoBaseVectors(NODE_POS.RENDER);
       
-      computeJacobian(NODE_POS.REST);
-      computeInverseJacobian();
       computeContraBaseVectors(NODE_POS.REST);
-      
-      computeJacobian(NODE_POS.CURRENT);
-      computeInverseJacobian();
       computeContraBaseVectors(NODE_POS.CURRENT);
-      
-//      computeJacobian(NODE_POS.RENDER);
-//      computeInverseJacobian();
 //      computeContraBaseVectors(NODE_POS.RENDER);
    }
    
@@ -248,8 +240,8 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * FEBio: FESSIShellDomain::ContraBaseVectors
     * 
     * Precond:
-    *   computeJacobian(ePosType) and computeInverseJacobian() were called
-    *   immediately before this method.
+    *   computeCoBaseVectors(ePosType) was called beforehand in the current
+    *   timestep.
     *   
     * @param ePosType
     * Type of node position to use.
@@ -275,6 +267,9 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
       else if (ePosType == NODE_POS.RENDER) {
          g = myGctRend;
       }
+      
+      computeJacobian(ePosType);
+      computeInverseJacobian();
       
       // Compute contravectors using inverted J.
       g[0].set( myInvJ.m00, myInvJ.m01, myInvJ.m02 );
@@ -477,7 +472,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
       
       Fmat.setZero();
       for (int i = 0; i < 3; i++) {
-         Fmat.addOuterProduct (myGco[i], myGct0[i]);
+         Fmat.addOuterProduct (myGcoRend[i], myGct0[i]);
       }
    }      
 
