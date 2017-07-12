@@ -90,7 +90,7 @@ public class ShellTriElement extends ShellFemElement3d {
     * Creates a new triangle element from three nodes. The node 
     * positions must abide to this.myNodeCoords, relatively speaking.
     */
-   public ShellTriElement (ShellFemNode3d p0, ShellFemNode3d p1, ShellFemNode3d p2) {
+   public ShellTriElement (ShellFemNode3d p0, ShellFemNode3d p1, ShellFemNode3d p2, double thickness) {
       this ();
       setNodes (p0, p1, p2);
       
@@ -98,7 +98,7 @@ public class ShellTriElement extends ShellFemElement3d {
       p1.myAdjElements.add (this);
       p2.myAdjElements.add (this);
       
-      myShellThickness = 0.01;
+      myShellThickness = thickness;
    }
 
    public void setNodes (ShellFemNode3d p0, ShellFemNode3d p1, ShellFemNode3d p2) {

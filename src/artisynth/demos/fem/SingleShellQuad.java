@@ -49,7 +49,7 @@ public class SingleShellQuad extends RootModel {
       m_node2 = new ShellFemNode3d (1, 1, 0);    
       m_node3 = new ShellFemNode3d (0, 1, 0);        
      
-      ShellQuadElement el = new ShellQuadElement(m_node0, m_node1, m_node2, m_node3);
+      ShellQuadElement el = new ShellQuadElement(m_node0, m_node1, m_node2, m_node3, 0.01);
       m_femShellModel.addNode (m_node0);
       m_femShellModel.addNode (m_node1);
       m_femShellModel.addNode (m_node2);

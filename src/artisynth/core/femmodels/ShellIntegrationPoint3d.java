@@ -48,9 +48,7 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
    protected Vector3d[] myGct0 = null;
    protected Vector3d[] myGcoRend = null;
    protected Vector3d[] myGctRend = null;
-   protected boolean isGco0Computed = false;
-   protected boolean isGct0Computed = false;
-   
+
    
    
    public ShellIntegrationPoint3d(ShellFemElement3d ele,
@@ -158,18 +156,12 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * This method should be called at the beginning of every time step, such 
     * as in ShellFemModel3d.updateStressAndStiffness() 
     */
-   public void updateCoContraVectors() {
-      if (!this.isGco0Computed) {              
-         computeCoBaseVectors(NODE_POS.REST);
-         isGco0Computed = true;
-      }
+   public void updateCoContraVectors() {             
+      computeCoBaseVectors(NODE_POS.REST);
       computeCoBaseVectors(NODE_POS.CURRENT);
       computeCoBaseVectors(NODE_POS.RENDER);
       
-      if (!this.isGct0Computed) {
-         computeContraBaseVectors(NODE_POS.REST);
-         isGct0Computed = true;
-      }
+      computeContraBaseVectors(NODE_POS.REST);
       computeContraBaseVectors(NODE_POS.CURRENT);
       computeContraBaseVectors(NODE_POS.RENDER);
    }

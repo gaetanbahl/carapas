@@ -47,14 +47,14 @@ public class ShellFemNode3d extends FemNode3d {
       new LinkedList<ShellFemElement3d>();
    
    /* Direction force */
-   protected Vector3d myDirForce = new Vector3d();
-   protected Vector3d myInternalDirForce = new Vector3d();
+   public Vector3d myDirForce = new Vector3d();
+   public Vector3d myInternalDirForce = new Vector3d();
    
    /* Direction */
-   protected Vector3d myDir = new Vector3d();
+   public Vector3d myDir = new Vector3d();
    
    /* Direction velocity */
-   protected Vector3d myDirVel = new Vector3d();
+   public Vector3d myDirVel = new Vector3d();
    
    /* Target direction and direction velocity. Mainly used by setDynamic(false)
     * which holds the node at a fixed (i.e. target) position and direction */

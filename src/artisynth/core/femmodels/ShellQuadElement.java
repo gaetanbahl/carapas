@@ -88,7 +88,7 @@ public class ShellQuadElement extends ShellFemElement3d {
     * positions must abide to this.myNodeCoords, relatively speaking.
     */
    public ShellQuadElement(
-      ShellFemNode3d p0, ShellFemNode3d p1, ShellFemNode3d p2, ShellFemNode3d p3) {
+      ShellFemNode3d p0, ShellFemNode3d p1, ShellFemNode3d p2, ShellFemNode3d p3, double thickness) {
       this ();
       setNodes (p0, p1, p2, p3);
       
@@ -96,6 +96,8 @@ public class ShellQuadElement extends ShellFemElement3d {
       p1.myAdjElements.add (this);
       p2.myAdjElements.add (this);
       p3.myAdjElements.add (this);
+      
+      myShellThickness = thickness;
    }
 
    public void setNodes (

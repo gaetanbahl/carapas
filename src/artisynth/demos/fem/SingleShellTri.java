@@ -38,7 +38,7 @@ public class SingleShellTri extends RootModel {
       m_node1 = new ShellFemNode3d (1, 0, 0);       
       m_node2 = new ShellFemNode3d (1, 1, 0);        
 
-      ShellTriElement triShell = new ShellTriElement(m_node0, m_node1, m_node2);
+      ShellTriElement triShell = new ShellTriElement(m_node0, m_node1, m_node2, 0.01);
       m_femShellModel.addNode (m_node0);
       m_femShellModel.addNode (m_node1);
       m_femShellModel.addNode (m_node2);

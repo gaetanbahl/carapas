@@ -10,6 +10,7 @@ import artisynth.core.materials.LinearMaterial;
 import artisynth.core.materials.SolidDeformation;
 import artisynth.core.materials.ViscoelasticBehavior;
 import artisynth.core.materials.ViscoelasticState;
+import artisynth.core.mechmodels.MechSystemBase;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.Matrix6dBlock;
@@ -18,7 +19,9 @@ import maspack.matrix.SparseNumberedBlockMatrix;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.matrix.Vector3d;
 import maspack.matrix.VectorNd;
+import maspack.properties.PropertyList;
 import maspack.render.Renderer;
+import maspack.util.DoubleInterval;
 
 public class ShellFemModel3d extends FemModel3d {
 
@@ -29,6 +32,8 @@ public class ShellFemModel3d extends FemModel3d {
    public ShellFemModel3d (String name) {
       super(name);
    }
+   
+   
    
    @Override
    public void addElement(FemElement3d newEle) {

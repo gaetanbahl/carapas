@@ -31,16 +31,12 @@ public abstract class ShellFemElement3d extends FemElement3d {
    
    @Override
    public double computeVolumes () {
-      double vol = _computeVolume (/* isRest= */false);
-      myVolumes[0] = vol;
-      return vol;
+      return _computeVolume (/* isRest= */false);
    }
 
    @Override
    public double computeRestVolumes () {
-      double vol = _computeVolume (/* isRest= */true);
-      myRestVolumes[0] = vol;
-      return vol;
+      return _computeVolume (/* isRest= */true);
    }
    
    public double _computeVolume (boolean isRest) {
@@ -65,6 +61,10 @@ public abstract class ShellFemElement3d extends FemElement3d {
    
    public double getShellThickness() {
       return myShellThickness;
+   }
+   
+   public void setShellThickness(double newThickness) {
+      myShellThickness = newThickness;
    }
    
    @Override
