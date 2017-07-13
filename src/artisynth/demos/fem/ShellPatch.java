@@ -52,13 +52,17 @@ public class ShellPatch extends RootModel {
    protected final double m_density = 100;
    
    // Generic particle velocity damping
-   protected final static double m_particleDamping = 0.1;
+   protected final static double m_particleDamping = 0;
    
    // Element stiffness. 0 for water-like, 100 for aluminium-like
-   protected final static double m_stiffnessDamping = 0.1;              
+   protected final static double m_stiffnessDamping = 0.05;              
    
    // Affects bending strength
    protected final static double m_shellThickness = 0.1;
+   
+   // Affects bending and shear strength
+   protected final double m_neoHookYoungsModulus = 100000000;
+   protected final double m_neoHookPoissonsRatio = 0.33;
    
    // Rendering radius of nodes
    protected final double mNodeRadius = 0.1;
@@ -70,6 +74,7 @@ public class ShellPatch extends RootModel {
    protected final Color mNodeNonDynamicColor = Color.GRAY;
    
    protected final Vector3d mGravity = new Vector3d(0, 0, -9.81);
+   
    
    public void build (String[] args) {
       m_mechModel = new MechModel ("mech");
@@ -103,7 +108,8 @@ public class ShellPatch extends RootModel {
          m_femShellModel.addElement(ele);
       }
 
-      m_femShellModel.setMaterial (new NeoHookeanMaterial());
+      m_femShellModel.setMaterial (
+         new NeoHookeanMaterial(m_neoHookYoungsModulus, m_neoHookPoissonsRatio));
       m_femShellModel.setStiffnessDamping (m_stiffnessDamping);
       m_femShellModel.setGravity (mGravity);
       m_femShellModel.setDensity (m_density);
@@ -116,7 +122,7 @@ public class ShellPatch extends RootModel {
       for (ShellFemNode3d node : m_nodes) {
          node.setRenderProps( node.createRenderProps() );
          if (isBorderNode(node.getIndex())) {
-            node.getRenderProps ().setPointColor (Color.GREEN);
+            node.getRenderProps ().setPointColor (Color.RED);
             node.setDynamic (false);
          }
       }
@@ -142,9 +148,6 @@ public class ShellPatch extends RootModel {
       
       System.out.println ("Number of elements: " +
                               m_femShellModel.numElements());
-      
-      System.out.println ("node director: " + 
-         ((ShellFemNode3d)m_femShellModel.getNode (0)).getDirector0 ());
    }   
    
    public static PropertyList myProps =
@@ -191,7 +194,7 @@ public class ShellPatch extends RootModel {
     * Is the node on the border of the shell patch?
     */
    public boolean isBorderNode(int idx) {
-      return (idx <= mMeshXDiv*2+1);
+      return (idx <= mMeshXDiv);        // bottom edge nodes
       
 //      if (idx <= mMeshXDiv ||                   // bottom edge nodes
 //          idx % (mMeshXDiv+1) == 0 ||           // left edge nodes
