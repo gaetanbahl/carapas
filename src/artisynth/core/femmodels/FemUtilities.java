@@ -599,8 +599,8 @@ public class FemUtilities {
    
    
    /** 
-    * Add weighted material stiffness for this i,j node neighbor pair
-    * (represented by 3x3 stiffness block), relative to a particular integration
+    * Add weighted material stiffness for this (i,j) node neighbor pair
+    * (represented by 6x6 stiffness block), relative to a particular integration
     * point of the shell element.
     * 
     * This material stiffness also accounts for geometrical stiffness.
@@ -627,7 +627,8 @@ public class FemUtilities {
     * integrationPt.detJ * integrationPt.weight
     * 
     * @param t
-    * t-component of (r,s,t) integration point coordinates (i.e. gauss point)
+    * t-component of (r,s,t) integration point coordinates (i.e. x-component of 
+    * gauss point)
     * 
     * @param gct 
     * Contravariant base vectors of integration point.
@@ -639,7 +640,7 @@ public class FemUtilities {
     * Material tangent of integration point.
     * 
     * Postcond:
-    * K is increased.
+    * Stiffness is applied to K
     */
    public static void addShellMaterialStiffness (
       Matrix6d K, double iN, double jN, Vector3d idN, Vector3d jdN, double dv,
@@ -754,14 +755,15 @@ public class FemUtilities {
     * @param f
     * Displacement force vector (x,y,z) of node to append
     * 
-    * @param f
+    * @param df
     * Direction force vector (u,w,v) of node to append
     * 
     * @param sig
     * Computed material stress
     * 
     * @param t 
-    * t-component of (r,s,t) integration point coordinates (i.e. gauss point)
+    * t-component of (r,s,t) integration point coordinates (i.e. x-component of 
+    * gauss point)
     * 
     * @param dv
     * integrationPt.detJ * integrationPt.weight
@@ -779,6 +781,9 @@ public class FemUtilities {
     * 
     * @param gct 
     * Contravariant base vectors of integration point.
+    * 
+    * Postcond:
+    * Stress forces are applied to f and df
     */
    public static void addShellStressForce (
       Vector3d f, Vector3d df, SymmetricMatrix3d sig, double t, double dv, 

@@ -4,6 +4,9 @@ import java.util.LinkedList;
 
 import artisynth.core.mechmodels.Frame;
 import artisynth.core.mechmodels.Point;
+import artisynth.core.modelbase.TransformGeometryContext;
+import artisynth.core.modelbase.TransformableGeometry;
+import maspack.geometry.GeometryTransformer;
 import maspack.matrix.Matrix;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.Matrix6dBlock;
@@ -16,14 +19,16 @@ import maspack.matrix.Vector3d;
 import maspack.matrix.VectorNd;
 
 /**
- * Shell node for shell element. This extends FemNode3d to include 
- * 3 additional dof which is referred as the direction (u,w,v).
+ * Shell node for a shell element. This extends FemNode3d to include 
+ * 3 additional dof which is referred as the direction (u,w,v). The direction
+ * of a shell node can be seen as the vector between the x,y,z rest position 
+ * to the x,y,z current position when everything is calm.
  * 
- * The node's director, which is distinct from the direction, is a vector
+ * The node's rest director, which is distinct from the direction, is a vector
  * that lies through the node to represent the element thickness at that
- * node point. The director is dependent on the direction. Aside from
- * representing thickness, the director is used to compute the node stress and 
- * stiffness.
+ * node point. The rest director vector is simply computed as the vertex 
+ * normal of the node. Aside from representing thickness, the director is
+ * used to compute the node stress and stiffness.
  * 
  * Currently, there are no implemented thickness nodes that sit above and below
  * the shell node.
@@ -36,19 +41,19 @@ public class ShellFemNode3d extends FemNode3d {
     *   d = node.myDirector0 + node.position - node.myDir
     *   
     * This d vector is used to compute co and contra vectors to subsequently
-    * compute the node stress and stiffness.
+    * compute the node stress, stiffness, and element volume.
     * 
-    * node.myDir is the node's current direction.
+    * node.myDir is the node's current direction, which is distinct from the
+    * director and rest director.
     */
    protected Vector3d myDirector0 = new Vector3d();
    
-   /* Adjacent elements of this node */
+   /* Adjacent elements of this node. This is updated in the constructor of an 
+    * element. This is preferred over super.myElementDeps because myAdjElement 
+    * will be updated earlier to compute the rest directors earlier in order 
+    * for FemModel3d.addElement() to compute the volume during initialization */
    public LinkedList<ShellFemElement3d> myAdjElements = 
       new LinkedList<ShellFemElement3d>();
-   
-   /* Direction force */
-   public Vector3d myDirForce = new Vector3d();
-   public Vector3d myInternalDirForce = new Vector3d();
    
    /* Direction */
    public Vector3d myDir = new Vector3d();
@@ -56,8 +61,12 @@ public class ShellFemNode3d extends FemNode3d {
    /* Direction velocity */
    public Vector3d myDirVel = new Vector3d();
    
+   /* Direction force */
+   public Vector3d myDirForce = new Vector3d();
+   public Vector3d myInternalDirForce = new Vector3d();
+   
    /* Target direction and direction velocity. Mainly used by setDynamic(false)
-    * which holds the node at a fixed (i.e. target) position and direction */
+    * which holds the node at a fixed (i.e. target) position and direction. */
    protected Vector3d myTargetDir = new Vector3d();
    protected Vector3d myTargetDirVel = new Vector3d();
   
@@ -447,6 +456,77 @@ public class ShellFemNode3d extends FemNode3d {
       else {
          nbr.myRefCnt++;
       }
+   }
+   
+   
+   
+   
+   
+   /** 
+    * This is invoked whenever a node is dragged via the x,y,z translation 
+    * GUI tool. Specific for shell nodes, this overridden method will also 
+    * translate the extra 3dof direction vector as well. */
+   @Override
+   public void transformGeometry (
+      GeometryTransformer gt, TransformGeometryContext context, int flags) {
+      super.transformGeometry (gt, context, flags);
+      
+      // If not simulating, set direction to zero.
+      if ((flags & TransformableGeometry.TG_SIMULATING) == 0) {
+         myDir.setZero ();
+      }
+      else {
+         Point3d myDirPt = new Point3d(myDir);
+         gt.transformPnt(myDirPt);
+         myDir.set (myDirPt);
+      }
+   }
+   
+   
+   /**
+    * Update the rest director vector. 
+    * 
+    * Implementation is simply finding the vertex normal which is the 
+    * average normal of the adjacent elements.
+    * 
+    * FEBio: FEMesh::InitShellsNew()
+    * 
+    * Precond:
+    * Rest position (x,y,z) vectors are updated for each node of the adjacent
+    * elements.
+    * 
+    * Postcond:
+    * this.myDirector0 is set
+    */
+   public void updateDirector0() {
+      myDirector0.setZero ();
+      
+      for (ShellFemElement3d e : myAdjElements) {
+         int i = e.getNodeIndex (this);
+         
+         // Get next and prev nodes relative to i-th node.
+         int n = (i+1) % e.numNodes();
+         int p = (i==0) ? e.numNodes()-1 : i-1; 
+         
+         Vector3d iPos = e.myNodes[i].getRestPosition ();
+         Vector3d nPos = e.myNodes[n].getRestPosition ();
+         Vector3d pPos = e.myNodes[p].getRestPosition ();
+        
+         Vector3d n_i = new Vector3d();
+         n_i.sub (nPos, iPos);
+         
+         Vector3d p_i = new Vector3d();
+         p_i.sub (pPos, iPos);
+         
+         Vector3d dir = new Vector3d();
+         dir.cross (n_i, p_i);
+         dir.normalize ();
+         dir.scale (e.getShellThickness());
+         
+         myDirector0.add(dir);
+      }
+      
+      myDirector0.scale (1.0/myAdjElements.size ());
    }
 }
 

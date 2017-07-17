@@ -7,8 +7,6 @@ import maspack.render.Renderer;
 /** 
  * Implementation of a square shell element with 4 shell nodes and 8 gauss 
  * points. Implementation is based on FEBio FEShellQuad4G8::FEShellQuad4G8()
- *  
- * @author Danny Huang (dah208@mail.usask.ca). Feel free to contact me for help.
  */
 public class ShellQuadElement extends ShellFemElement3d {
 
@@ -262,7 +260,7 @@ public class ShellQuadElement extends ShellFemElement3d {
                + "]");
          }
       }
-      dNds.z = 0;
+      dNds.z = 0;     // unused
    }
 
    

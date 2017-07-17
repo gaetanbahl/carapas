@@ -6,9 +6,7 @@ import maspack.render.Renderer;
 
 /** 
  * Implementation of a triangle shell element with 3 shell nodes and 9 gauss 
- * points. Implementation is based on FEBio FEShellTri3G9::FEShellTri3G9()
- *  
- * @author Danny Huang (dah208@mail.usask.ca). Feel free to contact me for help.
+ * points. Implementation is based on FEBio FEShellTri3G9::FEShellTri3G9().
  */
 public class ShellTriElement extends ShellFemElement3d {
 

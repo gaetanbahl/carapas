@@ -4,7 +4,6 @@ import java.awt.Color;
 
 import artisynth.core.femmodels.FemElement3d;
 import artisynth.core.femmodels.FemModel.SurfaceRender;
-import artisynth.core.femmodels.FemNode3d;
 import artisynth.core.femmodels.ShellFemElement3d;
 import artisynth.core.femmodels.ShellFemModel3d;
 import artisynth.core.femmodels.ShellFemNode3d;
@@ -24,9 +23,7 @@ import maspack.render.Renderer;
 
 /**
  * Square patch of triangular shell elements, subjected to gravity. 
- * The boundary nodes will be held in-place.
- * 
- * @author Danny Huang (dah208@mail.usask.ca). Feel free to contact me for help.
+ * Some nodes will be held in-place to demonstrate shell bending forces.
  */
 public class ShellPatch extends RootModel {
    protected ShellFemModel3d m_femShellModel = null;
@@ -71,9 +68,10 @@ public class ShellPatch extends RootModel {
    protected final Color mNodeDynamicColor = Color.CYAN;
    
    // Non-dynamic (i.e. frozen) nodes will be given this color.
-   protected final Color mNodeNonDynamicColor = Color.GRAY;
+   protected final Color mNodeNonDynamicColor = Color.RED;
    
    protected final Vector3d mGravity = new Vector3d(0, 0, -9.81);
+
    
    
    public void build (String[] args) {
@@ -118,11 +116,11 @@ public class ShellPatch extends RootModel {
       m_mechModel.addModel (m_femShellModel);
       addModel (m_mechModel);
       
-      // For the nodes on the border of the shell patch, hold them in-place.
+      // Hold some nodes in-place
       for (ShellFemNode3d node : m_nodes) {
          node.setRenderProps( node.createRenderProps() );
-         if (isBorderNode(node.getIndex())) {
-            node.getRenderProps ().setPointColor (Color.RED);
+         if (shouldBeFrozen(node.getIndex())) {
+            node.getRenderProps ().setPointColor (mNodeNonDynamicColor);
             node.setDynamic (false);
          }
       }
@@ -138,23 +136,27 @@ public class ShellPatch extends RootModel {
                                  Renderer.PointStyle.SPHERE);
       RenderProps.setPointRadius (m_femShellModel.getNodes(), mNodeRadius);
       
-      ControlPanel panel = new ControlPanel("controls");
-      panel.addWidget (this, "shellThickness", 0.01, 10);
+      // Add control panel
+      ControlPanel panel = new ControlPanel("shellPatchControlPanel");
+      panel.addWidget (this, "shellThickness", m_shellThickness, 10);
       panel.addWidget (m_femShellModel, "particleDamping");
       panel.addWidget (m_femShellModel, "stiffnessDamping", 0, 2000);
       panel.addWidget (m_femShellModel, "density", 10, 1000);
       panel.addWidget (m_femShellModel, "gravity");
+      panel.addWidget (m_femShellModel.getMaterial (), "YoungsModulus");
+      panel.addWidget (m_femShellModel.getMaterial (), "PoissonsRatio");
       addControlPanel(panel);
-      
+
       System.out.println ("Number of elements: " +
                               m_femShellModel.numElements());
-   }   
+   }    
    
    public static PropertyList myProps =
       new PropertyList (ShellPatch.class, RootModel.class);
    
    static {
-      myProps.add("shellThickness", "Thickness of each shell element", m_shellThickness);
+      myProps.add("shellThickness", "Thickness of each shell element", 
+                  m_shellThickness);
    }
    
    @Override
@@ -167,33 +169,18 @@ public class ShellPatch extends RootModel {
    }
    
    public void setShellThickness(double newThickness) {
-      // Update director0 for each node. Warning: Assumes that initial vertex
-      // normals are (0,0,newThickness) which is correct if all the elements
-      // are facing directly up.
-      for (FemNode3d n : m_femShellModel.getNodes()) {
-         ShellFemNode3d sn = (ShellFemNode3d) n;
-         sn.setDirector0 (new Vector3d(0,0,newThickness));
-      }
       for (FemElement3d e : m_femShellModel.getElements()) {
          ShellFemElement3d se = (ShellFemElement3d) e;
          se.setShellThickness (newThickness);
       }
       
-      // Update the co and contra vectors which are dependent on the director0.
-      // These vectors are subsequently used to compute the volume and mass.
-      m_femShellModel.updateStressAndStiffness();
-      
-      // Need to update volume and mass which are dependent on the thickness
-      for (FemElement3d e : m_femShellModel.getElements()) {
-         ShellFemElement3d se = (ShellFemElement3d) e;
-         se.updateRestVolumeAndMass ();
-      }
+      System.out.println ("Num control panels: " + this.getControlPanels ().size ());
    }
    
    /**
-    * Is the node on the border of the shell patch?
+    * Should this node be non-dynamic?
     */
-   public boolean isBorderNode(int idx) {
+   public boolean shouldBeFrozen(int idx) {
       return (idx <= mMeshXDiv);        // bottom edge nodes
       
 //      if (idx <= mMeshXDiv ||                   // bottom edge nodes

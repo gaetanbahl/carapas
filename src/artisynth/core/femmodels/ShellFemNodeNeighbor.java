@@ -13,13 +13,11 @@ import maspack.matrix.VectorNd;
  * Handles the 6x6 stiffness block for a neighboring shell node, relative to a
  * shell node.
  * 
- * The 6x6 stiffness block is a subset of the global stiffness matrix that
- * represents the stiffness between every node pair.
+ * The 6x6 stiffness block is a subset of the global solve matrix which
+ * holds information of the stiffness between every node pair.
  * 
  * The 6 accounts for the 3 displacement dof (x,y,z) and 3 direction dof 
  * (u,w,v).
- * 
- * @author Danny Huang (dah208@mail.usask.ca). Feel free to contact me for help.
  */
 public class ShellFemNodeNeighbor extends NodeNeighbor {
    protected ShellFemNode3d myNode;
@@ -68,7 +66,7 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
    /**
     * Copy the transposed stiffness from a node neighbor to this node neighbor.
     * 
-    * Stiffness is transposed to abide to the global stiffness matrix's
+    * Stiffness is transposed to abide to the global solve matrix's
     * symmetric property.
     */
    @Override
@@ -225,7 +223,8 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
     * Weighted determinant of integration point jacobian.
     * 
     * @param t
-    * t-component of (r,s,t) integration point coordinates (i.e. gauss point)
+    * t-component of (r,s,t) integration point coordinates (i.e. x-component
+    * gauss point)
     * 
     * @param gct 
     * Contravariant base vectors of integration point.
@@ -246,7 +245,7 @@ public class ShellFemNodeNeighbor extends NodeNeighbor {
     * Pressure.
     * 
     * Postcond:
-    * this.myK (6x6 stiffness block for this i-j node pair) is increased.
+    * this.myK (6x6 stiffness block for this i-j node pair) is modified.
     */
    public void addMaterialStiffness(
       double iN, double jN, Vector3d idN, Vector3d jdN, double dv, double t,

@@ -7,6 +7,10 @@ import maspack.matrix.MatrixBlock;
 import maspack.matrix.MatrixNd;
 import maspack.matrix.VectorBase;
 
+/**
+ * Base class for storing information that's specific between a node and its 
+ * neighbor (e.g. stiffness)
+ */
 public abstract class NodeNeighbor {
 
    protected int myBlkNum;

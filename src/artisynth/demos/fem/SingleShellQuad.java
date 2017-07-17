@@ -1,32 +1,22 @@
 package artisynth.demos.fem;
 
-import artisynth.core.femmodels.FemModel.SurfaceRender;
-import artisynth.core.femmodels.FemModel.IncompMethod;
-import artisynth.core.femmodels.*;
-import artisynth.core.modelbase.*;
-import artisynth.core.materials.*;
-import artisynth.core.mechmodels.*;
-import artisynth.core.mechmodels.MechSystemSolver.Integrator;
-import artisynth.core.workspace.RootModel;
-import artisynth.core.gui.*;
-import artisynth.core.driver.*;
-
 import java.awt.Color;
-import java.awt.Point;
-import java.util.ArrayList;
 
-import javax.swing.JFrame;
-
-import maspack.properties.PropertyList;
-import maspack.render.*;
-import maspack.geometry.Vertex3d;
-import maspack.matrix.*;
+import artisynth.core.femmodels.FemModel.SurfaceRender;
+import artisynth.core.femmodels.FemNode3d;
+import artisynth.core.femmodels.ShellFemModel3d;
+import artisynth.core.femmodels.ShellFemNode3d;
+import artisynth.core.femmodels.ShellQuadElement;
+import artisynth.core.materials.NeoHookeanMaterial;
+import artisynth.core.mechmodels.MechModel;
+import artisynth.core.workspace.RootModel;
+import maspack.matrix.Vector3d;
+import maspack.render.RenderProps;
+import maspack.render.Renderer;
 
 /**
  * Interactive demo of a single square shell element of 4 shell nodes and 
- * 8 gauss points. Drag the nodes around via force.
- * 
- * @author Danny Huang (dah208@mail.usask.ca). Feel free to contact me for help.
+ * 8 gauss points. Drag the nodes around.
  */
 public class SingleShellQuad extends RootModel {
    protected ShellFemModel3d m_femShellModel;
@@ -37,7 +27,7 @@ public class SingleShellQuad extends RootModel {
    protected ShellFemNode3d m_node2;
    protected ShellFemNode3d m_node3;
    
-   protected final double m_density = 1000;
+   protected final double m_density = 100;
    protected final double m_particleDamping = 10;              
    protected final double m_nodeRadius = 0.05;
 
@@ -49,7 +39,7 @@ public class SingleShellQuad extends RootModel {
       m_node2 = new ShellFemNode3d (1, 1, 0);    
       m_node3 = new ShellFemNode3d (0, 1, 0);        
      
-      ShellQuadElement el = new ShellQuadElement(m_node0, m_node1, m_node2, m_node3, 0.01);
+      ShellQuadElement el = new ShellQuadElement(m_node0, m_node1, m_node2, m_node3, 0.05);
       m_femShellModel.addNode (m_node0);
       m_femShellModel.addNode (m_node1);
       m_femShellModel.addNode (m_node2);
@@ -73,4 +63,34 @@ public class SingleShellQuad extends RootModel {
       m_mechModel.addModel (m_femShellModel);
       addModel (m_mechModel);
    }   
+   
+   
+   /**
+    * For each node, draw a white arrow between the rest position and current
+    * position (i.e. displacement).
+    * 
+    * Also, draw a red arrow of the 3dof direction vector, starting from the
+    * node current position. You'll notice that this red arrow is identical
+    * to the white arrow.
+    */
+   public void render (Renderer renderer, int flags) {
+      super.render (renderer, flags);
+      
+      for (FemNode3d n : m_femShellModel.getNodes()) {
+         ShellFemNode3d sn = (ShellFemNode3d) n;
+         
+         Vector3d restPos = sn.getRestPosition ();
+         Vector3d curPos = sn.getPosition ();
+         
+         renderer.setColor (Color.WHITE);
+         renderer.drawArrow (restPos, curPos, 0.01, true);
+         
+         Vector3d curDir = new Vector3d(curPos);
+         curDir.add (sn.getDir ());
+         
+         renderer.setColor (Color.RED);
+         renderer.drawArrow (curPos, curDir, 0.01, true);
+        
+      }
+   }
 }

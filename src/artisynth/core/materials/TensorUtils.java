@@ -898,7 +898,7 @@ public class TensorUtils {
     * Left vector3
     * 
     * @param T
-    * Symmetrical 4th order tensor.
+    * Symmetrical 4th order tensor. E.g. material stress matrix.
     * 
     * @param b
     * Right vector3

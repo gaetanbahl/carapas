@@ -15,12 +15,14 @@ import maspack.matrix.VectorNd;
  * the contra bases vectors are used directly when computing the
  * node stress force and stiffness.
  * 
- * The co and contra bases vectors are pre-emptively computed at the 
+ * The co and contra bases vectors are preemptively computed at the 
  * beginning of every timestep and then re-used throughout the timestep.
  * 
  * It's worth noting that this is done by calling updateCoContraVectors()
- * in ShellFemModel3d.updateStressAndStiffness() to pre-emptively compute the
- * co and contra base vectors at the beginning of every timestep.
+ * in ShellFemModel3d.updateStressAndStiffness() to preemptively compute the
+ * co and contra base vectors at the beginning of every timestep. This allows
+ * us to retrieve and re-use the computed co and contra vectors throughout 
+ * the timestep in O(1).
  * 
  * Implementation is based on FEBio FESSIShellDomain::
  */
@@ -83,11 +85,11 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
    
    
    /** 
-    * Create an integration point for a given shell element at a specific set of
+    * Create an integration point for a given shell element from a specific set of
     * natural coordinates.
     *
-    * Co and contra bases vectors are automatically updated for each 
-    * integration point.
+    * Co and contra bases vectors are automatically updated for the newly
+    * created integration point.
     *
     * @param elem 
     * Shell element to create the integration point for.
@@ -255,7 +257,8 @@ public class ShellIntegrationPoint3d extends IntegrationPoint3d {
     * 
     * Precond:
     *   computeCoBaseVectors(ePosType) was called beforehand in the current
-    *   timestep.
+    *   timestep. If updateCoContrVectors() was called instead, no need to 
+    *   call this method.
     *   
     * @param ePosType
     * Type of node position to use.

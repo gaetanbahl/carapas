@@ -1,8 +1,5 @@
 package artisynth.core.femmodels;
 
-import java.awt.Color;
-import java.util.LinkedList;
-
 import artisynth.core.femmodels.ShellIntegrationPoint3d.NODE_POS;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.IncompressibleMaterial;
@@ -10,7 +7,6 @@ import artisynth.core.materials.LinearMaterial;
 import artisynth.core.materials.SolidDeformation;
 import artisynth.core.materials.ViscoelasticBehavior;
 import artisynth.core.materials.ViscoelasticState;
-import artisynth.core.mechmodels.MechSystemBase;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.Matrix6dBlock;
@@ -19,9 +15,6 @@ import maspack.matrix.SparseNumberedBlockMatrix;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.matrix.Vector3d;
 import maspack.matrix.VectorNd;
-import maspack.properties.PropertyList;
-import maspack.render.Renderer;
-import maspack.util.DoubleInterval;
 
 public class ShellFemModel3d extends FemModel3d {
 
@@ -37,92 +30,23 @@ public class ShellFemModel3d extends FemModel3d {
    
    @Override
    public void addElement(FemElement3d newEle) {
-      // Create a new list of the existing elements + new element.
-      // This list will then be passed immediately to 
-      // refreshNodeDirectors(newList).
-      // This is done because we cannot call
-      // refreshNodeDirectors(this.myElements) after super.addElement(newEle)
-      // due to the fact that super.addElement(newEle) computes volume()
-      // which in turn requires knowing the node directors.
-      LinkedList<ShellFemElement3d> eles = new LinkedList<ShellFemElement3d>();
-      for (FemElement3d e : this.myElements) {
-         eles.add((ShellFemElement3d)e);
-      }
-      newEle.setIndex ( eles.size() );
-      eles.add((ShellFemElement3d)newEle);
+      // Compute rest director for each node before invoking super.addElement().
+      // super.addElement() will compute volume which requires knowing 
+      // the rest director.
       
-      // Use this new list to compute each node's director
-      refreshNodeDirectors0(eles);
+      ((ShellFemElement3d)newEle).updateDirector0 ();
+      
+      for (FemElement3d e : this.myElements) {
+         ((ShellFemElement3d)e).updateDirector0 ();
+      }
       
       super.addElement (newEle);
    }
+  
+
    
    /**
-    * Compute the rest director vector for each node of this model. This should
-    * be invoked after the nodes and elements are added to this model.
-    * 
-    * Implementation is simply finding the vertex normal for each node.
-    * 
-    * FEBio: FEMesh::InitShellsNew().
-    * 
-    * Postcond:
-    * node.myDirector0 is initialized for shell element node.
-    * 
-    * @param eles
-    * List of all the shell elements in the shell model.
-    */
-   protected void refreshNodeDirectors0(LinkedList<ShellFemElement3d> eles) {
-      for (FemElement3d e : eles) {
-         for (FemNode3d n : e.myNodes) {
-            ShellFemNode3d sn = (ShellFemNode3d) n;
-            sn.myDirector0.setZero ();
-         }
-      }
-      
-      for (FemElement3d ele : eles) {
-         ShellFemElement3d sEle = (ShellFemElement3d) ele;
-         for (int i = 0; i < sEle.numNodes(); i++) {     
-            // Get next and prev nodes relative to i-th node.
-            int n = (i+1) % sEle.numNodes();
-            int p = (i==0) ? sEle.numNodes()-1 : i-1; 
-            
-            Vector3d iPos = sEle.myNodes[i].getPosition ();
-            Vector3d nPos = sEle.myNodes[n].getPosition ();
-            Vector3d pPos = sEle.myNodes[p].getPosition ();
-            
-            Vector3d n_i = new Vector3d();
-            n_i.sub (nPos, iPos);
-            
-            Vector3d p_i = new Vector3d();
-            p_i.sub (pPos, iPos);
-            
-            Vector3d dir = new Vector3d();
-            dir.cross (n_i, p_i);
-            dir.normalize ();
-            dir.scale (sEle.getShellThickness());
-            
-            ShellFemNode3d sn = (ShellFemNode3d) sEle.myNodes[i];
-            sn.myDirector0.add(dir);
-         }
-      }
-      
-      // Average the directors.
-      for (FemNode3d n : myNodes) {
-         ShellFemNode3d sn = (ShellFemNode3d) n;
-         
-         if (sn.myAdjElements.size() == 0) {
-            throw new RuntimeException("Node has no adjacent elements. "
-            + "Did you forget to call node.myAdjElements(this) in the element "
-            + "constructor?");
-         }
-         
-         sn.myDirector0.scale(1.0/sn.myAdjElements.size());
-      }
-   }
-   
-   
-   /**
-    * Compute the force of each shell node due to stress, stiffness,
+    * Compute the force of each shell node caused by stress, stiffness,
     * and damping.
     * 
     * Postcond:
@@ -147,12 +71,12 @@ public class ShellFemModel3d extends FemModel3d {
          VectorNd v6 = new VectorNd(sn.getVelStateSize());
          sn.getVelocity(v6);
          
-         // n.setForce (n.getExternalForce());
          if (hasGravity) {
             sn.addScaledForce(n.getMass(), myGravity);
          }
          
          // Internal force already computed from updateStressAndStiffness().
+         // Copy it into fk6
          sn.getInternalForce(fk6);
          fd6.setZero();
          
@@ -205,14 +129,13 @@ public class ShellFemModel3d extends FemModel3d {
        * from the previous timestep, so we need to update the co and contra
        * vectors for each integration point. This is required before calling 
        * any subsequent integration point method in this timestep. */
-      for (FemElement3d ele : this.getElements ()) {
-         for (IntegrationPoint3d iPt : ele.getIntegrationPoints()) {
-            ((ShellIntegrationPoint3d)iPt).updateCoContraVectors();
-         }
+      for (FemElement3d e : this.getElements ()) {
+         ((ShellFemElement3d)e).updateCoContraVectors ();
       }
       
       super.updateStressAndStiffness();
    }
+   
    
    
    /**
@@ -613,10 +536,8 @@ public class ShellFemModel3d extends FemModel3d {
    
    
    /**
-    * Add the position jacobian to the blocks of the global solve matrix. Each
-    * block corresponds to a node neighbor (nbr) with respect to an observing 
-    * node (i). This (i,nbr) node pair have their own respective position 
-    * jacobian.
+    * Add all the position jacobian blocks from their respective node neighbors,
+    * to the global solve matrix.
     * 
     * Method is overridden to be compatible with 6x6 blocks.
     */
@@ -675,9 +596,8 @@ public class ShellFemModel3d extends FemModel3d {
    
    
    /**
-    * Add the velocity jacobian to a block of the global solve matrix. A block
-    * corresponds to a node neighbor (node/nbr) of some node. The velocity 
-    * jacobian is a property of the node neighbor itself.
+    * Add the velocity jacobian block from a node neighbor to a corresponding 
+    * block of the global solve matrix.
     * 
     * Method is overridden to be compatible with 6x6 blocks.
     */
