@@ -122,6 +122,9 @@ public class RigidSphere extends RigidBody implements Wrappable {
    }
 
    public double penetrationDistance (Vector3d nrm, Matrix3d dnrm, Point3d p0) {
+      if (nrm == null) {
+         nrm = new Vector3d();
+      }
       Point3d p0loc = new Point3d(p0);
       p0loc.inverseTransform (getPose());
       nrm.set (p0loc);
@@ -166,9 +169,11 @@ public class RigidSphere extends RigidBody implements Wrappable {
          if (gtr.isSaving()) {
             gtr.saveObject (myRadius);
          }
-         AffineTransform3d XL = gtr.computeRightAffineTransform (getPose());
-         myTransformConstrainer.apply (XL);
-         myRadius *= XL.A.m00;
+         AffineTransform3d XL = gtr.computeLocalAffineTransform (
+            getPose(), myTransformConstrainer);
+         // need to take abs() since diagonal entries could be negative
+         // if XL is a reflection
+         myRadius *= Math.abs(XL.A.m00);
       }      
       super.transformGeometry (gtr, context, flags);
 

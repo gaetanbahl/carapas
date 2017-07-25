@@ -24,7 +24,6 @@ public abstract class Feature implements Boundable {
    public static final int EDGE = 5;
    public static final int FACET = 6;
    public static final int CELL = 7;
-   public static final int LINE_SEGMENT = 8;
    public static final int TYPE_MASK = 0xff;
 
    public Feature (int type) {
@@ -70,8 +69,6 @@ public abstract class Feature implements Boundable {
          case CELL: {
             return "CELL";
          }
-         case LINE_SEGMENT:
-            return "LINE_SEGMENT";
          default: {
             return "???";
          }
@@ -92,7 +89,7 @@ public abstract class Feature implements Boundable {
    public void clearFlag(int mask) {
       myFlags = myFlags & ~mask;
    }
-   
+
    /**
     * Determine nearest point to this feature
     * @param nearest populated nearest point

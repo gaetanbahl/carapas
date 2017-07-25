@@ -260,7 +260,7 @@ public class MFreeFactory {
                Point3d pnt = new Point3d(x, y, z);
                pnt.transform(trans);
                
-               double d = sdgrid.getLocalDistanceAndNormal(null, pnt);
+               double d = sdgrid.getLocalDistanceAndNormal(null, null, pnt);
                if (d < tol) {
                   pnts[i][j][k] = pnt;
                } else {

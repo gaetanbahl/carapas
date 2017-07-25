@@ -493,10 +493,11 @@ public class RigidMesh extends RigidBody implements Wrappable {
    }
 
    boolean findNearestHorizonPoint (
-      Point3d pr, HalfEdge he, Point3d pa, Point3d p1) {
+      Point3d pr, HalfEdge he, Point3d pa, Point3d p1, boolean debug) {
 
       double s = projectionParameter (he, pa, p1);
       int cnt = 0;
+      if (debug) System.out.println ("s=" + s);
       while (s < 0.0 || s > 1.0) {
          //System.out.println ("he=" + he.vertexStr() + " s=" + s);
          if (s < 0) {
@@ -505,16 +506,21 @@ public class RigidMesh extends RigidBody implements Wrappable {
          else {
             he = nextHorizonEdge (he, pa);
          }
+         if (debug) System.out.println ("he=" + he.vertexStr());
          s = projectionParameter (he, pa, p1);
          if (s < 0.0) {
             // this means we're going backwards - stuck at the vertex
             s = 0;
          }
-         if (cnt++ > 20) {
+         if (debug) System.out.println ("s=" + s);
+         if (cnt++ > 50) {
+            System.out.println ("cnt=" + cnt);
             return false;
          }
       }
       pr.combine (1-s, he.getTail().pnt, s, he.getHead().pnt);
+      // System.out.println (
+      //    "cnt=" + cnt + " " + pr.toString ("%g")); //16.12f"));
       return true;
    }
 
@@ -578,10 +584,11 @@ public class RigidMesh extends RigidBody implements Wrappable {
          // tangent in the plane
 
          if (myFindNearestHorizonPoint &&
-             !findNearestHorizonPoint (pr, he, paLoc, p1Loc)) {
+             !findNearestHorizonPoint (pr, he, paLoc, p1Loc, false)) {
             //System.out.println ("pa=" + pa);
             //System.out.println ("p1=" + p1);
             //System.out.println ("lam0=" + lam0);
+            findNearestHorizonPoint (pr, he, paLoc, p1Loc, true);
             throw new InternalErrorException ("Inf loop");
          }
 
@@ -609,7 +616,7 @@ public class RigidMesh extends RigidBody implements Wrappable {
       }
    }
 
-   public double penetrationDistance (Vector3d nrm, Matrix3d dnrm, Point3d p0) {
+   public double penetrationDistance (Vector3d nrm, Matrix3d Dnrm, Point3d p0) {
 
       PolygonalMesh mesh = getSurfaceMesh();
       if (mesh == null) {
@@ -619,14 +626,21 @@ public class RigidMesh extends RigidBody implements Wrappable {
       Point3d near = new Point3d();
       Vector3d diff = new Vector3d();
 
-      dnrm.setZero();
-
       if (hasDistanceGrid()) {
          SignedDistanceGrid grid = getDistanceGrid();
          Point3d p0loc = new Point3d();
          p0loc.inverseTransform (getPose(), p0);
-         double d = grid.getLocalDistanceAndNormal (nrm, p0loc);
-         nrm.transform (getPose());
+         double d = grid.getLocalDistanceAndNormal (nrm, Dnrm, p0loc);
+         // else {
+         //    d = grid.getDistanceAndGradient (nrm, p0loc);
+         // }
+         RotationMatrix3d R = getPose().R;
+         if (nrm != null) {
+            nrm.transform (R);
+         }
+         if (Dnrm != null) {
+            Dnrm.transform (R);
+         }
          if (d == SignedDistanceGrid.OUTSIDE) {
             return Wrappable.OUTSIDE;
          }
@@ -635,13 +649,20 @@ public class RigidMesh extends RigidBody implements Wrappable {
          }
       }
       else {
+         if (Dnrm != null) {
+            Dnrm.setZero();
+         }
          if (mySmooth) {
             myNagata.nearestPointOnMesh (near, nrm, mesh, p0, 1e-8, myQuery);
          }
          else {
             Face face = myQuery.nearestFaceToPoint (
                near, /*uv=*/null, mesh.getBVTree(), p0);
-            nrm.set (face.getNormal());
+            if(face == null)
+               return Wrappable.OUTSIDE;
+            if (nrm != null) {
+               nrm.set (face.getWorldNormal());
+            }
          }
          diff.sub (p0, near);
          double d = diff.dot(nrm);

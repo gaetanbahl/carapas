@@ -6,18 +6,15 @@
  */
 package maspack.geometry;
 
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.PriorityQueue;
+import java.util.ArrayList;
 import java.util.Random;
+import java.util.Iterator;
 
-import maspack.matrix.Point3d;
-import maspack.matrix.RigidTransform3d;
-import maspack.matrix.Vector2d;
-import maspack.matrix.Vector3d;
-import maspack.util.DoubleHolder;
+import maspack.matrix.*;
 import maspack.util.InternalErrorException;
+import maspack.util.DoubleHolder;
 import maspack.util.RandomGenerator;
 
 /**
@@ -70,7 +67,7 @@ public class BVFeatureQuery {
       Face face = nearestFaceToPoint (nearPnt, uv, mesh.getBVTree(), pnt);
       return face;
    }
-   
+
    /**
     * Find the nearest feature to a point
     * @param nearPnt populates with location of nearest point on set of features
