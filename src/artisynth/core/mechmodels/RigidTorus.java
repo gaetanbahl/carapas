@@ -218,8 +218,8 @@ public class RigidTorus extends RigidBody implements Wrappable {
       //
       // f(lam) = (ps-pa)^T n = 0
       //
-      // We Newton's method combined with bisection for safety, starting the
-      // search in the interval [lam0, 1], and expanding this interval if
+      // We use Newton's method combined with bisection for safety, starting
+      // the search in the interval [lam0, 1], and expanding this interval if
       // necessary to bracket the root.
       Vector3d nrm = new Vector3d();
 
@@ -325,6 +325,9 @@ public class RigidTorus extends RigidBody implements Wrappable {
 
    private double penetrationDistanceLoc (Vector3d nrm, Point3d p0loc) {
 
+      if (nrm == null) {
+         nrm = new Vector3d();
+      }
       double r = Math.sqrt (p0loc.x*p0loc.x + p0loc.y*p0loc.y);
       if (r == 0) {
          return Wrappable.OUTSIDE;
@@ -361,7 +364,7 @@ public class RigidTorus extends RigidBody implements Wrappable {
       if (dnrm != null) {
          dnrm.setZero();
       }
-      if (d != Wrappable.OUTSIDE && d != -myInnerRadius) {
+      if (nrm != null && d != Wrappable.OUTSIDE && d != -myInnerRadius) {
          nrm.transform (getPose());
       }
       return d;
@@ -382,11 +385,15 @@ public class RigidTorus extends RigidBody implements Wrappable {
             gtr.saveObject (myInnerRadius);
             gtr.saveObject (myOuterRadius);
          }
-         AffineTransform3d XL = gtr.computeRightAffineTransform (getPose());
-         myTransformConstrainer.apply (XL);
-         myInnerRadius *= XL.A.m00;
-         myOuterRadius *= XL.A.m00;
-      }      
+         AffineTransform3d XL = gtr.computeLocalAffineTransform (
+            getPose(), myTransformConstrainer); 
+         // need to take abs() since diagonal entries could be negative
+         // if XL is a reflection
+         double scale = Math.abs(XL.A.m00);
+         myInnerRadius *= scale;
+         myOuterRadius *= scale;
+      }     
+ 
       super.transformGeometry (gtr, context, flags);
    }
 
