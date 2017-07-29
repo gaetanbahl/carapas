@@ -21,6 +21,11 @@
 			format -->
 		<package source="artisynth.tools" view="hierarchical" />
 	</menu>
+	<menu text="Temp">
+		<!-- loads all RootModels in the tools package and displays in compact hierarchical 
+			format -->
+		<package source="artisynth.models.tmp" view="hierarchical" />
+	</menu>
 	<menu text="History">
 		<!-- loads history -->
 		<history size="4" />
