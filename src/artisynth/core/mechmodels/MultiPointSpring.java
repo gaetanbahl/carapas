@@ -32,6 +32,7 @@ import maspack.render.RenderableUtils;
 import maspack.render.Renderable;
 import maspack.util.DataBuffer;
 import maspack.util.DoubleHolder;
+import maspack.util.FunctionTimer;
 import maspack.util.IndentingPrintWriter;
 import maspack.util.ListRemove;
 import maspack.util.NumberFormat;
@@ -70,17 +71,20 @@ public class MultiPointSpring extends PointSpringBase
    protected RenderProps myABRenderProps;
    protected RenderObject myRenderObj; // used to render the strands
    protected boolean myRenderObjValidP = false;
+   protected Color myContactingKnotsColor = null;
 
    protected static double DEFAULT_WRAP_STIFFNESS = 1;
    protected static double DEFAULT_WRAP_DAMPING = -1;
    protected static double DEFAULT_CONTACT_STIFFNESS = 10;
    protected static double DEFAULT_CONTACT_DAMPING = 0;
    protected static int DEFAULT_NUM_WRAP_POINTS = 0;
+   protected static boolean DEFAULT_LINE_SEARCH = true;
    protected static double DEFAULT_LENGTH_CONV_TOL = 1e-4;
    protected static boolean DEFAULT_DRAW_KNOTS = false;
    protected static boolean DEFAULT_DRAW_AB_POINTS = false;
    protected static int DEFAULT_MAX_WRAP_ITERATIONS = 100;
    protected static int DEFAULT_MAX_WRAP_DISPLACEMENT = -1;
+   protected static boolean DEFAULT_PROFILING = false;
 
    protected double myWrapStiffness = DEFAULT_WRAP_STIFFNESS;
    protected double myWrapDamping = DEFAULT_WRAP_DAMPING;
@@ -98,8 +102,12 @@ public class MultiPointSpring extends PointSpringBase
    
    protected int myMaxWrapIterations = DEFAULT_MAX_WRAP_ITERATIONS;
    protected double myMaxWrapDisplacement = DEFAULT_MAX_WRAP_DISPLACEMENT;
-   protected boolean myLineSearchP = true;
-
+   protected boolean myLineSearchP = DEFAULT_LINE_SEARCH;
+   protected boolean myProfilingP = DEFAULT_PROFILING;
+   
+   protected FunctionTimer myProfileTimer = new FunctionTimer();
+   protected int myProfileCnt = 0;
+   
    public double getSor() {
       return mySor;
    }
@@ -150,6 +158,10 @@ public class MultiPointSpring extends PointSpringBase
       public int getWrappableIdx () {
          return myWrappableIdx;
       }
+
+      public boolean inContact() {
+         return myWrappableIdx != -1;
+      }
       
       public Wrappable getWrappable() {
          if (myWrappableIdx < 0) {
@@ -159,6 +171,8 @@ public class MultiPointSpring extends PointSpringBase
             return myWrappables.get(myWrappableIdx);
          }
       }
+
+
 
       public Wrappable getPrevWrappable() {
          if (myPrevWrappableIdx < 0) {
@@ -504,6 +518,10 @@ public class MultiPointSpring extends PointSpringBase
          
          public boolean getContactChanged() {
             return contactChanged;
+         }       
+
+         public void clearContactChanged () {
+            contactChanged = false;
          }       
       }
 
@@ -872,6 +890,18 @@ public class MultiPointSpring extends PointSpringBase
          return E;
       }
 
+      public double computeContactEnergy() {
+
+         double E = 0;
+         for (int k=0; k<myNumKnots; k++) {
+            WrapKnot knot = myKnots[k];
+            if (knot.myDist < 0) {
+               E += 0.5*myContactStiffness*knot.myDist*knot.myDist;
+            }
+         }
+         return E;
+      }
+
       /**
        * Updates the stiffness matrix terms associated with each knot point.
        * These give the force derivatives with respect to changes in knot
@@ -896,19 +926,19 @@ public class MultiPointSpring extends PointSpringBase
             double s = 2*stiffness; // + d
             knot.myBmat.setDiagonal (s, s, s);            
             if (knot.myDist < 0) {
-               if (knot.getWrappable() instanceof RigidMesh) {
-                  //Matrix3d B = new Matrix3d();
-                  //B.setSymmetric (knot.myDnrm);
-                  knot.myBmat.scaledAdd(cstiffness, knot.myDnrm);
-               }
-               else {
+               // if (knot.getWrappable() instanceof RigidMesh) {
+               //    //Matrix3d B = new Matrix3d();
+               //    //B.setSymmetric (knot.myDnrm);
+               //    knot.myBmat.scaledAdd(cstiffness, knot.myDnrm);
+               // }
+               // else {
                   knot.myBmat.addScaledOuterProduct (
                      cd+cstiffness, knot.myNrml, knot.myNrml);
                   if (dnrmGain != 0) {
                      knot.myBmat.scaledAdd (
                         dnrmGain*knot.myDist*cstiffness, knot.myDnrm);
                   }
-               }
+                  //}
             }
          }
       }
@@ -1519,7 +1549,7 @@ public class MultiPointSpring extends PointSpringBase
             System.out.println ("  i=" + i);
             for (int k=0; k<myNumKnots; k++) {
                WrapKnot knot = myKnots[k];
-               if (knot.getWrappable() != null) {
+               if (knot.inContact()) {
                   System.out.println (
                      "    "+k+" pos=" + knot.myPos.toString("%10.7f") + " dvec="+knot.myDvec.toString("%10.7f") +
                      " force=" + knot.myForce.toString("%10.7f") +
@@ -1528,8 +1558,8 @@ public class MultiPointSpring extends PointSpringBase
                      "   " + knot.myDvec.dot(knot.myForce));
                }
                else if (
-                  (k > 0 && myKnots[k-1].getWrappable() != null) ||
-                  (k < myNumKnots-1 && myKnots[k+1].getWrappable() != null)) {
+                  (k > 0 && myKnots[k-1].inContact()) ||
+                  (k < myNumKnots-1 && myKnots[k+1].inContact())) {
                   System.out.println (
                      "    "+k+" pos=" + knot.myPos.toString("%10.7f"));
                }
@@ -1816,7 +1846,7 @@ public class MultiPointSpring extends PointSpringBase
       int numContacts() {
          int numc = 0;
          for (int k=0; k<myNumKnots; k++) {
-            if (myKnots[k].getWrappableIdx() != -1) {
+            if (myKnots[k].inContact()) {
                numc++;
             }
          }
@@ -1914,10 +1944,13 @@ public class MultiPointSpring extends PointSpringBase
             updateForces();
             energy = computeEnergy();
             forceSqr = computeForceSqr();
+            if (debugLevel > 0 && contactChanged) {
+               System.out.println ("CONTACT CHANGED");
+            }
             if (debugLevel > 0) {
-               System.out.println (
-                  "  energy(0)=" + prevEnergy +
-                  " energy(1)=" + energy + " ederiv=" + ederiv);
+               //System.out.println (
+               //   "  energy(0)=" + prevEnergy +
+               //   " energy(1)=" + energy + " ederiv=" + ederiv);
             }
             double r1 = forceDotDisp();
 
@@ -2003,7 +2036,6 @@ public class MultiPointSpring extends PointSpringBase
                   printStuckDebugInfo (maxs);
                }
                else {
-
                   double snew = lineSearch (
                      f0, df0, f1, df1, func, 0.1, 2.0, s, maxs);
                   
@@ -2024,53 +2056,10 @@ public class MultiPointSpring extends PointSpringBase
                      updateContacts (null, true);    
                   }
                }
-
-               
-               if (false) {                                          
-                  // double s = 1.0;
-                  // rfunc.eval (1.0); 
-
-                  // if (r0 != 0 && r1 <= 0 || r1 >= 0.5*r0) {
-                  //    if (myLineSearchP) {
-                  //       s =
-                  //          MechSystemSolver.modifiedGoldenSection (
-                  //             0, r0, maxs, r1, 1e-5, 0.5*Math.abs(r0),
-                  //             new ResidualFunc());
-                  //       System.out.printf (
-                  //          "    line search s=%g rs=%g\n", s, forceDotDisp());
-                        
-                  //       if (s == 0) {
-                  //          printStuckDebugInfo (maxs);
-                  //          if (debugLevel > 0) {
-                  //             System.out.println ("STUCK, icnt="+icnt);
-                  //          }
-                  //          //break;
-                  //       }
-                  //       else if (s != 1.0) {
-                  //          // call this to get the Dnrm terms
-                  //          updateContacts (null, true);
-                  //          energy = computeEnergy();
-                  //          forceSqr = computeForceSqr();
-                  //       }
-                  //    }
-                  // }
-                  // if (s != 1 || sx != 1) {
-                  //    // if (s != sx) {
-                  //    //    System.out.println (
-                  //    //       "    LINE SEARCH differ sx=" + sx + " s=" + s);
-                  //    //    rfunc.eval (1.0); 
-                  //    //    writeRfiles ("r", 10);
-                  //    //    System.out.println ("wrote r.txt maxs=" + 10);
-                  //    // }
-                  //    rfunc.eval (sx);
-                  //    updateContacts (null, true);
-                  // }  
-                  
-               }
             }
             double newEnergy = computeEnergy();
             if (debugLevel > 0) {
-               System.out.printf ("  delta energy= %g\n", (newEnergy-prevEnergy));
+               //System.out.printf ("  delta energy= %g\n", (newEnergy-prevEnergy));
             }
             prevEnergy = energy;
             prevForceSqr = forceSqr;
@@ -2306,7 +2295,7 @@ public class MultiPointSpring extends PointSpringBase
 
       boolean inContact() {
          for (WrapKnot knot : myKnots) {
-            if (knot.getWrappable() != null) {
+            if (knot.inContact()) {
                return true;
             }
          }
@@ -2324,35 +2313,45 @@ public class MultiPointSpring extends PointSpringBase
        */
       void computeSideNormal (
          Vector3d sideNrm, Point3d p0, Point3d pk, Point3d p1, 
-         int k1, int kinc) {
+         int k1, int kinc, Vector3d nrmlk) {
 
-         Vector3d delk0 = new Vector3d();
-         Vector3d del10 = new Vector3d();
+         Vector3d del0k = new Vector3d();
+         Vector3d del01 = new Vector3d();
 
-         delk0.sub (pk, p0);
-         del10.sub (p1, p0);
-         double tol = 1e-8*del10.norm();
-         sideNrm.cross (del10, delk0);
+         del0k.sub (pk, p0);
+         del01.sub (p1, p0);
+         double tol = 1e-8*del01.norm();
+         sideNrm.cross (del01, del0k);
          double mag = sideNrm.norm();
-         while (mag < tol) {
-            k1 += kinc;
-            p1 = getKnotPos (k1);
-            if (p1 == null) {
-               break;
-            }
-            del10.sub (p1, p0);
-            sideNrm.cross (del10, delk0);
+
+         if (mag <= tol) {
+            // cross product is too small to infer a normal; use nrml
+            sideNrm.cross (del01, nrmlk);
             mag = sideNrm.norm();
          }
-         if (mag == 0) {
-            // No apparent side normal. Just pick something perpendicular to
-            // d0x.
-            sideNrm.perpendicular (del10);
-            sideNrm.normalize();
-         }
-         else {
-            sideNrm.scale (1/mag);
-         }
+         sideNrm.scale (1/mag);
+
+         // double mag = sideNrm.norm();
+         // while (mag < tol) {
+         //    k1 += kinc;
+         //    p1 = getKnotPos (k1);
+         //    if (p1 == null) {
+         //       break;
+         //    }
+         //    del01.sub (p1, p0);
+         //    sideNrm.cross (del01, del0k);
+         //    mag = sideNrm.norm();
+         // }
+         // System.out.println ("mag=" + mag);
+         // if (mag == 0) {
+         //    // No apparent side normal. Just pick something perpendicular to
+         //    // d0x.
+         //    sideNrm.perpendicular (del01);
+         //    sideNrm.normalize();
+         // }
+         // else {
+         //    sideNrm.scale (1/mag);
+         // }
       }
 
       private Point createTanPoint (Point3d pos) {
@@ -2390,6 +2389,7 @@ public class MultiPointSpring extends PointSpringBase
          }
 
          Vector3d sideNrm = new Vector3d();
+         Vector3d nrml = new Vector3d();
          Point3d tanA = null;
          if (wrappableA != null) {
             tanA = new Point3d();
@@ -2397,7 +2397,8 @@ public class MultiPointSpring extends PointSpringBase
             Point3d p0 = getKnotPos (ka-1);
             Point3d pa = getKnotPos (ka);
             Point3d p1 = getKnotPos (ka+1);
-            computeSideNormal (sideNrm, p0, pa, p1, ka+1, 1);
+            wrappableA.penetrationDistance (nrml, null, pa);
+            computeSideNormal (sideNrm, p0, pa, p1, ka+1, 1, nrml);
             wrappableA.surfaceTangent (
                tanA, pb, p1,
                LineSegment.projectionParameter (pb, p1, p0), sideNrm);
@@ -2412,7 +2413,8 @@ public class MultiPointSpring extends PointSpringBase
             Point3d p0 = getKnotPos (kb+1);
             Point3d pb = getKnotPos (kb);
             Point3d p1 = getKnotPos (kb-1);
-            computeSideNormal (sideNrm, p0, pb, p1, kb-1, -1);
+            wrappableB.penetrationDistance (nrml, null, pb);
+            computeSideNormal (sideNrm, p0, pb, p1, kb-1, -1, nrml);
             wrappableB.surfaceTangent (
                tanB, pa, p1,
                LineSegment.projectionParameter (pa, p1, p0), sideNrm);
@@ -2473,7 +2475,7 @@ public class MultiPointSpring extends PointSpringBase
          int lastContactK = -1;
          for (int k=0; k<myNumKnots; k++) {
             WrapKnot knot = myKnots[k];
-            if (knot.getWrappable() != null) {
+            if (knot.inContact()) {
                if (knot.getWrappable() != wrappable) {
                   // transitioning to a new wrappable
                   subseg = addOrUpdateSubSegment (k, lastContactK, subseg);
@@ -2842,6 +2844,22 @@ public class MultiPointSpring extends PointSpringBase
       }
    }
 
+   public boolean getProfiling () {
+      return myProfilingP;
+   }
+
+   public void setProfiling (boolean enabled) {
+      myProfilingP = enabled;
+   }
+
+   public boolean getLineSearch () {
+      return myLineSearchP;
+   }
+
+   public void setLineSearch (boolean enable) {
+      myLineSearchP = enable;
+   }
+
    protected double convTol = 1e-6;
 
    public static boolean myIgnoreCoriolisInJacobian = true;
@@ -2870,6 +2888,9 @@ public class MultiPointSpring extends PointSpringBase
          "maxWrapIterations", "max number of wrap iterations per step",
          DEFAULT_MAX_WRAP_ITERATIONS);
       myProps.add (
+         "lineSearch", "enable or disable line search",
+         DEFAULT_LINE_SEARCH);
+      myProps.add (
          "drawKnots", "draw wrap strand knots",
          DEFAULT_DRAW_KNOTS);
       myProps.add (
@@ -2881,6 +2902,8 @@ public class MultiPointSpring extends PointSpringBase
          "dnrmGain", "gain for dnrm K term", 1.0);
       myProps.add (
          "debugLevel", "turns on debug prints if > 0", DEFAULT_DEBUG_LEVEL);
+      myProps.add (
+         "profiling", "enables timing of the wrapping code", DEFAULT_PROFILING);
    }
 
    public PropertyList getAllPropertyInfo() {
@@ -3038,12 +3061,25 @@ public class MultiPointSpring extends PointSpringBase
    }
 
    protected void updateWrapSegments (int maxIter) {
+      if (myProfilingP) {
+         myProfileTimer.restart();
+      }
       for (int i=0; i<numSegments(); i++) {
          Segment seg = mySegments.get(i);
          if (seg instanceof WrapSegment) {
             WrapSegment wrapSeg = (WrapSegment)seg;
             wrapSeg.updateWrapStrand(maxIter);
             wrapSeg.updateSubSegments();
+         }
+      }
+      if (myProfilingP) {
+         myProfileTimer.stop();
+         myProfileCnt++;
+         if (myProfileCnt > 0 && (myProfileCnt % 100) == 0) {
+            System.out.println (
+               "MultiPointSpring: updateWrapSegments time=" + 
+            myProfileTimer.result(100));
+            myProfileTimer.reset();
          }
       }
    }      
@@ -3227,14 +3263,32 @@ public class MultiPointSpring extends PointSpringBase
       }
    }
 
+   public Color getContactingKnotsColor() {
+      return myContactingKnotsColor;
+   }
+
+   public void setContactingKnotsColor (Color color) {
+      myContactingKnotsColor = color;
+   }
+
    private float[] getRenderCoords (Point pnt) {
       Point3d pos = pnt.getPosition();
       return new float[] { (float)pos.x, (float)pos.y, (float)pos.z };
    }
 
-   private void addRenderPos (RenderObject robj, float[] xyz, boolean isKnot) {
-      int vidx = robj.vertex(xyz);
-      if (isKnot) {
+   private static int FREE_KNOTS = 0;
+   private static int CONTACTING_KNOTS = 1;
+
+   private void addRenderPos (
+      RenderObject robj, float[] pos, WrapKnot knot) {
+      int vidx = robj.vertex (pos);
+      if (knot != null) {
+         if (knot.inContact()) {
+            robj.pointGroup (CONTACTING_KNOTS);
+         }
+         else {
+            robj.pointGroup (FREE_KNOTS);
+         }
          robj.addPoint (vidx);
       }
       if (vidx > 0) {
@@ -3244,18 +3298,20 @@ public class MultiPointSpring extends PointSpringBase
 
    protected RenderObject buildRenderObject() {
       RenderObject robj = new RenderObject();
+      robj.createPointGroup();
+      robj.createPointGroup();
       for (int i=0; i<numSegments(); i++) {
          Segment seg = mySegments.get(i);
-         addRenderPos (robj, seg.myPntB.getRenderCoords(), /*knot=*/false);
+         addRenderPos (robj, seg.myPntB.getRenderCoords(), null);
          if (seg instanceof WrapSegment) {
             WrapSegment wrapSeg = (WrapSegment)seg;
             for (int k=0; k<wrapSeg.myNumKnots; k++) {
-               addRenderPos (
-                  robj, wrapSeg.myKnots[k].updateRenderPos(), /*knot=*/true);
+               WrapKnot knot = wrapSeg.myKnots[k];
+               addRenderPos (robj, knot.updateRenderPos(), knot);
             }
          }
          if (i == numSegments()-1) {
-            addRenderPos (robj, seg.myPntA.getRenderCoords(), /*knot=*/false);
+            addRenderPos (robj, seg.myPntA.getRenderCoords(), null);
          }
       }
       return robj;
@@ -3280,10 +3336,12 @@ public class MultiPointSpring extends PointSpringBase
       // points are rendered using basic point primitives on a per-segment list
       // of current AB points.
 
-
-      // create or update the render object, as needed
-      if (!myRenderObjValidP) {
-         myRenderObj = buildRenderObject();
+      // Ideally, we want to rebuilt the object when the strand structure
+      // changes *or* the knot contact configuration changes. But since we
+      // can't currently tell the latter, just rebuild every time:
+      if (true || !myRenderObjValidP) {
+         RenderObject robj = buildRenderObject();
+         myRenderObj = robj;
          myRenderObjValidP = true;
       }
       else {
@@ -3359,17 +3417,21 @@ public class MultiPointSpring extends PointSpringBase
 
          if (myDrawKnotsP) {
             // draw the knots, if any
-            if (robj.numPoints() > 0) {
-               PointStyle pointStyle = props.getPointStyle();
-               if (pointStyle == PointStyle.POINT) {
-                  size = props.getPointSize();
-               }
-               else {
-                  size = props.getPointRadius();
-               }
-               renderer.setPointColoring (props, isSelected());
-               renderer.drawPoints (robj, pointStyle, size);
+            PointStyle pointStyle = props.getPointStyle();
+            if (pointStyle == PointStyle.POINT) {
+               size = props.getPointSize();
             }
+            else {
+               size = props.getPointRadius();
+            }
+            renderer.setPointColoring (props, isSelected());
+            robj.pointGroup (FREE_KNOTS);
+            renderer.drawPoints (robj, pointStyle, size);
+            robj.pointGroup (CONTACTING_KNOTS);
+            if (myContactingKnotsColor != null) {
+               renderer.setColor (myContactingKnotsColor);
+            }
+            renderer.drawPoints (robj, pointStyle, size);
          }
       }
    }     
@@ -4283,6 +4345,19 @@ public class MultiPointSpring extends PointSpringBase
       }
       System.out.println ("icnt=" + icnt);
    }
+   /*
+     Problem with knot jumps:
+
+     Jump -> contact change but not vice versa
+
+     *) Does turning off line search help?  NO - same
+
+     *) Lower iteration count can smooth things out
+
+     *) Stretching vs. constant motion? NO difference
+
+     *) High tension vs. low? Doesn't seem to make too much diff
+    */ 
 
 
    //       remove maxs?

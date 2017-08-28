@@ -9,15 +9,16 @@ package maspack.geometry;
 
 import java.awt.Color;
 import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.HashSet;
+import java.util.HashMap;
 import java.util.LinkedList;
 
 import maspack.matrix.AffineTransform3dBase;
-import maspack.matrix.Point3d;
-import maspack.matrix.RigidTransform3d;
+import maspack.matrix.*;
 import maspack.matrix.Vector3d;
 import maspack.matrix.Vector3i;
 import maspack.matrix.Matrix3d;
@@ -32,6 +33,10 @@ import maspack.render.Renderer.LineStyle;
 import maspack.render.Renderer.PointStyle;
 import maspack.render.Renderer.Shading;
 import maspack.util.StringHolder;
+import maspack.util.DoubleHolder;
+import maspack.util.ArraySupport;
+import maspack.util.QuadraticSolver;
+import maspack.util.InternalErrorException;
 
 /**
  * Implements a distance field for fixed triangular mesh. One common
@@ -90,10 +95,17 @@ public class DistanceGrid implements Renderable {
     */
    private double myDiameter;
 
+   /**
+    * True if the distances are signed
+    */
+   protected boolean mySignedP = false;
+
    protected int numVX = 0;  // number of vertices along X
    protected int numVY = 0;  // number of vertices along Y
    protected int numVZ = 0;  // number of vertices along Z
    protected int numVXxVY = 0; // numVX*numVY
+
+   protected static final double INF = Double.POSITIVE_INFINITY;
 
    /**
     * An array giving the index of the nearest Feature to each vertex.
@@ -120,7 +132,7 @@ public class DistanceGrid implements Renderable {
     * @param local populated local coordinates
     * @param world world coordinates
     */
-   private void getLocalCoordinates(Point3d local, Point3d world) {
+   public void getLocalCoordinates(Point3d local, Point3d world) {
       if (local != world) {
          local.set(world);
       }
@@ -134,7 +146,7 @@ public class DistanceGrid implements Renderable {
     * @param world populated world coordinates
     * @param local local coordinates
     */
-   private void getWorldCoordinates(Point3d world, Point3d local) {
+   public void getWorldCoordinates(Point3d world, Point3d local) {
       if (local != world) {
          world.set(local);
       }
@@ -158,8 +170,23 @@ public class DistanceGrid implements Renderable {
    }
 
    /**
+    * Converts a normal to local coordinates
+    * @param local populated local normal
+    * @param world world normal
+    */
+   public void getLocalNormal(Vector3d local, Vector3d world) {
+      if (local != world) {
+         local.set(world);
+      }
+      if (myWorldTransform != null) {
+         myWorldTransform.getMatrix().mulTranspose(local);
+      }
+   }
+
+   /**
     * Creates a new distance grid for a specified set of features. The feature is
-    * created as for {@link #SignedDistanceFeatureGrid(Features,double,Vector3i)},
+    * created as for {@link
+    * #DistanceGrid(Feature[],double,Vector3i, boolean)},
     * with the number of cells along each axis given by 25.
     *
     * @param features features for which the grid should be created
@@ -167,15 +194,31 @@ public class DistanceGrid implements Renderable {
     * determine the margin for that direction
     */
    public DistanceGrid (Feature[] features, double marginFraction) {
-      this (features, marginFraction, new Vector3i (25, 25, 25));
+      this (features, marginFraction, new Vector3i (25, 25, 25), false);
+   }
+
+   /**
+    * Creates a new distance grid for a specified set of features. The feature is
+    * created as for {@link
+    * #DistanceGrid(Feature[],double,Vector3i, boolean)},
+    * with the number of cells along each axis given by 25.
+    *
+    * @param features features for which the grid should be created
+    * @param marginFraction multiplied by the width in each direction to
+    * determine the margin for that direction
+    * @param signed if <code>true</code>, specifies that the
+    * grid should be signed.
+    */
+   public DistanceGrid (Feature[] features, double marginFraction, boolean signed) {
+      this (features, marginFraction, new Vector3i (25, 25, 25), signed);
    }
 
    private void setFeaturesAndBounds (
       Vector3d widths, Vector3d margin,
       Feature[] features, double marginFraction) {
       
-      myMinCoord.set(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
-      myMaxCoord.set(Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY);
+      myMinCoord.set(INF, INF, INF);
+      myMaxCoord.set(-INF, -INF, -INF);
       for (Feature f : features) {
          f.updateBounds(myMinCoord, myMaxCoord);
       }
@@ -183,6 +226,18 @@ public class DistanceGrid implements Renderable {
       widths.sub (myMaxCoord, myMinCoord);
       margin.scale(marginFraction, widths);
       widths.scaledAdd(2, margin);     
+   }
+
+   private void enforceEvenResolution (Vector3i res) {
+      if ((res.x%2) == 1) {
+         res.x++;
+      }
+      if ((res.y%2) == 1) {
+         res.y++;
+      }
+      if ((res.z%2) == 1) {
+         res.z++;
+      }
    }
 
    /**
@@ -200,9 +255,11 @@ public class DistanceGrid implements Renderable {
     * to determine the (initial) margin for that direction
     * @param maxResolution number of grid cells along the axis of maximum
     * width
+    * @param signed if <code>true</code>, specifies that the
+    * grid should be signed.
     */
    public DistanceGrid (
-      Feature[] features, double marginFraction, int maxResolution) {
+      Feature[] features, double marginFraction, int maxResolution, boolean signed) {
       this();
 
       Vector3d widths = new Vector3d();
@@ -210,9 +267,14 @@ public class DistanceGrid implements Renderable {
       setFeaturesAndBounds (widths, margin, features, marginFraction);
       
       double cwidth = widths.maxElement()/maxResolution;
-      numVX = (int)(Math.ceil(widths.x/cwidth))+1; 
-      numVY = (int)(Math.ceil(widths.y/cwidth))+1;
-      numVZ = (int)(Math.ceil(widths.z/cwidth))+1;      
+      Vector3i resolution = new Vector3i (
+         (int)(Math.ceil(widths.x/cwidth)),
+         (int)(Math.ceil(widths.y/cwidth)),
+         (int)(Math.ceil(widths.z/cwidth)));
+      enforceEvenResolution (resolution);
+      numVX = resolution.x+1;
+      numVY = resolution.y+1;
+      numVZ = resolution.z+1;
       numVXxVY = numVX*numVY;      
       myCellWidths = new Vector3d (cwidth, cwidth, cwidth);
       // margin increases to accommodate uniform cell width
@@ -224,7 +286,7 @@ public class DistanceGrid implements Renderable {
       myMinCoord.sub(margin);
       myDiameter = myMaxCoord.distance(myMinCoord);
       
-      calculatePhi (features, margin.norm());      
+      calculatePhi (features, signed);      
       clearColors();
       myRenderRanges = new int[] {0, numVX, 0, numVY, 0, numVZ};
    }
@@ -245,17 +307,20 @@ public class DistanceGrid implements Renderable {
     * @param marginFraction multiplied by the width in each direction
     * to determine the margin for that direction
     * @param resolution number of grid cells that should be used along
-    * each axis
+    * each axis    
+    * @param signed if <code>true</code>, specifies that the
+    * grid should be signed.
     */
    public DistanceGrid (
-      Feature[] features, double marginFraction, Vector3i resolution) {
+      Feature[] features, double marginFraction, Vector3i resolution, boolean signed) {
 
       this();
 
       Vector3d widths = new Vector3d();
       Vector3d margin = new Vector3d();
       setFeaturesAndBounds (widths, margin, features, marginFraction);
-      
+
+      enforceEvenResolution (resolution);      
       myCellWidths = new Vector3d ();
       myCellWidths.x = widths.x / resolution.x;
       myCellWidths.y = widths.y / resolution.y;
@@ -270,7 +335,33 @@ public class DistanceGrid implements Renderable {
       myMaxCoord.add(margin);
       myMinCoord.sub(margin);
       
-      calculatePhi (features, margin.norm());
+      calculatePhi (features, signed);
+      clearColors();
+      myRenderRanges = new int[] {0, numVX, 0, numVY, 0, numVZ};
+   }
+
+   public DistanceGrid (
+      Vector3d widths, Vector3i resolution) {
+
+      this();
+
+      enforceEvenResolution (resolution);
+
+      myCellWidths = new Vector3d ();
+      myCellWidths.x = widths.x / resolution.x;
+      myCellWidths.y = widths.y / resolution.y;
+      myCellWidths.z = widths.z / resolution.z;
+
+      numVX = resolution.x+1;
+      numVY = resolution.y+1;
+      numVZ = resolution.z+1;
+      numVXxVY = numVX*numVY;      
+
+      // adjust max and min coords
+      myMaxCoord.scale ( 0.5, widths);
+      myMinCoord.scale (-0.5, widths);
+
+      myPhi = new double[numVX*numVY*numVZ];
       clearColors();
       myRenderRanges = new int[] {0, numVX, 0, numVY, 0, numVZ};
    }
@@ -347,7 +438,17 @@ public class DistanceGrid implements Renderable {
    /** 
     * Calculates the distance field.
     */
-   protected void calculatePhi (Feature[] features, double marginDist) {
+   public void calculatePhi (
+      Collection<? extends Feature> features, boolean signed) {
+      
+      calculatePhi (features.toArray(new Feature[0]), signed);
+   }
+   
+   /** 
+    * Calculates the distance field.
+    */
+   public void calculatePhi (Feature[] features, boolean signed) {
+      
       // Logger logger = Logger.getSystemLogger();
       //logger.info ("Calculating Distance Field...");
 
@@ -367,66 +468,50 @@ public class DistanceGrid implements Renderable {
       // Each entry in closestFeature is the index of the closest 
       // Feature to the grid vertex.
       myClosestFeatureIdxs = new int[myPhi.length];
-      int zIntersectionCount[] = new int[myPhi.length];
-      
       for (int i = 0; i < myPhi.length; i++) {
          myClosestFeatureIdxs[i] = -1;
-         zIntersectionCount[i] = 0;
       }
-      Point3d featureMin          = new Point3d();
-      Point3d featureMax          = new Point3d();
+      int zIntersectCount[] = null;
+      if (signed) {
+         zIntersectCount = new int[myPhi.length];
+         for (int i = 0; i < myPhi.length; i++) {
+            zIntersectCount[i] = 0;
+         }
+      }
+      Point3d featMin          = new Point3d();
+      Point3d featMax          = new Point3d();
+      Vector3i gridMin         = new Vector3i();
+      Vector3i gridMax         = new Vector3i();
       Point3d closestPoint     = new Point3d();
-      Point3d currentPointFeature = new Point3d();
-      Point3d pc = new Point3d(); // A temp variable passed in for performance.
-      Point3d p1 = new Point3d(); // A temp variable passed in for performance.
+      Point3d currentPointFeat = new Point3d();
 
-      // For every feature
+      // For every feature ...
       for (int t=0; t<features.length; ++t) {
+         // Find the vertex-aligned parallelpiped containing the feature's
+         // bounding box.
          Feature feature = features[t];
-         featureMin.set (Double.POSITIVE_INFINITY,
-            Double.POSITIVE_INFINITY,
-            Double.POSITIVE_INFINITY);
-         featureMax.set (Double.NEGATIVE_INFINITY,
-            Double.NEGATIVE_INFINITY, 
-            Double.NEGATIVE_INFINITY);
-         feature.updateBounds (featureMin, featureMax);
-         // Converting features min/max to grid coordinates.
-         int featureMinX = (int)((featureMin.x - myMinCoord.x) / myCellWidths.x);
-         int featureMinY = (int)((featureMin.y - myMinCoord.y) / myCellWidths.y);
-         int featureMinZ = (int)((featureMin.z - myMinCoord.z) / myCellWidths.z);
-         if (featureMinX < 0) {
-            featureMinX = 0;
-         }
-         if (featureMinY < 0) {
-            featureMinY = 0;
-         }
-         if (featureMinZ < 0) {
-            featureMinZ = 0;
-         }
-         int featureMaxX = (int)((featureMax.x - myMinCoord.x) / myCellWidths.x) + 1;
-         int featureMaxY = (int)((featureMax.y - myMinCoord.y) / myCellWidths.y) + 1;
-         int featureMaxZ = (int)((featureMax.z - myMinCoord.z) / myCellWidths.z) + 1;
-         if (featureMaxX > numVX - 1) {
-            featureMaxX = numVX - 1;
-         }
-         if (featureMaxY > numVY - 1) {
-            featureMaxY = numVY - 1;
-         }
-         if (featureMaxZ > numVZ - 1) {
-            featureMaxZ = numVZ - 1;
-         }
+         featMin.set (INF, INF, INF);
+         featMax.set (-INF, -INF, -INF);
+         feature.updateBounds (featMin, featMax);
+         // Convert feature min/max to grid coordinates:
+         transformToGrid (featMin, featMin);
+         gridMin.set (featMin);
+         // add cell widths to round the max coordinates up
+         featMax.add (myCellWidths);
+         transformToGrid (featMax, featMax);
+         gridMax.set (featMax);
 
-         // Now go through the entire parallelpiped. Calculate distance and
+         // Go through the entire parallelpiped. Calculate distance and
          // closestFeature.
-         for (int z = featureMinZ; z <= featureMaxZ; z++) {
-            for (int y = featureMinY; y <= featureMaxY; y++) {
-               for (int x = featureMinX; x <= featureMaxX; x++) {
+         for (int zk = gridMin.z; zk <= gridMax.z; zk++) {
+            for (int yj = gridMin.y; yj <= gridMax.y; yj++) {
+               for (int xi = gridMin.x; xi <= gridMax.x; xi++) {
                   // Get features coordinates
-                  getLocalVertexCoords (currentPointFeature, x, y, z);
+                  getLocalVertexCoords (currentPointFeat, xi, yj, zk);
                   // Get the distance from this point to the Feature.
-                  feature.nearestPoint (closestPoint, currentPointFeature);
-                  double distance = currentPointFeature.distance (closestPoint);
-                  int index = xyzIndicesToVertex (x, y, z);
+                  feature.nearestPoint (closestPoint, currentPointFeat);
+                  double distance = currentPointFeat.distance (closestPoint);
+                  int index = xyzIndicesToVertex (xi, yj, zk);
                   if (distance < myPhi[index]) {
                      myPhi[index] = distance;
                      myClosestFeatureIdxs [index] = t;
@@ -434,21 +519,87 @@ public class DistanceGrid implements Renderable {
                }
             }
          }
+
+         if (signed) {
+            if (!(feature instanceof Face)) {
+               throw new IllegalArgumentException (
+                  "Signed grid can only be created if all features are Faces");
+            }
+            Face face = (Face)feature;
+            Point3d bot = new Point3d();
+            Point3d top = new Point3d();
+            // Ray-casts from bottom x-y plane, upwards, counting intersections.
+            // We're building intersectionCount[] to use in ray casting below.
+            for (int yj = gridMin.y; yj <= gridMax.y; yj++) {
+               currentPointFeat.y = yj * myCellWidths.y + myMinCoord.y;
+               for (int xi = gridMin.x; xi <= gridMax.x; xi++) {
+                  currentPointFeat.x = xi * myCellWidths.x + myMinCoord.x;
+
+                  bot.x = currentPointFeat.x;
+                  bot.y = currentPointFeat.y;
+                  bot.z = myMinCoord.z-1;
+                  top.x = currentPointFeat.x;
+                  top.y = currentPointFeat.y;
+                  top.z = myMaxCoord.z+1;
+
+                  Point3d ipnt = new Point3d();
+                  int res = RobustPreds.intersectSegmentTriangle (
+                     ipnt, bot, top, face, maxDist, /*worldCoords=*/false);
+
+                  if (res > 0) {
+                     currentPointFeat.z = ipnt.z;
+                     // We should now use the z value in grid coordinates.
+                     // Extract it from currentPointFeat
+                     double currentPointZ =
+                        (currentPointFeat.z - myMinCoord.z) / myCellWidths.z;
+                     int zInterval = (int)currentPointZ + 1;
+                     // intersection counted in next grid square
+                     if (zInterval < 0) {
+                        ++zIntersectCount [xyzIndicesToVertex (xi, yj, 0)];
+                     }
+                     else if (zInterval < numVZ) {
+                        ++zIntersectCount[xyzIndicesToVertex(xi, yj, zInterval)];
+                     }
+                  } // point in triangle
+               } // x
+            } // y 
+         }
       }
 
       // Done all triangles.
       // Sweep, propagating values throughout the grid volume.
       for (int pass = 0; pass < 2; pass++) {
-         sweep(+1, +1, +1, pc, p1);
-         sweep(-1, -1, -1, pc, p1);
-         sweep(+1, +1, -1, pc, p1);
-         sweep(-1, -1, +1, pc, p1);
-         sweep(+1, -1, +1, pc, p1);
-         sweep(-1, +1, -1, pc, p1);
-         sweep(+1, -1, -1, pc, p1);
-         sweep(-1, +1, +1, pc, p1);
+         sweep(+1, +1, +1);
+         sweep(-1, -1, -1);
+         sweep(+1, +1, -1);
+         sweep(-1, -1, +1);
+         sweep(+1, -1, +1);
+         sweep(-1, +1, -1);
+         sweep(+1, -1, -1);
+         sweep(-1, +1, +1);
       }
-      
+
+      if (signed) {
+         // This is a ray-casting implementation to find the sign of each
+         // vertex in the grid.
+         for (int xi = 0; xi < numVX; xi++) {
+            for (int yj = 0; yj < numVY; yj++) {
+               int total_count = 0;
+               //Count the intersections of the x axis
+               for (int zk = 0; zk < numVZ; zk++) {
+                  int index = xyzIndicesToVertex (xi, yj, zk);
+                  total_count += zIntersectCount [index];
+                  
+                  // If parity of intersections so far is odd, we are inside the 
+                  // mesh.
+                  if (total_count % 2 == 1) {
+                     myPhi[index] =- myPhi[index];
+                  }
+               }
+            }
+         }         
+      }
+      mySignedP = signed;      
    }
 
    /** 
@@ -573,13 +724,14 @@ public class DistanceGrid implements Renderable {
     * for the grid cell containing the point. If the point lies outside
     * the grid volume, {@link #OUTSIDE} is returned.
     *
-    * @param norm returns the grad (in world coordinates)
+    * @param grad returns the gradient (in world coordinates)
     * @param x x coordinate of point (in world coordinates).
     * @param y y coordinate of point (in world coordinates).
     * @param z z coordinate of point (in world coordinates).
     * @return distance to the nearest feature
     */
-   public double getWorldDistanceAndGradient(Vector3d grad, double x, double y, double z) {
+   public double getWorldDistanceAndGradient (
+      Vector3d grad, double x, double y, double z) {
       Point3d point = new Point3d(x,y,z);
       return getWorldDistanceAndGradient(grad, point);
    }
@@ -592,48 +744,23 @@ public class DistanceGrid implements Renderable {
     */
    public Feature getNearestLocalFeature(Point3d nearest, Point3d point) {
       
-      // Change to grid coordinates
-      double tempPointX = (point.x - myMinCoord.x) / myCellWidths.x;
-      double tempPointY = (point.y - myMinCoord.y) / myCellWidths.y;
-      double tempPointZ = (point.z - myMinCoord.z) / myCellWidths.z;
-      int minx = (int)tempPointX;
-      int miny = (int)tempPointY;
-      int minz = (int)tempPointZ;
-
-      if (tempPointX < 0 || tempPointX > numVX - 1 ||
-          tempPointY < 0 || tempPointY > numVY - 1 ||
-          tempPointZ < 0 || tempPointZ > numVZ - 1) {
+      Vector3d cpos = new Vector3d();
+      Vector3i vidx = new Vector3i();
+      if (!getCellCoords (vidx, cpos, point)) {
          return null;
       }
-      
-      double dx = tempPointX - minx;
-      double dy = tempPointY - miny;
-      double dz = tempPointZ - minz;
-      if (tempPointX == numVX - 1) {
-         minx -= 1;
-         dx = 1;
-      }
-      if (tempPointY == numVY - 1) {
-         miny -= 1;
-         dy = 1;
-      }
-      if (tempPointZ == numVZ - 1) {
-         minz -= 1;
-         dz = 1;
-      }
-      
       Point3d tmp = new Point3d();
-      double dmin = Double.POSITIVE_INFINITY;
+      double dmin = INF;
       Feature nf = null;
       
-      int[] coords = {minx, miny, minz, 
-                    minx+1, miny, minz,
-                    minx, miny+1, minz,
-                    minx, miny, minz+1,
-                    minx+1, miny+1, minz,
-                    minx+1, miny, minz+1,
-                    minx, miny+1, minz+1,
-                    minx+1, miny+1, minz+1};
+      int[] coords = {vidx.x, vidx.y, vidx.z, 
+                    vidx.x+1, vidx.y, vidx.z,
+                    vidx.x, vidx.y+1, vidx.z,
+                    vidx.x, vidx.y, vidx.z+1,
+                    vidx.x+1, vidx.y+1, vidx.z,
+                    vidx.x+1, vidx.y, vidx.z+1,
+                    vidx.x, vidx.y+1, vidx.z+1,
+                    vidx.x+1, vidx.y+1, vidx.z+1};
       
       // check 8 nearest features from corners
       for (int i=0; i<coords.length; i+=3) {
@@ -688,6 +815,109 @@ public class DistanceGrid implements Renderable {
       return getLocalDistance(lpnt);
    }
    
+   private void clipToGrid (Vector3d p) {
+      if (p.x < myMinCoord.x) {
+         p.x = 0;
+      }
+      else if (p.x > myMaxCoord.x) {
+         p.x = myMaxCoord.x;
+      }
+      if (p.y < myMinCoord.y) {
+         p.y = 0;
+      }
+      else if (p.y > myMaxCoord.y) {
+         p.y = myMaxCoord.y;
+      }
+      if (p.z < myMinCoord.z) {
+         p.z = 0;
+      }
+      else if (p.z > myMaxCoord.z) {
+         p.z = myMaxCoord.z;
+      }
+   }      
+
+   protected boolean transformToGrid (Vector3d pgrid, Point3d ploc) {
+      boolean inside = true;
+
+      pgrid.x = (ploc.x - myMinCoord.x)/myCellWidths.x;
+      pgrid.y = (ploc.y - myMinCoord.y)/myCellWidths.y;
+      pgrid.z = (ploc.z - myMinCoord.z)/myCellWidths.z;
+      
+      if (pgrid.x < 0) {
+         pgrid.x = 0;
+         inside = false;
+      }
+      else if (pgrid.x > numVX-1) {
+         pgrid.x = numVX-1;
+         inside = false;
+      }
+      if (pgrid.y < 0) {
+         pgrid.y = 0;
+         inside = false;
+      }
+      else if (pgrid.y > numVY-1) {
+         pgrid.y = numVY-1;
+         inside = false;
+      }
+      if (pgrid.z < 0) {
+         pgrid.z = 0;
+         inside = false;
+      }
+      else if (pgrid.z > numVZ-1) {
+         pgrid.z = numVZ-1;
+         inside = false;
+      }
+      return inside;
+   }
+
+   protected boolean getCellCoords (
+      Vector3i xyzi, Vector3d coords, Point3d point) {
+
+      Vector3d pgrid = new Vector3d();
+      boolean inside = transformToGrid (pgrid, point);
+
+      xyzi.set (pgrid);
+
+      if (xyzi.x == numVX - 1) {
+         xyzi.x -= 1;
+      }
+      if (xyzi.y == numVY - 1) {
+         xyzi.y -= 1;
+      }
+      if (xyzi.z == numVZ - 1) {
+         xyzi.z -= 1;
+      }
+      if (coords != null) {
+         coords.x = pgrid.x - xyzi.x;
+         coords.y = pgrid.y - xyzi.y;
+         coords.z = pgrid.z - xyzi.z;
+      }
+      return inside;
+   }
+
+   /**
+    * Returns the x, y, z indices of the minimum vertex of the cell containing
+    * <code>point</code>. If <code>point</code> is outside the grid,
+    * <code>null</code> is returned.
+    *
+    * @param xyzi returns the x, y, z indices. If specified as
+    * <code>null</code>, then the containing vector is allocated internally.
+    * @param point point for which the cell vertex is desired
+    * @return vector containing the cell vertex indices, or
+    * <code>null</code> if <code>point</code> is outside the grid.
+    */
+   public Vector3i getCellVertex (Vector3i xyzi, Point3d point) {
+      if (xyzi == null) {
+         xyzi = new Vector3i();
+      }
+      if (getCellCoords (xyzi, null, point)) {
+         return xyzi;
+      }
+      else {
+         return null;
+      }
+   }      
+
    /** 
     * Calculates the distance and normal at an arbitrary point. These values
     * are determined by multilinear interpolation of the vertex values
@@ -718,34 +948,16 @@ public class DistanceGrid implements Renderable {
     */
    public double getLocalDistanceAndNormal (
       Vector3d norm, Matrix3d Dnrm, Point3d point) {
-      // Change to grid coordinates
-      double tempPointX = (point.x - myMinCoord.x) / myCellWidths.x;
-      double tempPointY = (point.y - myMinCoord.y) / myCellWidths.y;
-      double tempPointZ = (point.z - myMinCoord.z) / myCellWidths.z;
-      int minx = (int)tempPointX;
-      int miny = (int)tempPointY;
-      int minz = (int)tempPointZ;
 
-      if (tempPointX < 0 || tempPointX > numVX - 1 ||
-          tempPointY < 0 || tempPointY > numVY - 1 ||
-          tempPointZ < 0 || tempPointZ > numVZ - 1) {
+      Vector3d coords = new Vector3d();
+      Vector3i vidx = new Vector3i();
+      if (!getCellCoords (vidx, coords, point)) {
          return OUTSIDE;
       }
-      double dx = tempPointX - minx;
-      double dy = tempPointY - miny;
-      double dz = tempPointZ - minz;
-      if (tempPointX == numVX - 1) {
-         minx -= 1;
-         dx = 1;
-      }
-      if (tempPointY == numVY - 1) {
-         miny -= 1;
-         dy = 1;
-      }
-      if (tempPointZ == numVZ - 1) {
-         minz -= 1;
-         dz = 1;
-      }
+      double dx = coords.x;
+      double dy = coords.y;
+      double dz = coords.z;
+
       // Compute weights w000, w001, w010, etc. for trilinear interpolation.
       
       // w001z, w011z, etc. are the derivatives of the weights
@@ -765,28 +977,28 @@ public class DistanceGrid implements Renderable {
       double w110  = w111z*(1-dz);
       double w111  = w111z*dz;
 
-      double d000  = getVertexDistance (minx  , miny  , minz  );
-      double d001  = getVertexDistance (minx  , miny  , minz+1);
-      double d010  = getVertexDistance (minx  , miny+1, minz  );
-      double d011  = getVertexDistance (minx  , miny+1, minz+1);
-      double d100  = getVertexDistance (minx+1, miny  , minz  );
-      double d101  = getVertexDistance (minx+1, miny  , minz+1);
-      double d110  = getVertexDistance (minx+1, miny+1, minz  );
-      double d111  = getVertexDistance (minx+1, miny+1, minz+1);
+      double d000  = getVertexDistance (vidx.x  , vidx.y  , vidx.z  );
+      double d001  = getVertexDistance (vidx.x  , vidx.y  , vidx.z+1);
+      double d010  = getVertexDistance (vidx.x  , vidx.y+1, vidx.z  );
+      double d011  = getVertexDistance (vidx.x  , vidx.y+1, vidx.z+1);
+      double d100  = getVertexDistance (vidx.x+1, vidx.y  , vidx.z  );
+      double d101  = getVertexDistance (vidx.x+1, vidx.y  , vidx.z+1);
+      double d110  = getVertexDistance (vidx.x+1, vidx.y+1, vidx.z  );
+      double d111  = getVertexDistance (vidx.x+1, vidx.y+1, vidx.z+1);
 
       double d =
          w000*d000 + w001*d001 + w010*d010 + w011*d011 +
          w100*d100 + w101*d101 + w110*d110 + w111*d111;
       
       if (norm != null || Dnrm != null) {
-         Vector3d n000 = getLocalVertexNormal (minx  , miny  , minz  );
-         Vector3d n001 = getLocalVertexNormal (minx  , miny  , minz+1);
-         Vector3d n010 = getLocalVertexNormal (minx  , miny+1, minz  );
-         Vector3d n011 = getLocalVertexNormal (minx  , miny+1, minz+1);
-         Vector3d n100 = getLocalVertexNormal (minx+1, miny  , minz  );
-         Vector3d n101 = getLocalVertexNormal (minx+1, miny  , minz+1);
-         Vector3d n110 = getLocalVertexNormal (minx+1, miny+1, minz  );
-         Vector3d n111 = getLocalVertexNormal (minx+1, miny+1, minz+1);
+         Vector3d n000 = getLocalVertexNormal (vidx.x  , vidx.y  , vidx.z  );
+         Vector3d n001 = getLocalVertexNormal (vidx.x  , vidx.y  , vidx.z+1);
+         Vector3d n010 = getLocalVertexNormal (vidx.x  , vidx.y+1, vidx.z  );
+         Vector3d n011 = getLocalVertexNormal (vidx.x  , vidx.y+1, vidx.z+1);
+         Vector3d n100 = getLocalVertexNormal (vidx.x+1, vidx.y  , vidx.z  );
+         Vector3d n101 = getLocalVertexNormal (vidx.x+1, vidx.y  , vidx.z+1);
+         Vector3d n110 = getLocalVertexNormal (vidx.x+1, vidx.y+1, vidx.z  );
+         Vector3d n111 = getLocalVertexNormal (vidx.x+1, vidx.y+1, vidx.z+1);
 
          if (norm == null && Dnrm != null) {
             norm = new Vector3d();
@@ -919,73 +1131,66 @@ public class DistanceGrid implements Renderable {
     * @return distance to the nearest feature
     */
    public double getLocalDistanceAndGradient (Vector3d grad, Point3d point) {
-      // Change to grid coordinates
-      double tempPointX = (point.x - myMinCoord.x) / myCellWidths.x;
-      double tempPointY = (point.y - myMinCoord.y) / myCellWidths.y;
-      double tempPointZ = (point.z - myMinCoord.z) / myCellWidths.z;
-      int minx = (int)tempPointX;
-      int miny = (int)tempPointY;
-      int minz = (int)tempPointZ;
 
-      if (tempPointX < 0 || tempPointX > numVX - 1 ||
-          tempPointY < 0 || tempPointY > numVY - 1 ||
-          tempPointZ < 0 || tempPointZ > numVZ - 1) {
+      Vector3d coords = new Vector3d();
+      Vector3i vidx = new Vector3i();
+      if (!getCellCoords (vidx, coords, point)) {
          return OUTSIDE;
       }
-      double dx = tempPointX - minx;
-      double dy = tempPointY - miny;
-      double dz = tempPointZ - minz;
-      if (tempPointX == numVX - 1) {
-         minx -= 1;
-         dx = 1;
-      }
-      if (tempPointY == numVY - 1) {
-         miny -= 1;
-         dy = 1;
-      }
-      if (tempPointZ == numVZ - 1) {
-         minz -= 1;
-         dz = 1;
-      }
+      double dx = coords.x;
+      double dy = coords.y;
+      double dz = coords.z;
 
-      // Now use trilinear interpolation to get the normal at 'point'.
-      double w000 = (1-dx)*(1-dy)*(1-dz);
-      double w001 = (1-dx)*(1-dy)*dz;
-      double w010 = (1-dx)*dy*(1-dz);
-      double w011 = (1-dx)*dy*dz;
-      double w100 = dx*(1-dy)*(1-dz);
-      double w101 = dx*(1-dy)*dz;
-      double w110 = dx*dy*(1-dz);
-      double w111 = dx*dy*dz;
+      double w100x = (1-dy)*(1-dz);
+      double w101x = (1-dy)*dz;
+      double w110x = dy*(1-dz);
+      double w111x = dy*dz;
 
-      double d000 = getVertexDistance (minx  , miny  , minz  );
-      double d001 = getVertexDistance (minx  , miny  , minz+1);
-      double d010 = getVertexDistance (minx  , miny+1, minz  );
-      double d011 = getVertexDistance (minx  , miny+1, minz+1);
-      double d100 = getVertexDistance (minx+1, miny  , minz  );
-      double d101 = getVertexDistance (minx+1, miny  , minz+1);
-      double d110 = getVertexDistance (minx+1, miny+1, minz  );
-      double d111 = getVertexDistance (minx+1, miny+1, minz+1);
+      double w010y = (1-dx)*(1-dz);
+      double w011y = (1-dx)*dz;
+      double w110y = dx*(1-dz);
+      double w111y = dx*dz;
+
+      double w001z = (1-dx)*(1-dy);
+      double w011z = (1-dx)*dy;
+      double w101z = dx*(1-dy);
+      double w111z = dx*dy;
+
+      double w000  = w001z*(1-dz);
+      double w001  = w001z*dz;
+      double w010  = w011z*(1-dz);
+      double w011  = w011z*dz;
+      double w100  = w101z*(1-dz);
+      double w101  = w101z*dz;
+      double w110  = w111z*(1-dz);
+      double w111  = w111z*dz;
+      
+      double d000  = getVertexDistance (vidx.x  , vidx.y  , vidx.z  );
+      double d001  = getVertexDistance (vidx.x  , vidx.y  , vidx.z+1);
+      double d010  = getVertexDistance (vidx.x  , vidx.y+1, vidx.z  );
+      double d011  = getVertexDistance (vidx.x  , vidx.y+1, vidx.z+1);
+      double d100  = getVertexDistance (vidx.x+1, vidx.y  , vidx.z  );
+      double d101  = getVertexDistance (vidx.x+1, vidx.y  , vidx.z+1);
+      double d110  = getVertexDistance (vidx.x+1, vidx.y+1, vidx.z  );
+      double d111  = getVertexDistance (vidx.x+1, vidx.y+1, vidx.z+1);
 
       if (grad != null) {
-         grad.x = -(1-dy)*(1-dz)*d000 -(1-dy)*dz*d001
-            -dy*(1-dz)*d010 - dy*dz*d011
-            + (1-dy)*(1-dz)*d100 + (1-dy)*dz*d101
-            + dy*(1-dz)*d110 + dy*dz*d111;
-         grad.y = -(1-dx)*(1-dz)*d000 -(1-dx)*dz*d001 
-            +(1-dx)*(1-dz)*d010 + (1-dx)*dz*d011
-            - dx*(1-dz)*d100 - dx*dz*d101
-            + dx*(1-dz)*d110 + dx*dz*d111;
-         grad.z = -(1-dx)*(1-dy)*d000+(1-dx)*(1-dy)*d001
-            -(1-dx)*dy*d010+(1-dx)*dy*d011
-            -dx*(1-dy)*d100+dx*(1-dy)*d101
-            -dx*dy*d110+dx*dy*d111;
-      }      
-      
-      return w000*d000 + w001*d001 + w010*d010 + w011*d011 + w100*d100 +
-         w101*d101 + w110*d110 + w111*d111;
+         grad.x = (-w100x*d000 - w101x*d001 - w110x*d010 - w111x*d011
+                   +w100x*d100 + w101x*d101 + w110x*d110 + w111x*d111);
+         grad.y = (-w010y*d000 - w011y*d001 + w010y*d010 + w011y*d011
+                   -w110y*d100 - w111y*d101 + w110y*d110 + w111y*d111);
+         grad.z = (-w001z*d000 + w001z*d001 - w011z*d010 + w011z*d011
+                   -w101z*d100 + w101z*d101 - w111z*d110 + w111z*d111);
+         
+         grad.x /= myCellWidths.x;
+         grad.y /= myCellWidths.y;
+         grad.z /= myCellWidths.z;
+      }
+
+      return (w000*d000 + w001*d001 + w010*d010 + w011*d011 +
+              w100*d100 + w101*d101 + w110*d110 + w111*d111);
    }
-   
+
    /** 
     * Calculates the distance and gradient at an arbitrary point. These values
     * are determined by multilinear interpolation of the vertex values
@@ -1099,6 +1304,15 @@ public class DistanceGrid implements Renderable {
    }
 
    /**
+    * Queries whether or not this grid is signed.
+    *
+    * @return <code>true</code> if this grid is signed.
+    */
+   public boolean isSigned() {
+      return mySignedP;
+   }
+
+   /**
     * Returns the normal to the nearest feature at a vertex, as specified by
     * its x, y, z indices.
     * 
@@ -1115,21 +1329,6 @@ public class DistanceGrid implements Renderable {
       return nrm;
    }
    
-   /**
-    * Returns the normal to the nearest feature at a vertex, as specified by
-    * its x, y, z indices.
-    * 
-    * @param vxyz x, y, z vertex indices
-    * @return nearest feature distance at the vertex (must not be modified)
-    */
-   private Vector3d getLocalVertexNormal (Vector3i vxyz) {
-      Vector3d nrm = myNormals[xyzIndicesToVertex(vxyz)];
-      if (nrm == null) {
-         nrm = calcNormal (vxyz.x, vxyz.y, vxyz.z);
-      }
-      return nrm;
-   }
-
    /**
     * Returns the full array of distances to the features at each vertex.
     * The array is indexed such that for vertex indices xi, yj, zk,
@@ -1210,9 +1409,12 @@ public class DistanceGrid implements Renderable {
     * @param dx x direction of sweep
     * @param dy y direction of sweep
     * @param dz z direction of sweep
-    * @param pc temporary variable
     */
-   protected void sweep (int dx, int dy, int dz, Point3d pc, Point3d p1) {
+   protected void sweep (int dx, int dy, int dz) {
+
+      Point3d pc = new Point3d();
+      Point3d p1 = new Point3d();
+
       int x0, x1;
       if (dx > 0) {
          x0 = 1;
@@ -1521,6 +1723,22 @@ public class DistanceGrid implements Renderable {
       return coords;
    }
 
+   /**
+    * Find the world coordinates at a vertex, as specified by
+    * its x, y, z indices.
+    * 
+    * @param coords returns the coordinates
+    * @param vxyz x, y, z vertex indices
+    * @return coords
+    */
+   public Vector3d getWorldVertexCoords (Vector3d coords, Vector3i vxyz) {
+      Point3d pnt = new Point3d();
+      getLocalVertexCoords (pnt, vxyz);
+      getWorldCoordinates (pnt, pnt);
+      coords.set(pnt);
+      return coords;
+   }
+
    static int parsePositiveInt (String str) {
       int value = -1;
       try {
@@ -1660,26 +1878,7 @@ public class DistanceGrid implements Renderable {
       }
    }
 
-   public static void main (String[] args) {
-      BufferedReader reader =
-         new BufferedReader(new InputStreamReader(System.in));
-      String line;
-      DistanceGrid grid = new DistanceGrid();
-      grid.numVX = 10;
-      grid.numVY = 5;
-      grid.numVZ = 5;
-      while ((line = readLine(reader)) != null) {
-         StringHolder errorMsg = new StringHolder();
-         if (errorMsg.value == null) {
-            grid.setRenderRanges (line);
-            System.out.println (grid.getRenderRanges());
-         }
-         else {
-            System.out.println (errorMsg.value);
-         }
-      }
-   }
-   
+
    /**
     * Apply the smoothing operation n times
     * @param n
@@ -1789,18 +1988,49 @@ public class DistanceGrid implements Renderable {
       
    }
 
-   public PolygonalMesh computeDistanceSurface() {
+   public PolygonalMesh createDistanceSurface() {
       MarchingTetrahedra marcher = new MarchingTetrahedra();
 
       return marcher.createMesh (
          myPhi, myMinCoord, myCellWidths, getResolution(), /*iso=*/0);
    }
    
-   public PolygonalMesh computeDistanceSurface(double val) {
+   public PolygonalMesh createDistanceSurface(double val) {
       MarchingTetrahedra marcher = new MarchingTetrahedra();
 
       return marcher.createMesh (
          myPhi, myMinCoord, myCellWidths, getResolution(), val);
+   }
+
+   public PolygonalMesh createQuadraticDistanceSurface (double val, int res) {
+      MarchingTetrahedra marcher = new MarchingTetrahedra();
+
+      // sample at a 3 X higher resolution so we can get
+      // a better sense of the smooth surface
+      Vector3i cellRes = new Vector3i(getResolution());
+      cellRes.scale (res);
+
+      int numVX = cellRes.x+1;
+      int numVY = cellRes.y+1;
+      int numVZ = cellRes.z+1;
+      double[] dists = new double[numVX*numVY*numVZ];
+      Vector3d cellWidths = new Vector3d(myCellWidths);
+      cellWidths.scale (1.0/res);
+
+      Point3d q = new Point3d();
+      for (int i=0; i<numVX; i++) {
+         for (int j=0; j<numVY; j++) {
+            for (int k=0; k<numVZ; k++) {
+               q.set (i*cellWidths.x, j*cellWidths.y, k*cellWidths.z);
+               q.add (myMinCoord);
+               clipToGrid (q);
+               dists[i + j*numVX + k*numVX*numVY] =
+                  getQuadraticDistanceAndGradient (null, q);
+            }
+         }
+      }
+      return marcher.createMesh (
+         dists, myMinCoord, cellWidths, cellRes, val);
    }
 
    public AffineTransform3dBase getWorldTransform() {
@@ -1811,4 +2041,480 @@ public class DistanceGrid implements Renderable {
       return myMaxCoord.distance(myMinCoord)/2;
    }
 
+
+   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   // 
+   // All code below this point is for getQuadraticDistanceAndGradient() and
+   // findQuadraticSurfaceTangent(), which is used in the implementation of
+   // strand wrapping. Still very messy and under development. Keep out!
+   //
+   // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+   protected int[] myTetOffsets0156;
+   protected int[] myTetOffsets0456;
+   protected int[] myTetOffsets0476;
+   protected int[] myTetOffsets0126;
+   protected int[] myTetOffsets0326;
+   protected int[] myTetOffsets0376;
+
+   protected static Vector3i[] myBaseQuadCellXyzi = new Vector3i[] {
+      new Vector3i (0, 0, 0),
+      new Vector3i (2, 0, 0),
+      new Vector3i (2, 0, 2),
+      new Vector3i (0, 0, 2),
+      new Vector3i (0, 2, 0),
+      new Vector3i (2, 2, 0),
+      new Vector3i (2, 2, 2),
+      new Vector3i (0, 2, 2)
+   };      
+
+   /**
+    * Identifies a sub tet within a hex cell. The numbers identify the
+    * corresponding hex nodes.
+    */
+   public enum TetID {
+      TET0516,
+      TET0456,
+      TET0746,
+      TET0126,
+      TET0236,
+      TET0376;
+
+      public int intValue() {
+         switch (this) {
+            case TET0516: {
+               return 0;
+            }
+            case TET0456: {
+               return 1;
+            }
+            case TET0746: {
+               return 2;
+            }
+            case TET0126: {
+               return 3;
+            }
+            case TET0236: {
+               return 4;
+            }
+            case TET0376: {
+               return 5;
+            }
+            default: {
+               throw new InternalErrorException (
+                  "Unimplemented tet " + this);
+            }
+         }
+      }
+
+      public static TetID fromInt (int num) {
+         switch (num) {
+            case 0: return TET0516;
+            case 1: return TET0456;
+            case 2: return TET0746;
+            case 3: return TET0126;
+            case 4: return TET0236;
+            case 5: return TET0376;
+            default: {
+               throw new InternalErrorException (
+                  "num=" + num + ", must be in the range [0-5]");
+            }
+         }
+      }
+
+      public int[] getNodes() {
+         switch (this) {
+            case TET0516: return new int[] { 0, 5, 1, 6 }; 
+            case TET0126: return new int[] { 0, 1, 2, 6 }; 
+            case TET0236: return new int[] { 0, 2, 3, 6 }; 
+            case TET0376: return new int[] { 0, 3, 7, 6 }; 
+            case TET0746: return new int[] { 0, 7, 4, 6 }; 
+            case TET0456: return new int[] { 0, 4, 5, 6 }; 
+            default: {
+               throw new InternalErrorException (
+                  "Unimplemented tet " + this);
+            }
+         }
+      }
+
+      public int[] getMiddleNodeOffsets() {
+         switch (this) {
+            case TET0516: return new int[] { 2, 2, 0, 2, 0, 0 }; 
+            case TET0126: return new int[] { 2, 0, 0, 2, 0, 2 };
+            case TET0236: return new int[] { 2, 0, 2, 0, 0, 2 };
+            case TET0376: return new int[] { 0, 0, 2, 0, 2, 2 };
+            case TET0746: return new int[] { 0, 2, 2, 0, 2, 0 };
+            case TET0456: return new int[] { 0, 2, 0, 2, 2, 0 };
+            default: {
+               throw new InternalErrorException (
+                  "Unimplemented tet " + this);
+            }
+         }
+      }
+
+      boolean isInside (double x, double y, double z) {
+         if (x < 0 || x > 1 || y < 0 || y > 1 || z < 0 || z > 1) {
+            return false;
+         }
+         else {
+            return findSubTet (x, y, z) == this;
+         }
+      }
+
+      /**
+       * Finds the sub-tet within a hex cell, based on the x, y, z coordinates of
+       * a point within the cell. These coordinates are assumed to be normalized
+       * to [0,1] to correspond to the cell dimensions.
+       */
+      static TetID findSubTet (double x, double y, double z) {
+         if (y >= z) {
+            if (x >= z) {
+               if (x >= y) {
+                  return TetID.TET0516;
+               }
+               else {
+                  return TetID.TET0456;
+               }
+            }
+            else {
+               return TetID.TET0746;
+            }
+         }
+         else {
+            if (x >= y) {
+               if (x >= z) {
+                  return TetID.TET0126;
+               }
+               else {
+                  return TetID.TET0236;
+               }
+            }
+            else {
+               return TetID.TET0376;
+            }
+         }
+      }  
+      
+   };
+   
+   public static class TetDesc {
+
+      int myXi;
+      int myYj;
+      int myZk;
+      TetID myTetId;
+      
+      public TetDesc (Vector3i vxyz, TetID tetId) {
+         this (vxyz.x, vxyz.y, vxyz.z, tetId);
+      }
+
+      public TetDesc (TetDesc tdesc) {
+         myXi = tdesc.myXi;
+         myYj = tdesc.myYj;
+         myZk = tdesc.myZk;
+         myTetId = tdesc.myTetId;
+      }
+
+      public TetDesc (int xi, int yj, int zk, TetID tetId) {
+         myXi = xi;
+         myYj = yj;
+         myZk = zk;
+         myTetId = tetId;
+      }
+
+      public void addOffset (TetDesc tdesc) {
+         myXi += tdesc.myXi;
+         myYj += tdesc.myYj;
+         myZk += tdesc.myZk;
+      }
+
+      public boolean equals (Object obj) {
+         if (obj instanceof TetDesc) {
+            TetDesc tdesc = (TetDesc)obj;
+            return (cellEquals (tdesc) && myTetId == tdesc.myTetId);
+         }
+         else {
+            return false;
+         }
+      }
+      
+      public boolean cellEquals (TetDesc tdesc) {
+         return myXi == tdesc.myXi && myYj == tdesc.myYj && myZk == tdesc.myZk;
+      }
+
+      public int hashCode() {
+         // assume grid not likely bigger than 300 x 300 x 300, so
+         // pick prime numbers close to 300 and 300^2
+         return 6*(myXi + myYj*307 + myZk*90017) + myTetId.intValue();
+      }
+
+      public Vector3i[] getVertices () {
+         Vector3i[] vertices = new Vector3i[4];
+         int[] nodes = myTetId.getNodes();
+         for (int i=0; i<nodes.length; i++) {
+            Vector3i vtx = new Vector3i (myXi, myYj, myZk);
+            vtx.add(myBaseQuadCellXyzi[nodes[i]]);
+            vertices[i] = vtx;
+         }
+         return vertices;
+      }
+
+      public String toString() {
+         return myTetId + "("+myXi+","+myYj+","+myZk+")";
+      }
+   }
+
+   protected int[] createTetOffsets (
+      Vector3i v0, Vector3i v1, Vector3i v2, Vector3i v3) {
+
+      Vector3i e01 = createEdgeNode (v0, v1);
+      Vector3i e12 = createEdgeNode (v1, v2);
+      Vector3i e23 = createEdgeNode (v2, v3);
+      Vector3i e02 = createEdgeNode (v0, v2);
+      Vector3i e13 = createEdgeNode (v1, v3);
+      Vector3i e03 = createEdgeNode (v0, v3);
+
+      Vector3i[] nodes = new Vector3i[] {
+         v0, v1, v2, v3, e01, e12, e23, e02, e13, e03 };
+      int[] offsets = new int[nodes.length];
+      for (int i=0; i<nodes.length; i++) {
+         offsets[i] = xyzIndicesToVertex (nodes[i]);
+      }
+      return offsets;
+   }
+
+   protected void createTetOffsetsIfNecessary() {
+      if (myTetOffsets0156 == null) {
+         Vector3i v0 = new Vector3i (0, 0, 0);
+         Vector3i v1 = new Vector3i (2, 0, 0);
+         Vector3i v2 = new Vector3i (2, 0, 2);
+         Vector3i v3 = new Vector3i (0, 0, 2);
+         
+         Vector3i v4 = new Vector3i (0, 2, 0);
+         Vector3i v5 = new Vector3i (2, 2, 0);
+         Vector3i v6 = new Vector3i (2, 2, 2);
+         Vector3i v7 = new Vector3i (0, 2, 2);
+         
+         myTetOffsets0156 = createTetOffsets (v0, v1, v5, v6);
+         myTetOffsets0126 = createTetOffsets (v0, v1, v2, v6);
+         myTetOffsets0326 = createTetOffsets (v0, v3, v2, v6);
+         myTetOffsets0376 = createTetOffsets (v0, v3, v7, v6);
+         myTetOffsets0476 = createTetOffsets (v0, v4, v7, v6);
+         myTetOffsets0456 = createTetOffsets (v0, v4, v5, v6);
+      }
+   }
+
+   protected Vector3i getQuadCellCoords (
+      Vector3i xyzi, Vector3d coords, Point3d point) {
+
+      if ((numVX-1)%2 != 0 || (numVY-1)%2 != 0 || (numVZ-1)%2 != 0) {
+         throw new IllegalStateException (
+            "Grid must have an even number of cells along all dimensions");
+      }
+      if (xyzi == null) {
+         xyzi = new Vector3i();
+      }
+      if (!getCellCoords (xyzi, coords, point)) {
+         return null;
+      }
+      // round down to even vertices
+      if ((xyzi.x%2) != 0) {
+         xyzi.x--;
+         if (coords != null) coords.x += 1;
+      }
+      if ((xyzi.y%2) != 0) {
+         xyzi.y--;
+         if (coords != null) coords.y += 1;
+      }
+      if ((xyzi.z%2) != 0) {
+         xyzi.z--;
+         if (coords != null) coords.z += 1;
+      }      
+      // and scale coords by half 
+      if (coords != null) {
+         coords.scale (0.5);
+      }
+      return xyzi;
+   }
+
+   public void transformToQuadCell (Point3d pc, Point3d pl, TetDesc tdesc) {
+      Point3d pbase = new Point3d();
+      getLocalVertexCoords (pbase, tdesc.myXi, tdesc.myYj, tdesc.myZk);
+
+      pc.sub (pl, pbase);
+      pc.x /= (2*myCellWidths.x);
+      pc.y /= (2*myCellWidths.y);
+      pc.z /= (2*myCellWidths.z);
+   }
+
+   public void transformToQuadCell (Vector3d vc, Vector3d v1, TetDesc tdesc) {
+      vc.x = v1.x / (2*myCellWidths.x);
+      vc.y = v1.y / (2*myCellWidths.y);
+      vc.z = v1.z / (2*myCellWidths.z);
+   }
+
+   public void transformFromQuadCell (
+      Point3d pl, double x, double y, double z, TetDesc tdesc) {
+
+      Point3d pbase = new Point3d();
+      getLocalVertexCoords (pbase, tdesc.myXi, tdesc.myYj, tdesc.myZk);
+      pl.x = x * (2*myCellWidths.x);
+      pl.y = y * (2*myCellWidths.y);
+      pl.z = z * (2*myCellWidths.z);
+      pl.add (pbase);
+   }
+
+   public void transformFromQuadCell (
+      Point3d pl, Point3d pc, TetDesc tdesc) {
+
+      Point3d pbase = new Point3d();
+      getLocalVertexCoords (pbase, tdesc.myXi, tdesc.myYj, tdesc.myZk);
+      pl.x = pc.x * (2*myCellWidths.x);
+      pl.y = pc.y * (2*myCellWidths.y);
+      pl.z = pc.z * (2*myCellWidths.z);
+      pl.add (pbase);
+   }
+
+   protected Vector3i createEdgeNode (Vector3i v0, Vector3i v1) {
+      Vector3i en = new Vector3i();
+      en.x = (v0.x+v1.x)/2;
+      en.y = (v0.y+v1.y)/2;
+      en.z = (v0.z+v1.z)/2;
+      return en;
+   }
+
+   /** 
+    */
+   public double getQuadraticDistanceAndGradient (Vector3d grad, Point3d point) {
+      // Change to grid coordinates
+      if ((numVX-1)%2 != 0 || (numVY-1)%2 != 0 || (numVZ-1)%2 != 0) {
+         throw new IllegalStateException (
+            "Grid must have an even number of cells along all dimensions");
+      }
+      Vector3d coords = new Vector3d();
+      Vector3i vidx = new Vector3i();
+      if (getQuadCellCoords (vidx, coords, point) == null) {
+         return OUTSIDE;
+      }
+      double dx = coords.x;
+      double dy = coords.y;
+      double dz = coords.z;
+
+      double[] c = new double[10];
+      TetDesc tdesc = new TetDesc (vidx, TetID.findSubTet (dx, dy, dz));
+      computeQuadCoefs (c, tdesc);
+      if (grad != null) {
+         computeQuadGradient (grad, c, dx, dy, dz);
+      }
+      return computeQuadDistance (c, dx, dy, dz);
+   }
+   
+   private void computeQuadCoefs (
+      double[] c, int voff, int[] nodeOffs, int xi, int yi, int zi) {
+      
+      double v0  = myPhi[voff+nodeOffs[0]];
+      double v1  = myPhi[voff+nodeOffs[1]];
+      double v2  = myPhi[voff+nodeOffs[2]];
+      double v3  = myPhi[voff+nodeOffs[3]];
+      double v4  = myPhi[voff+nodeOffs[4]];
+      double v5  = myPhi[voff+nodeOffs[5]];
+      double v6  = myPhi[voff+nodeOffs[6]];
+      double v7  = myPhi[voff+nodeOffs[7]];
+      double v8  = myPhi[voff+nodeOffs[8]];
+      double v9  = myPhi[voff+nodeOffs[9]];
+
+      c[xi] =  2*v0 + 2*v1 - 4*v4;
+      c[yi] =  2*v1 + 2*v2 - 4*v5;
+      c[zi] =  2*v2 + 2*v3 - 4*v6;
+
+      c[3+xi] = -4*v2 + 4*v5 + 4*v6 - 4*v8;
+      c[3+yi] = -4*v5 + 4*v7 + 4*v8 - 4*v9;
+      c[3+zi] = -4*v1 + 4*v4 + 4*v5 - 4*v7;
+
+      c[6+xi] = -3*v0 -   v1 + 4*v4;
+      c[6+yi] =    v1 -   v2 - 4*v4 + 4*v7;
+      c[6+zi] =    v2 -   v3 - 4*v7 + 4*v9;
+
+      c[9] = v0;
+   }
+
+   public void computeQuadCoefs (double[] c, TetDesc tdesc) {
+         
+      createTetOffsetsIfNecessary();
+      int voff = xyzIndicesToVertex (tdesc.myXi, tdesc.myYj, tdesc.myZk);
+      switch (tdesc.myTetId) {
+         case TET0516: {
+            computeQuadCoefs (c, voff, myTetOffsets0156, 0, 1, 2);
+            break;
+         }
+         case TET0456: {
+            computeQuadCoefs (c, voff, myTetOffsets0456, 1, 0, 2);
+            break;
+         }
+         case TET0746: {
+            computeQuadCoefs (c, voff, myTetOffsets0476, 1, 2, 0);
+            break;
+         }
+         case TET0126: {
+            computeQuadCoefs (c, voff, myTetOffsets0126, 0, 2, 1);
+            break;
+         }
+         case TET0236: {
+            computeQuadCoefs (c, voff, myTetOffsets0326, 2, 0, 1);
+            break;
+         }
+         case TET0376: {
+            computeQuadCoefs (c, voff, myTetOffsets0376, 2, 1, 0);
+            break;
+         }
+         default: {
+            throw new InternalErrorException (
+               "Unknown tet type " + tdesc.myTetId);
+         }
+      }
+   }
+
+   double computeQuadDistance (
+      double[] c, double dx, double dy, double dz) {
+
+      double d =
+         c[0]*dx*dx + c[1]*dy*dy + c[2]*dz*dz +
+         c[3]*dy*dz + c[4]*dx*dz + c[5]*dx*dy +
+         c[6]*dx + c[7]*dy + c[8]*dz + c[9];
+      return d;
+   }
+
+   void computeQuadGradient (
+      Vector3d grad, double[] c, double dx, double dy, double dz) {
+
+      grad.x = 2*c[0]*dx + c[5]*dy + c[4]*dz + c[6];
+      grad.y = 2*c[1]*dy + c[5]*dx + c[3]*dz + c[7];
+      grad.z = 2*c[2]*dz + c[4]*dx + c[3]*dy + c[8];
+            
+      grad.x /= (2*myCellWidths.x);
+      grad.y /= (2*myCellWidths.y);
+      grad.z /= (2*myCellWidths.z);
+   }
+
+   public boolean inRange (TetDesc tdesc) {
+      return (tdesc.myXi >= 0 && tdesc.myXi < numVX-2 &&
+              tdesc.myYj >= 0 && tdesc.myYj < numVY-2 &&
+              tdesc.myZk >= 0 && tdesc.myZk < numVZ-2);
+   }
+      
+   public boolean findQuadraticSurfaceTangent (
+      Point3d pt, Point3d p0, Point3d pa, Vector3d nrm) {
+
+      DistanceGridSurfCalc calc = new DistanceGridSurfCalc(this);
+      return calc.findQuadraticSurfaceTangent (pt, p0, pa, nrm);
+   }
+
+   public boolean findQuadraticSurfaceIntersection (
+      Point3d pi, Point3d p0, Point3d pa, Vector3d nrm) {
+
+      DistanceGridSurfCalc calc = new DistanceGridSurfCalc(this);
+      return calc.findQuadraticSurfaceIntersection (pi, p0, pa, nrm);
+   }
+         
+ 
 }

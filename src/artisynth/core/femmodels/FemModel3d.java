@@ -201,9 +201,9 @@ public class FemModel3d extends FemModel
    private int myNumNodalMappedElements = 0;
    private int myNumQuadraticElements = 0;
 
-   private double myMinDetJ; // used to record inverted elements
-   private FemElement3d myMinDetJElement = null; // element with "worst" DetJ
-   private int myNumInverted = 0; // used to tally number of inverted elements
+   protected double myMinDetJ; // used to record inverted elements
+   protected FemElement3d myMinDetJElement = null; // element with "worst" DetJ
+   protected int myNumInverted = 0; // used to tally number of inverted elements
 
    private static double DEFAULT_ELEMENT_WIDGET_SIZE = 0.0;
    private double myElementWidgetSize = DEFAULT_ELEMENT_WIDGET_SIZE;
@@ -215,18 +215,19 @@ public class FemModel3d extends FemModel
    
    // maximum number of pressure DOFs that can occur in an element
    private static int MAX_PRESSURE_VALS = 8;
-   // maximum number of nodes for elements associated with nodal incompressibility
+   // maximum number of nodes for elements associated with nodal
+   // incompressibility
    private static int MAX_NODAL_INCOMP_NODES = 8;
 
    // temp space for computing pressures
-   private VectorNd myPressures = new VectorNd(MAX_PRESSURE_VALS);
-   private MatrixNd myRinv = new MatrixNd();
+   protected VectorNd myPressures = new VectorNd(MAX_PRESSURE_VALS);
+   protected MatrixNd myRinv = new MatrixNd();
    // temp space for computing pressure stiffness
-   private double[] myKp = new double[MAX_PRESSURE_VALS];
+   protected double[] myKp = new double[MAX_PRESSURE_VALS];
    // temp space for computing nodal incompressibility constraints
-   private Vector3d[] myNodalConstraints = new Vector3d[MAX_NODAL_INCOMP_NODES];
+   protected Vector3d[] myNodalConstraints = new Vector3d[MAX_NODAL_INCOMP_NODES];
    // temp for computing element-wise linear stiffness strain
-   private SymmetricMatrix3d myEps = new SymmetricMatrix3d();
+   protected SymmetricMatrix3d myEps = new SymmetricMatrix3d();
    SVDecomposition3d SVD = new SVDecomposition3d();
 
    // protected ArrayList<FemSurface> myEmbeddedSurfaces;
@@ -701,7 +702,7 @@ public class FemModel3d extends FemModel
       }
    }
 
-   private void computePressuresAndRinv(
+   protected void computePressuresAndRinv(
       FemElement3d e, FemMaterial imat, double scale) {
 
       int npvals = e.numPressureVals();
@@ -780,7 +781,7 @@ public class FemModel3d extends FemModel
    }
 
    // DIVBLK
-   private void computeNonlinearStressAndStiffness(
+   protected void computeNonlinearStressAndStiffness(
       FemElement3d e, FemMaterial mat, Matrix6d D, IncompMethod softIncomp) {
 
       IntegrationPoint3d[] ipnts = e.getIntegrationPoints();
@@ -2066,7 +2067,7 @@ public class FemModel3d extends FemModel
       }
    }
 
-   private void addNeighborVelJacobian(
+   protected void addNeighborVelJacobian(
       SparseNumberedBlockMatrix M, FemNode3d node,
       FemNodeNeighbor nbr, double s) {
 
