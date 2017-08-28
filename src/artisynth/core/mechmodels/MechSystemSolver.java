@@ -189,7 +189,7 @@ public class MechSystemSolver {
       Trapezoidal,
       //      BridsonMarino
       //      Trapezoidal2,
-      //      StaticIncrementalStep,
+      StaticIncrementalStep,
       StaticIncremental,
       StaticLineSearch
    }
@@ -460,7 +460,7 @@ public class MechSystemSolver {
             myComplianceSupported = true;
             break;
          }
-         // case StaticIncrementalStep:
+         case StaticIncrementalStep:
          case StaticIncremental:
          case StaticLineSearch:
             myComplianceSupported = false;
@@ -713,10 +713,10 @@ public class MechSystemSolver {
             trapezoidal (t0, t1, stepAdjust);
             break;
          }
-         //         case StaticIncrementalStep: {
-         //            staticIncrementalStep(t1, 1.0/myStaticIncrements, stepAdjust);
-         //            break;
-         //         }
+         case StaticIncrementalStep: {
+            staticIncrementalStep(t1, 1.0/myStaticIncrements, stepAdjust);
+            break;
+         }
          case StaticIncremental: {
             staticIncremental(t1, myStaticIncrements, stepAdjust);
             break;
@@ -2775,6 +2775,7 @@ public class MechSystemSolver {
          mySys.setActiveVelState (myUtmp);
       }
 
+
       // back solve for parametric forces
       //computeImplicitParametricForces (myUtmp, myFparC);
 
@@ -3006,14 +3007,22 @@ public class MechSystemSolver {
    }
    
    /**
-    * Returns the number of load increments being used with the {@link Integrator#StaticIncremental}
+    * Returns the number of load increments being used with the
+    * {@link Integrator#StaticIncremental}
     * integrator.
-    * @return
+    * 
+    * @return number of load increments for {@link Integrator#StaticIncremental}
     */
    public int getStaticIncrements() {
       return myStaticIncrements;
    }
    
+   /**
+    * Scales forces and constraints down by alpha, and solves the adjusted problem
+    * @param t1 time at which to solve the system
+    * @param alpha step factor
+    * @param stepAdjust
+    */
    public void staticIncrementalStep(double t1, double alpha, StepAdjustment stepAdjust) {
       if (myMatrixSolver == MatrixSolver.None) {
          throw new UnsupportedOperationException (

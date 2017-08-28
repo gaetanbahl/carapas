@@ -15,8 +15,8 @@ import maspack.util.ArraySort;
 
 public class TetgenTessellator {
    
-   public static String NATIVE_LIB = "TetgenJNI.1.5.1.0";
-   // public static String NATIVE_LIB = "TetgenJNI.1.4.3.0";
+   // public static String NATIVE_LIB = "TetgenJNI.1.5.1.0";
+   public static String NATIVE_LIB = "TetgenJNI.1.4.3.0";
    
    private native int doBuildFromPoints (
       long handle, double[] pntCoords, int numPnts);
