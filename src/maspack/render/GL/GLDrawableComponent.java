@@ -188,6 +188,24 @@ public abstract class GLDrawableComponent {
    }
    
    /**
+    * Gets the real pixel width of the underlying AWT component
+    * @return pixel width
+    * @see Component#getWidth
+    */
+   public int getSurfaceWidth() {
+      return drawable.getSurfaceWidth();
+   }
+   
+   /**
+    * Gets the real pixel height of the underlying AWT component
+    * @return pixel height
+    * @see Component#getSurfaceHeight
+    */
+   public int getSurfaceHeight() {
+      return drawable.getSurfaceHeight();
+   }
+   
+   /**
     * Gets the x component of the origin of the underlying AWT component
     * @return origin x component
     * @see Component#getY()
@@ -363,6 +381,11 @@ public abstract class GLDrawableComponent {
       public GLCanvas getCanvas() {
          return canvas;
       }
+      
+      @Override
+      public void setSurfaceScale(float[] scale) {
+         canvas.setSurfaceScale(scale);
+      }
    }
    
    /**
@@ -388,6 +411,11 @@ public abstract class GLDrawableComponent {
          return panel;
       }
       
+      @Override
+      public void setSurfaceScale(float[] scale) {
+         panel.setSurfaceScale(scale);
+      }
+      
    }
    
    /**
@@ -407,5 +435,7 @@ public abstract class GLDrawableComponent {
    public static GLDrawableComponent create(GLCanvas canvas) {
       return new GLDrawableCanvas(canvas);
    }
+
+   public abstract void setSurfaceScale(float[] scale);
    
 }
