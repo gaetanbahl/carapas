@@ -228,7 +228,7 @@ public class MFreeIntegrationPoint3d extends IntegrationPoint3d implements MFree
    }
    
    @Override
-   protected void setNumber(int num) {
+   public void setNumber(int num) {
       super.setNumber(num);
    }
 
