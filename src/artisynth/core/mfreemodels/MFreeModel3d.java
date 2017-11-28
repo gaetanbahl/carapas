@@ -113,24 +113,24 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    protected AABBTree myElementTree;
    protected AABBTree myNodeTree;
    protected boolean myBVTreeValid;
-   
+
    protected AABBTree myRestNodeTree; // rest nodes only
    
    protected MFreeMeshComp mySurfaceMesh;
    protected boolean mySurfaceMeshValid = false;
    protected int myCollidableIndex;
-   
+
    // record inverted elements
    private double myMinDetJ; // used to record inverted elements
    private MFreeElement3d myMinDetJElement = null; // element with
-   // "worst" DetJ
+                                                   // "worst" DetJ
 
    public static boolean checkTangentStability = false;
    public static boolean abortOnInvertedElems = false;
 
    private int myNumInverted = 0; // counts number of inverted elements
-   // static maspack.render.Material myInvertedMaterial =
-   // maspack.render.Material.createDiffuse(1f, 0f, 0f, 0f, 32f);
+//   static maspack.render.Material myInvertedMaterial =
+//      maspack.render.Material.createDiffuse(1f, 0f, 0f, 0f, 32f);
    // private boolean myIncompressibleP = false;
    private double myIncompCompliance = 0;
    public static IncompMethod DEFAULT_HARD_INCOMP = IncompMethod.OFF;
@@ -175,7 +175,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    PropertyMode myElementWidgetSizeMode = PropertyMode.Inherited;
 
    protected MFreeAuxMaterialBundleList myAuxMaterialsList;
-
+   
    protected boolean myClearMeshColoring = false;
    protected boolean myComputeNodalStress = false; /// XXX TODO: extrapmat in
    /// MFreeNode3d
@@ -228,8 +228,8 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    }
 
    @Override
-   public void getCollidables(List<Collidable> list, int level) {
-      list.add(this);
+   public void getCollidables (List<Collidable> list, int level) {
+      list.add (this);
       // traverse forward for additional collidables (e.g. FemMeshComp)
       recursivelyGetLocalComponents(this, list, Collidable.class);
    }
@@ -270,16 +270,16 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       setMaterial(new LinearMaterial());
       myColorMap = createDefaultColorMap();
    }
-
+   
    public static ColorMapBase createDefaultColorMap() {
       return new HueColorMap(0.7, 0);
    }
 
-   public MFreeModel3d() {
+   public MFreeModel3d () {
       this(null);
    }
 
-   public MFreeModel3d(String name) {
+   public MFreeModel3d (String name) {
       super(name);
       myNodalConstraints = new Vector3d[MAX_NODAL_INCOMP_NODES];
       for (int i = 0; i < MAX_NODAL_INCOMP_NODES; i++) {
@@ -297,7 +297,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          new MeshComponentList<MFreeMeshComp>(
             MFreeMeshComp.class, "geometry", "g");
       // myEvaluationPoints = new CountedList<MFreePoint3d>();
-
+      
       addFixed(myNodes);
       addFixed(myElements);
       addFixed(myAuxMaterialsList);
@@ -305,27 +305,27 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
 
       super.initializeChildComponents();
    }
-
+   
    public void addMaterialBundle(MFreeAuxMaterialBundle bundle) {
       if (!myAuxMaterialsList.contains(bundle)) {
-         for (MFreeAuxMaterialElementDesc d : bundle.getElements()) {
-            bundle.checkElementDesc(this, d);
-         }
+	         for (MFreeAuxMaterialElementDesc d : bundle.getElements()) {
+	            bundle.checkElementDesc(this, d);
+	         }
          myAuxMaterialsList.add(bundle);
-      }
-   }
+	      }
+	   }
 
-   public boolean removeMaterialBundle(MFreeAuxMaterialBundle bundle) {
+	   public boolean removeMaterialBundle(MFreeAuxMaterialBundle bundle) {
       return myAuxMaterialsList.remove(bundle);
-   }
+	   }
 
-   public void clearMaterialBundles() {
+	   public void clearMaterialBundles() {
       myAuxMaterialsList.removeAll();
-   }
+	   }
 
-   public RenderableComponentList<MFreeAuxMaterialBundle> getMaterialBundles() {
+	   public RenderableComponentList<MFreeAuxMaterialBundle> getMaterialBundles() {
       return myAuxMaterialsList;
-   }
+	   }
 
    protected void buildBVHierarchies() {
       myElementTree = new AABBTree();
@@ -341,7 +341,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
 
       myBVTreeValid = true;
    }
-   
+
    private void updateBVHierarchies() {
       if (!myBVTreeValid) {
          myNodeTree.update();
@@ -410,7 +410,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          if (myElements.contains(elem)) {
             System.err.println("Error: unable to remove node because some elements still depend on it");
             return false;
-         }
+      }
       }
 
       // make sure no surfaces depend on it
@@ -418,8 +418,8 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          if (fm.hasNodeDependency(p)) {
             System.err.println("Error: unable to remove node because the mesh '" 
                + fm.getName() + "' still depends on it");
-            return false;
-         }
+      return false;
+   }
       }
 
       if (myNodes.remove(p)) {
@@ -510,9 +510,9 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          n.subForce(fd);
       }
 
-      // if (stepAdjust != null && myMinDetJ <= 0) {
-      // stepAdjust.recommendAdjustment(0.5, "element inversion");
-      // }
+//      if (stepAdjust != null && myMinDetJ <= 0) {
+//         stepAdjust.recommendAdjustment(0.5, "element inversion");
+//      }
    }
 
    private void computePressuresAndRinv(
@@ -824,7 +824,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
 
       double mins = Double.MAX_VALUE;
       MFreeElement3d minE = null;
-      
+
       for (MFreeElement3d region : myElements) {
          FemMaterial mat = getElementMaterial(region);
          computeMaterialStressAndStiffness(region, mat, D, softIncomp);
@@ -885,7 +885,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       myStiffnessesValidP = true;
       myStressesValidP = true;
    }
-   
+
    public void updateStress() {
       // clear existing internal forces and maybe stiffnesses
       for (MFreeNode3d n : myNodes) {
@@ -1036,13 +1036,13 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          }
       }
    }
-
+   
    protected double checkMatrixStability(DenseMatrix D) {
       EigenDecomposition evd = new EigenDecomposition();
-      evd.factorSymmetric(D, EigenDecomposition.OMIT_V);
+      evd.factorSymmetric (D, EigenDecomposition.OMIT_V);
       VectorNd eig = evd.getEigReal();
       double min = eig.get(0);
-      double max = eig.get(eig.size() - 1);
+      double max = eig.get(eig.size()-1);
       if (Math.abs(max) > Math.abs(min)) {
          return min / max;
       } else {
@@ -1074,8 +1074,8 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
                         if (nbr == null) {
                            throw new InternalErrorException(
                               "No neighbor block at bi=" + bi + ", bj=" + bj);
-                        }
-                        else {
+      }
+      else {
                            nbr.addDilationalStiffness(
                               myKp, nbr_i.getDivBlk(), nbr_j.getDivBlk());
                         }
@@ -1095,7 +1095,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          }
       }
    }
-   
+
    private void computeElementIncompressibility(
       MFreeElement3d e, FemMaterial imat, Matrix6d D) {
 
@@ -1182,7 +1182,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       if (D != null) {
          D.setZero();
       }
-
+      
       // compute corotation if required
       MFreeIntegrationPoint3d wpnt = null;
       RotationMatrix3d wR = null;  // warping rotation
@@ -1195,7 +1195,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          wP = new SymmetricMatrix3d();
          SVD.polarDecomposition(wR, wP, wpnt.getF());
       }
-      
+
       // see if material is linear
       FemMaterial linMat = null;
       SymmetricMatrix3d linStrain = null;
@@ -1218,7 +1218,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          linStrain.m11 -= 1;
          linStrain.m22 -= 1;
       }
-
+         
       // base linear material optimization
       if (linMat != null) {
          if (linMat.isCorotated()) {
@@ -1253,13 +1253,13 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
                for (int i = 0; i < nodes.length; i++) {
                   nodes[i].addScaledStress(1.0 / nodes[i].numAdjacentElements(), wpnt.getStress());
                }
-            }
-            
+      }
+
             if (myComputeNodalStrain) {
                // XXX rotate strain? or is it w.r.t. rest coordinates?
                //               if (linMat.isCorotated()) {
                //                  linStrain.mulLeftAndTransposeRight(wR);
-               //               }
+      //               }
                for (int i = 0; i < nodes.length; i++) {
                   nodes[i].addScaledStrain(1.0 / nodes[i].numAdjacentElements(), linStrain);
                }  
@@ -1274,7 +1274,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       } // end base linear material
       
       e.setInverted(false); // will check this below
-      
+         
       // separation of linear, corotated linear, and nonlinear
       // since they use different shape function gradients
       // due to small-strain assumption (J ~ I)
@@ -1388,14 +1388,14 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       }
       
       // basic information regarding local deformation
-      SolidDeformation def = new SolidDeformation();
+         SolidDeformation def = new SolidDeformation();
       MFreeIntegrationCoordinate mcoord = new MFreeIntegrationCoordinate();
       def.setMaterialCoordinate(mcoord);
-      
+         
       for (int k = 0; k < ipnts.length; k++) {
          MFreeIntegrationPoint3d pt = ipnts[k];
          IntegrationData3d dt = idata[k];
-         pt.computeJacobianAndGradient(dt.getInvJ0());
+            pt.computeJacobianAndGradient(dt.getInvJ0());
          
 
          // material rotation and deformation
@@ -1409,21 +1409,21 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          } else {
             def.setR(RotationMatrix3d.IDENTITY);
          }
-         def.setF(pt.getF());
+            def.setF (pt.getF());
          
          // anisotropy rotational frame
          Matrix3d Q = (dt.getFrame() != null ? dt.getFrame() : Matrix3d.IDENTITY);
          
-         double detJ = pt.computeInverseJacobian();
-         if (detJ < myMinDetJ) {
-            myMinDetJ = detJ;
-            myMinDetJElement = e;
-         }
-         if (detJ <= 0) {
-            e.setInverted(true);
-            myNumInverted++;
-         }
-            
+            double detJ = pt.computeInverseJacobian();
+            if (detJ < myMinDetJ) {
+               myMinDetJ = detJ;
+               myMinDetJElement = e;
+            }
+            if (detJ <= 0) {
+               e.setInverted(true);
+               myNumInverted++;
+            }
+
          // compute shape function gradients and volume fractions
          if (hasLinear) {
             dv0 = idata[k].getDetJ0() * ipnts[k].getWeight();
@@ -1438,7 +1438,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
             pt.computeShapeGradient(idata[k].getInvJ0(), RGNx0);
             for (int i=0; i<nodes.length; ++i) {
                wR.mul(RGNx0[i]);
-            }
+               }
          }
          if (hasNonlinear) {
             dv1 = detJ * pt.getWeight();
@@ -1507,7 +1507,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          }
          
          // reset pressure to zero for auxiliary materials
-         pt.setAveragePressure(0);
+               pt.setAveragePressure(0);
          def.setAveragePressure(0);
          if (e.numAuxiliaryMaterials() > 0) {
             for (ConstitutiveMaterial aux : e.myAuxMaterials) {
@@ -1517,11 +1517,11 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
                      corotatedLinearStress.add(sigmaTmp);
                   } else {
                      linearStress.add(sigmaTmp);
-                  }
+            }
                } else {
                   nonlinearStress.add(sigmaTmp);
                }
-               if (D != null) {
+                  if (D != null) {
                   aux.computeTangent(tangentTmp, sigmaTmp, def, Q, mat);
                   if (aux.isLinear()) {
                      if (aux.isCorotated()) {
@@ -1534,8 +1534,8 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
                   }
                }
             }
-         }
-
+                  }
+                  
          //XXX this seems to overwrite previous stress/stiffness
          // and does not include auxiliary materials
          pt.setAveragePressure(pressure); // bring back pressure term
@@ -1545,7 +1545,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
             if (state == null) {
                state = veb.createState();
                idata[k].setViscoState(state);
-            }
+               }
             // veb.computeStress(pt.sigma, state);
             veb.computeStress(nonlinearStress, state);
             if (D != null) {
@@ -1556,9 +1556,9 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
             dt.clearState();
          }
 
-         for (int i = 0; i < e.myNodes.length; i++) {
-            FemNode3d nodei = e.myNodes[i];
-            int bi = nodei.getSolveIndex();
+            for (int i = 0; i < e.myNodes.length; i++) {
+               FemNode3d nodei = e.myNodes[i];
+               int bi = nodei.getSolveIndex();
 
             // if (e.isTermActive(i, i)) {
                if (hasLinear) {
@@ -1575,7 +1575,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
                }
             // }
 
-            if (D != null) {
+               if (D != null) {
                if (hasLinear) {
                   D.scaledAdd(dv0, linearTangent);
                }
@@ -1605,10 +1605,10 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
                }
 
                // compute stiffness
-               if (bi != -1) {
-                  for (int j = 0; j < e.myNodes.length; j++) {
-                     int bj = e.myNodes[j].getSolveIndex();
-                     if (!mySolveMatrixSymmetricP || bj >= bi) {
+                  if (bi != -1) {
+                     for (int j = 0; j < e.myNodes.length; j++) {
+                        int bj = e.myNodes[j].getSolveIndex();
+                        if (!mySolveMatrixSymmetricP || bj >= bi) {
                         if (hasLinear) {
                            e.addMaterialStiffness(i,j,GNx0[i], linearTangent, GNx0[j], dv0);
                         }
@@ -1627,8 +1627,8 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
                      }
                   }
                }
-            } // if D != null
-
+               } // if D != null
+               
             // nodal stress/strain
             double[] nodalExtrapMat = e.getNodalExtrapolationMatrix();
             if (nodalExtrapMat != null) {
@@ -1653,7 +1653,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
                if (myComputeNodalStrain) {
                   double a = nodalExtrapMat[i * ipnts.length + k];
                   if (a != 0) {
-                     // pt.computeRightCauchyGreen(C);
+               //                        pt.computeRightCauchyGreen(C);
                      def.computeRightCauchyGreen(C);
                      C.m00 -= 1;
                      C.m11 -= 1;
@@ -1663,10 +1663,10 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
                         a / nodei.numAdjacentElements(), C);
                   }
                }
-
+               
             }
          } // looping through nodes computing stress
-         
+               
          // nodal incompressibility constraints
          if (D != null && softIncomp == IncompMethod.NODAL) {
             for (FemNodeNeighbor nbr : getNodeNeighbors(e.myNodes[k])) {
@@ -1677,7 +1677,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
             }
          }
          
-      } // looping through ipnts
+         } // looping through ipnts
 
 
       // element-wise incompressibility constraints
@@ -1709,7 +1709,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
             } // XXX ALWAYS??
          } // end soft elem incompress
       } // end checking if computing tangent
-      
+
    }
 
    public void checkInversion() {
@@ -1731,7 +1731,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    public MeshBase getMesh(int idx) {
       return myMeshList.get(idx).getMesh();
    }
-
+   
    @Override
    public PolygonalMesh getCollisionMesh() {
       for (MFreeMeshComp mc : myMeshList) {
@@ -1748,7 +1748,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    }
    
    @Override   
-   public SignedDistanceGrid getDistanceGrid() {
+   public DistanceGrid getDistanceGrid() {
       return null;
    }
 
@@ -1774,7 +1774,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    public boolean isDeformable () {
       return true;
    }
-
+   
    public Collection<MFreeMeshComp> getMeshes() {
       return myMeshList;
    }
@@ -1782,7 +1782,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    public MFreeMeshComp getMeshComponent(int idx) {
       return myMeshList.get(idx);
    }
-
+   
    protected MFreeMeshComp findMesh(MeshBase mesh) {
       for (MFreeMeshComp mc : myMeshList) {
          if (mc.getMesh() == mesh) {
@@ -1801,7 +1801,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       }
       return false;
    }
-   
+
    public MFreeMeshComp setSurfaceMesh(PolygonalMesh surface) {
       String meshName =
          ModelComponentBase.makeValidName(surface.getName(), null, myMeshList);
@@ -1810,7 +1810,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       }
       return setSurfaceMesh(meshName, surface);
    }
-   
+      
    public MFreeMeshComp setSurfaceMesh(String name, PolygonalMesh surface) {
       surface.setFixed(false);
       surface.setColorsFixed(false);
@@ -1818,8 +1818,8 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       surf.setName(name);
       setSurfaceMesh(surf);
       return surf;
-   }
-   
+      }
+      
    public void setSurfaceMesh(MFreeMeshComp mesh) {
       if (!(mesh.getMesh()instanceof PolygonalMesh)) {
          throw new IllegalArgumentException("Surface mesh must be of type PolygonalMesh");
@@ -1836,8 +1836,8 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          }
          mySurfaceMesh.setCollidable(Collidability.EXTERNAL);
       }
-   }
-
+      }
+      
    public MFreeMeshComp addMesh(MeshBase mesh) {
       String meshName =
          ModelComponentBase.makeValidName(mesh.getName(), null, myMeshList);
@@ -1852,7 +1852,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       addMesh(mmc);
       return mmc;
    }
-   
+      
    public void addMesh(MFreeMeshComp mesh) {
       mesh.setCollidable (Collidability.INTERNAL);
       myMeshList.add(mesh);
@@ -1864,7 +1864,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          mySurfaceMesh.markSurfaceMesh(false);
          mySurfaceMesh = null;
       }
-      
+
    }
 
    protected boolean checkSolveMatrixIsSymmetric() {
@@ -1975,7 +1975,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          }
          blkNum = blk.getBlockNumber();
       }
-      // nbr.setBlock(blk);
+      //nbr.setBlock(blk);
       nbr.setBlockNumber(blkNum);
    }
 
@@ -2013,9 +2013,9 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       super.recursivelyInitialize(t, level);
    }
 
-   // public boolean recursivelyCheckStructureChanged() {
-   // return false;
-   // }
+//   public boolean recursivelyCheckStructureChanged() {
+//      return false;
+//   }
 
    public double integrate(Function3x1 fun) {
       double out = 0;
@@ -2063,7 +2063,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       for (MFreeElement3d elem : myElements) {
          MFreeNode3d[] nodes = elem.getNodes();
          double elemVolume = 0;
-         
+
          MFreeIntegrationPoint3d[] ipnts = elem.getIntegrationPoints();
          IntegrationData3d[] idata = elem.getIntegrationData();
 
@@ -2269,32 +2269,32 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
 
    // @Override
    // public synchronized StepAdjustment advance(
-   // double t0, double t1, int flags) {
+   //    double t0, double t1, int flags) {
 
-   // initializeAdvance (t0, t1, flags);
+   //    initializeAdvance (t0, t1, flags);
 
-   // if (t0 == 0) {
-   // updateForces(t0);
-   // }
+   //    if (t0 == 0) {
+   //       updateForces(t0);
+   //    }
 
-   // if (!myDynamicsEnabled) {
-   // mySolver.nonDynamicSolve(t0, t1, myStepAdjust);
-   // recursivelyFinalizeAdvance(null, t0, t1, flags, 0);
-   // }
-   // else {
-   // mySolver.solve(t0, t1, myStepAdjust);
-   // DynamicComponent c = checkVelocityStability();
-   // if (c != null) {
-   // throw new NumericalException(
-   // "Unstable velocity detected, component "
-   // + ComponentUtils.getPathName(c));
-   // }
-   // recursivelyFinalizeAdvance(myStepAdjust, t0, t1, flags, 0);
-   // // checkForInvertedElements();
-   // }
+   //    if (!myDynamicsEnabled) {
+   //       mySolver.nonDynamicSolve(t0, t1, myStepAdjust);
+   //       recursivelyFinalizeAdvance(null, t0, t1, flags, 0);
+   //    }
+   //    else {
+   //       mySolver.solve(t0, t1, myStepAdjust);
+   //       DynamicComponent c = checkVelocityStability();
+   //       if (c != null) {
+   //          throw new NumericalException(
+   //             "Unstable velocity detected, component "
+   //                + ComponentUtils.getPathName(c));
+   //       }
+   //       recursivelyFinalizeAdvance(myStepAdjust, t0, t1, flags, 0);
+   //       // checkForInvertedElements();
+   //    }
 
-   // finalizeAdvance (t0, t1, flags);
-   // return myStepAdjust;
+   //    finalizeAdvance (t0, t1, flags);
+   //    return myStepAdjust;
    // }
 
    /**
@@ -2305,7 +2305,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       for (int i = 0; i < nodes.size(); i++) {
          MFreeNode3d node = nodes.get(i);
          Vector3d vel = node.getFalseVelocity();
-         if (node.velocityLimitExceeded(myMaxTranslationalVel, 0)) {
+         if (node.velocityLimitExceeded (myMaxTranslationalVel, 0)) {
             return node;
          }
       }
@@ -2326,7 +2326,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          myClearMeshColoring = true;
       }
    }
-   
+
    public DoubleInterval getNodalPlotRange(SurfaceRender rendering) {
 
       if (!(rendering == SurfaceRender.Strain || 
@@ -2377,9 +2377,9 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       list.addIfVisible(myElements);
       list.addIfVisible(myMarkers);
       list.addIfVisible(myMeshList);
-      
+
       updateStressPlotRange();
-      
+   
       list.addIfVisible(myMeshList);
       myAuxMaterialsList.prerender(list);
    }
@@ -2394,7 +2394,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    }
 
    private void handleGeometryChange() {
-
+      
       myBVTreeValid = false;
       myRestNodeTree = null;
       invalidateStressAndStiffness();
@@ -2417,14 +2417,14 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       super.notifyStructureChanged(comp);
    }
 
-   public void updateSlavePos() {
-      super.updateSlavePos();
+   public void updateSlavePos () {
+      super.updateSlavePos ();
 
       // nodes
       for (MFreeNode3d node : myNodes) {
          node.updatePosAndVelState();
       }
-
+      
       // integration points
       for (MFreeElement3d elem : myElements) {
          for (MFreeIntegrationPoint3d mfip : elem.getIntegrationPoints()) {
@@ -2435,15 +2435,15 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
             warp.updatePosAndVelState();
          }
       }
-
+      
       // meshes
       for (MFreeMeshComp mc : myMeshList) {
          mc.updateSlavePos();
       }
-
+      
       myBVTreeValid = false;
-   }
-
+   }  
+   
    public void recursivelyFinalizeAdvance(
       StepAdjustment stepAdjust, double t0, double t1, int flags, int level) {
 
@@ -2495,7 +2495,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       invalidateRestData();
       notifyParentOfChange(new ComponentChangeEvent(Code.STRUCTURE_CHANGED));
    }
-   
+
    /**
     * Update the blocks uses in the incompressibility constraint matrices.
     * These are stored in the myDviBlk fields of each FemNodeNeighbor.
@@ -2653,13 +2653,13 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       }
       return 0;
    }
-
-   public void getConstrainedComponents(List<DynamicComponent> list) {
+   
+   public void getConstrainedComponents (List<DynamicComponent> list) {
       if (getHardIncompMethod() != IncompMethod.OFF) {
-         list.addAll(myNodes);
+         list.addAll (myNodes);
       }
    }
-
+   
    public int setBilateralImpulses(VectorNd lam, double h, int idx) {
       IncompMethod hardIncomp = getHardIncompMethod();
       if (hardIncomp == IncompMethod.NODAL) {
@@ -2792,7 +2792,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       }
       return numb;
    }
-   
+
    private double getLocalVolumeError(
       int nidx, MFreeNode3d[] nodes, MFreeIntegrationPoint3d[] pt, IntegrationData3d[] dt) {
 
@@ -2890,16 +2890,16 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    }
 
    public void transformGeometry(AffineTransform3dBase X) {
-      TransformGeometryContext.transform(this, X, 0);
+      TransformGeometryContext.transform (this, X, 0);
    }
 
-   public void transformGeometry(
+   public void transformGeometry (
       GeometryTransformer gtr, TransformGeometryContext context, int flags) {
-
+      
       // This is now handled in the node.transformGeometry():
-      // for (MFreeNode3d n : myNodes) {
-      // n.getRestPosition().transform(gtr);
-      // }
+//      for (MFreeNode3d n : myNodes) {
+//         n.getRestPosition().transform(gtr);
+//      }
       for (MFreeElement3d elem : myElements) {
          elem.invalidateRestData();
          for (MFreeIntegrationPoint3d ipnt : elem.getIntegrationPoints()) {
@@ -2910,20 +2910,20 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       updateLocalAttachmentPos();
       invalidateStressAndStiffness();
       updatePosState();
-
+      
       if (myMinBound != null) {
-         gtr.transformPnt(myMinBound);
+         gtr.transformPnt (myMinBound);
       }
       if (myMaxBound != null) {
-         gtr.transformPnt(myMaxBound);
+         gtr.transformPnt (myMaxBound);
       }
-   }
+   }   
 
-   public void addTransformableDependencies(
+   public void addTransformableDependencies (
       TransformGeometryContext context, int flags) {
-      context.addAll(myNodes);
-   }
-
+      context.addAll (myNodes);
+   } 
+   
    public boolean getCopyReferences(
       List<ModelComponent> refs, ModelComponent ancestor) {
       // TODO Auto-generated method stub
@@ -2935,9 +2935,9 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
 
    }
 
-   // public CountedList<MFreePoint3d> getEvaluationPoints() {
-   // return myEvaluationPoints;
-   // }
+   //   public CountedList<MFreePoint3d> getEvaluationPoints() {
+   //      return myEvaluationPoints;
+   //   }
 
    public void computeShapeMatrix() {
 
@@ -2976,7 +2976,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       // System.out.println("];");
 
    }
-
+   
    @Override
    public void updateBounds(Vector3d pmin, Vector3d pmax) {
       // TODO Auto-generated method stub
@@ -2986,11 +2986,11 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          mc.updateBounds(pmin, pmax);
       }
    }
-
+   
    public ColorMapBase getColorMap() {
       return myColorMap;
    }
-
+   
    public void setColorMap(ColorMapBase colorMap) {
       myColorMap = colorMap;
       myColorMapMode =
@@ -3001,7 +3001,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    public PropertyMode getColorMapMode() {
       return myColorMapMode;
    }
-
+   
    public void setColorMapMode(PropertyMode mode) {
       if (mode != myColorMapMode) {
          myColorMapMode =
@@ -3010,29 +3010,29 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       }
    }
 
-   public void getVertexMasters(List<ContactMaster> mlist, Vertex3d vtx) {
-
+   public void getVertexMasters (List<ContactMaster> mlist, Vertex3d vtx) {
+      
       // XXX currently assumed vtx is instance of MFreeVertex3d
       // This will change once MFreeModel uses FemMeshComp equivalent
       if (vtx instanceof MFreeVertex3d) {
          MFreeVertex3d mvtx = (MFreeVertex3d)vtx;
-
+         
          MFreeNode3d[] nodes = mvtx.getDependentNodes();
-         VectorNd coords = mvtx.getNodeCoordinates();
-
+         VectorNd coords = mvtx.getNodeCoordinates ();
+         
          for (int j = 0; j < nodes.length; j++) {
             mlist.add(new ContactMaster(nodes[j], coords.get(j)));
-         }
+         }      
       } else {
          System.out.println("Unknown masters.");
       }
    }
+   
+   public boolean containsContactMaster (CollidableDynamicComponent comp) {
+      return comp.getParent() == myNodes;      
+   }   
 
-   public boolean containsContactMaster(CollidableDynamicComponent comp) {
-      return comp.getParent() == myNodes;
-   }
-
-   public boolean allowCollision(
+   public boolean allowCollision (
       ContactPoint cpnt, Collidable other, Set<Vertex3d> attachedVertices) {
       if (CollisionHandler.attachedNearContact(cpnt, other, attachedVertices)) {
          return false;
@@ -3049,15 +3049,15 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    }
    
    @Override
-   public void getMassMatrixValues(SparseBlockMatrix M, VectorNd f, double t) {
+   public void getMassMatrixValues (SparseBlockMatrix M, VectorNd f, double t) {
       int bi;
 
-      for (int i = 0; i < myNodes.size(); i++) {
+      for (int i=0; i<myNodes.size(); i++) {
          FemNode3d n = myNodes.get(i);
-         if ((bi = n.getSolveIndex()) != -1) {
-            n.getEffectiveMass(M.getBlock(bi, bi), t);
-            n.getEffectiveMassForces(f, t, M.getBlockRowOffset(bi));
-         }
+          if ((bi = n.getSolveIndex()) != -1) {
+            n.getEffectiveMass (M.getBlock (bi, bi), t);
+            n.getEffectiveMassForces (f, t, M.getBlockRowOffset (bi));
+          }
       }
    }
 
@@ -3068,19 +3068,19 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       double[] fbuf = f.getBuffer();
       int asize = a.size();
 
-      if (M.getAlignedBlockRow(asize) == -1) {
-         throw new IllegalArgumentException(
+      if (M.getAlignedBlockRow (asize) == -1) {
+         throw new IllegalArgumentException (
             "size of 'a' not block aligned with 'M'");
       }
       if (f.size() < asize) {
-         throw new IllegalArgumentException(
+         throw new IllegalArgumentException (
             "size of 'f' is less than the size of 'a'");
       }
-      for (int i = 0; i < myNodes.size(); i++) {
+      for (int i=0; i<myNodes.size(); i++) {
          FemNode3d n = myNodes.get(i);
          int bk = n.getSolveIndex();
          if (bk != -1) {
-            int idx = M.getBlockRowOffset(bk);
+            int idx = M.getBlockRowOffset (bk);
             if (idx < asize) {
                n.mulInverseEffectiveMass(M.getBlock(bk, bk), abuf, fbuf, idx);
             }

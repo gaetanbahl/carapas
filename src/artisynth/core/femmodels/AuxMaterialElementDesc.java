@@ -142,7 +142,7 @@ public class AuxMaterialElementDesc extends RenderableComponentBase
       FemMaterial mat = getEffectiveMaterial();
       return mat == null || mat.isInvertible();
    }
-   
+
    @Override
    public boolean isLinear() {
       FemMaterial mat = getEffectiveMaterial();
@@ -173,7 +173,7 @@ public class AuxMaterialElementDesc extends RenderableComponentBase
    }
 
    @Override
-   public void computeStress(
+   public void computeStress (
       SymmetricMatrix3d sigma, SolidDeformation def, Matrix3d Q,
       FemMaterial baseMat) {
       
@@ -198,7 +198,7 @@ public class AuxMaterialElementDesc extends RenderableComponentBase
    }
 
    @Override
-   public void computeTangent(
+   public void computeTangent (
       Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def, Matrix3d Q,
       FemMaterial baseMat) {
       
@@ -283,11 +283,9 @@ public class AuxMaterialElementDesc extends RenderableComponentBase
 
    void referenceElement() {
       myElement.addAuxiliaryMaterial (this);
-      //myElement.addBackReference (this);
    }
 
    void dereferenceElement() {
-      //myElement.removeBackReference (this);
       myElement.removeAuxiliaryMaterial (this);
    }
 
@@ -343,9 +341,6 @@ public class AuxMaterialElementDesc extends RenderableComponentBase
       IndentingPrintWriter.addIndentation (pw, 2);
       printElementReference (pw, ancestor);
       pw.println ("");
-      // pw.print (" " + fmt.format (myStiffness) +
-      // " " + fmt.format (myDamping) +
-      // " " + fmt.format (myRestLength));
       getAllPropertyInfo().writeNonDefaultProps (this, pw, fmt);
       IndentingPrintWriter.addIndentation (pw, -2);
       pw.println ("]");
@@ -505,5 +500,5 @@ public class AuxMaterialElementDesc extends RenderableComponentBase
       }
       return other;
    }
-   
+
 }

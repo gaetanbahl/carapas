@@ -604,7 +604,6 @@ public class SurfaceMeshIntersector {
             }
          }
       }
-
       this.myMesh0 = mesh0;
       this.myMesh1 = mesh1;
       double maxRadius =
@@ -4062,6 +4061,17 @@ public class SurfaceMeshIntersector {
             return 0;
          }
       }
+   }
+
+   /**
+    * Describes CSG operations.
+    */
+   public enum CSG {
+      INTERSECTION,
+      UNION,
+      DIFFERENCE01,
+      DIFFERENCE10,
+      NONE
    }
 
    /**

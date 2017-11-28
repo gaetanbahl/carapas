@@ -19,7 +19,7 @@ public interface AuxiliaryMaterial extends Clonable {
       SymmetricMatrix3d sigma,
       SolidDeformation def, IntegrationPoint3d pt,
       IntegrationData3d dt, FemMaterial baseMat);
-   
+
    public abstract void computeStress (
       SymmetricMatrix3d sigma,
       SolidDeformation def, Matrix3d Q, FemMaterial baseMat);
@@ -30,7 +30,7 @@ public interface AuxiliaryMaterial extends Clonable {
 
    public abstract void computeTangent(
       Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def,
-      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat);
+      IntegrationPoint3d pt,IntegrationData3d dt, FemMaterial baseMat);
    
    public abstract void computeTangent(
       Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def,
