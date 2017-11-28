@@ -14,7 +14,7 @@ import maspack.geometry.ICPRegistration.Prealign;
 
 public class ICPRegistration {
 
-   private static double EPSILON = 1e-10;
+   protected static double EPSILON = 1e-10;
 
    static public boolean myProfiling = true;
    static public double myDistanceTime;
@@ -33,12 +33,12 @@ public class ICPRegistration {
    static boolean myDualDistancingEnabled = false;
    static private int MAX_FLIPS = 24;
 
-   private class VertexDistInfo {
+   static protected class VertexDistInfo {
       
-      Vertex3d myVertex;
-      Point3d myPnt;
-      Vector3d myNrm;
-      double myOffset;
+      public Vertex3d myVertex;
+      public Point3d myPnt;
+      public Vector3d myNrm;
+      public double myOffset;
 
       VertexDistInfo () {
          myVertex = null;
@@ -61,11 +61,11 @@ public class ICPRegistration {
       myDualDistancingEnabled = enable;
    }
 
-   static int myMaxVertices = 500;
-   int myMaxIters = 100;
-   VertexDistInfo[] myDistInfo = null;
-   int myNumMesh2Dists = 0;
-   int myNumMesh1Dists = 0;
+   protected static int myMaxVertices = 500;
+   protected int myMaxIters = 100;
+   protected VertexDistInfo[] myDistInfo = null;
+   protected int myNumMesh2Dists = 0;
+   protected int myNumMesh1Dists = 0;
 
    private boolean[] createRandomIndices (int num, int max) {
       // assumes that num is less that half the size of max
@@ -332,7 +332,7 @@ public class ICPRegistration {
       return numd;
    }
 
-   private void allocateDistInfo (PolygonalMesh mesh1, PolygonalMesh mesh2) {
+   protected void allocateDistInfo (PolygonalMesh mesh1, PolygonalMesh mesh2) {
       if (myDistInfo == null) {
          myDistInfo = new VertexDistInfo[myMaxVertices];
          for (int i=0; i<myMaxVertices; i++) {
@@ -386,7 +386,7 @@ public class ICPRegistration {
    }
 
 
-   double computeMeshRadius (PolygonalMesh mesh) {
+   protected double computeMeshRadius (PolygonalMesh mesh) {
 
       Vector3d c = new Vector3d();
       Vector3d d = new Vector3d();
