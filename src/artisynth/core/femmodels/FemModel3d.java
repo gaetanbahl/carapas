@@ -125,8 +125,8 @@ public class FemModel3d extends FemModel
    // when operating in frame-relative mode
    public static double frameMassFraction = 0.0;
    
-   private boolean myAbortOnInvertedElems = abortOnInvertedElems;
-   private boolean myWarnOnInvertedElems = true;
+   protected boolean myAbortOnInvertedElems = abortOnInvertedElems;
+   protected boolean myWarnOnInvertedElems = true;
    protected boolean myCheckForInvertedElems = true;
    
    protected FunctionTimer timer = new FunctionTimer();
@@ -160,12 +160,12 @@ public class FemModel3d extends FemModel
 
    // extra blocks in the solve matrix for soft nodel incomp stiffness;
    // needed for soft nodal incompressibility
-   private boolean myNodalIncompBlocksAllocatedP = false;
+   protected boolean myNodalIncompBlocksAllocatedP = false;
    // incompressibility constraints attached to each FemNodeNeighbour;
    // needed for hard and soft nodal incompressibility
-   private boolean myNodalIncompConstraintsAllocatedP = false;
-   private boolean myHardIncompConfigValidP = false;
-   private boolean myNodalRestVolumesValidP = false;
+   protected boolean myNodalIncompConstraintsAllocatedP = false;
+   protected boolean myHardIncompConfigValidP = false;
+   protected boolean myNodalRestVolumesValidP = false;
    //private boolean myHardIncompConstraintsChangedP = true;
    private double myHardIncompUpdateTime = -1;
 
@@ -3832,6 +3832,41 @@ public class FemModel3d extends FemModel
      
    public boolean isWarnOnInvertedElements() {
       return myWarnOnInvertedElems;
+   }
+
+   public void getNodalDeformationGradients (Matrix3d[] Fnodal) {
+      if (Fnodal.length < myNodes.size()) {
+         throw new IllegalArgumentException (
+            "Fnodal must have length >= " + myNodes.size());
+      }
+      for (FemElement3d e : myElements) {
+         FemNode3d[] enodes = e.myNodes;
+         FemMaterial mat = getElementMaterial(e);
+         if (mat instanceof LinearMaterial) {
+            IntegrationPoint3d wpnt = e.getWarpingPoint();
+            IntegrationData3d data = e.getWarpingData();
+            wpnt.computeJacobianAndGradient (enodes, data.myInvJ0);
+            for (int i=0; i<enodes.length; i++) {          
+               int nidx = myNodes.indexOf(enodes[i]);
+               Fnodal[nidx].scaledAdd (
+                  1.0/enodes[i].numAdjacentElements(), wpnt.F);
+            }
+         }
+         else {
+            IntegrationPoint3d[] ipnts = e.getIntegrationPoints();
+            IntegrationData3d[] idata = e.getIntegrationData();
+            double[] nodalExtrapMat = e.getNodalExtrapolationMatrix();
+            for (int k=0; k<ipnts.length; k++) {
+               ipnts[k].computeJacobianAndGradient (e.myNodes, idata[k].myInvJ0);
+               for (int i=0; i<enodes.length; i++) {  
+                  double a = nodalExtrapMat[i*ipnts.length + k];
+                  int nidx = myNodes.indexOf(enodes[i]);                  
+                  Fnodal[nidx].scaledAdd (
+                     a/enodes[i].numAdjacentElements(), ipnts[k].F); 
+               }
+            }
+         }
+      }
    }
 
    /* =================== Frame support ======================= */
