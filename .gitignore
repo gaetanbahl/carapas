@@ -76,6 +76,7 @@ tmp
 .project
 .cproject
 .settings
+.gradle
 
 #####################
 # Regression Outputs

@@ -146,8 +146,8 @@ public class FemModel3d extends FemModel
    // when operating in frame-relative mode
    public static double frameMassFraction = 0.0;
    
-   private boolean myAbortOnInvertedElems = abortOnInvertedElems;
-   private boolean myWarnOnInvertedElems = true;
+   protected boolean myAbortOnInvertedElems = abortOnInvertedElems;
+   protected boolean myWarnOnInvertedElems = true;
    protected boolean myCheckForInvertedElems = true;
    
    protected FunctionTimer timer = new FunctionTimer();
@@ -181,12 +181,12 @@ public class FemModel3d extends FemModel
 
    // extra blocks in the solve matrix for soft nodel incomp stiffness;
    // needed for soft nodal incompressibility
-   private boolean myNodalIncompBlocksAllocatedP = false;
+   protected boolean myNodalIncompBlocksAllocatedP = false;
    // incompressibility constraints attached to each FemNodeNeighbour;
    // needed for hard and soft nodal incompressibility
-   private boolean myNodalIncompConstraintsAllocatedP = false;
-   private boolean myHardIncompConfigValidP = false;
-   private boolean myNodalRestVolumesValidP = false;
+   protected boolean myNodalIncompConstraintsAllocatedP = false;
+   protected boolean myHardIncompConfigValidP = false;
+   protected boolean myNodalRestVolumesValidP = false;
    //private boolean myHardIncompConstraintsChangedP = true;
    private double myHardIncompUpdateTime = -1;
 
@@ -396,8 +396,8 @@ public class FemModel3d extends FemModel
 
    public RenderableComponentList<AuxMaterialBundle> getMaterialBundles() {
       return myAdditionalMaterialsList;
-   }  
-   
+   }
+
    public FemModel3d (String name) {
       super(name);
       setDefaultValues();
@@ -487,7 +487,7 @@ public class FemModel3d extends FemModel
    public FemElement3d getElement(int idx) {
       return myElements.get(idx);
    }
-   
+
    public void addElement(FemElement3d e) {
 	      myElements.add(e);
 	      if (myAutoGenerateSurface) {
@@ -549,7 +549,7 @@ public class FemModel3d extends FemModel
    public LinkedList<FemElement3d> getElementNeighbors(FemNode3d node) {
       return node.getElementDependencies();
    }
-   
+
    /**
     * Adds a marker to this FemModel. If the marker has not already been
     * set (i.e., if no nodes or elements have been assigned to it), then
@@ -709,7 +709,7 @@ public class FemModel3d extends FemModel
 
       myRinv.setSize(npvals, npvals);
       myPressures.setSize(npvals);
-      
+
       BulkIncompressibleBehavior ib = imat.getIncompressibleBehavior();
 
       double[] pbuf = myPressures.getBuffer();
@@ -769,7 +769,7 @@ public class FemModel3d extends FemModel
       if (mat.isCorotated()) {
          return true;
       }
-      
+
       if (elem.numAuxiliaryMaterials() > 0) {
          for (AuxiliaryMaterial aux : elem.getAuxiliaryMaterials()) {
             if (aux.isCorotated()) {
@@ -1831,7 +1831,7 @@ public class FemModel3d extends FemModel
       }
       myNodalRestVolumesValidP = true;
    }
-   
+
    public void computeNodalIncompressibility(FemMaterial mat, Matrix6d D) {
       
       BulkIncompressibleBehavior ib = mat.getIncompressibleBehavior();
@@ -1937,7 +1937,7 @@ public class FemModel3d extends FemModel
             }
          }
       }
-      
+
       // incompressibility
       if ( (softIncomp == IncompMethod.NODAL) && myMaterial != null && myMaterial.isIncompressible()) {
          computeNodalIncompressibility(myMaterial, D);
@@ -2536,6 +2536,11 @@ public class FemModel3d extends FemModel
       }
       if (myMaxBound != null) {
          gtr.transformPnt (myMaxBound);
+      }
+      myBVTreeValid = false;
+      // invalidate trees of meshes as well
+      for (MeshComponent mc : myMeshList) {
+         mc.transformGeometry(gtr, context, flags);
       }
    }
 
@@ -4263,6 +4268,12 @@ public class FemModel3d extends FemModel
    public void scaleDistance(double s) {
       super.scaleDistance(s);
       myVolume *= (s * s * s);
+      myBVTreeValid = false;
+      // invalidate trees of meshes as well
+      // update skinning positions
+      for (MeshComponent mc : myMeshList) {
+         mc.scaleDistance(s);
+      }
    }
 
    /**
@@ -4508,6 +4519,41 @@ public class FemModel3d extends FemModel
      
    public boolean isWarnOnInvertedElements() {
       return myWarnOnInvertedElems;
+   }
+
+   public void getNodalDeformationGradients (Matrix3d[] Fnodal) {
+      if (Fnodal.length < myNodes.size()) {
+         throw new IllegalArgumentException (
+            "Fnodal must have length >= " + myNodes.size());
+      }
+      for (FemElement3d e : myElements) {
+         FemNode3d[] enodes = e.myNodes;
+         FemMaterial mat = getElementMaterial(e);
+         if (mat instanceof LinearMaterial) {
+            IntegrationPoint3d wpnt = e.getWarpingPoint();
+            IntegrationData3d data = e.getWarpingData();
+            wpnt.computeJacobianAndGradient (enodes, data.myInvJ0);
+            for (int i=0; i<enodes.length; i++) {          
+               int nidx = myNodes.indexOf(enodes[i]);
+               Fnodal[nidx].scaledAdd (
+                  1.0/enodes[i].numAdjacentElements(), wpnt.F);
+            }
+         }
+         else {
+            IntegrationPoint3d[] ipnts = e.getIntegrationPoints();
+            IntegrationData3d[] idata = e.getIntegrationData();
+            double[] nodalExtrapMat = e.getNodalExtrapolationMatrix();
+            for (int k=0; k<ipnts.length; k++) {
+               ipnts[k].computeJacobianAndGradient (e.myNodes, idata[k].myInvJ0);
+               for (int i=0; i<enodes.length; i++) {  
+                  double a = nodalExtrapMat[i*ipnts.length + k];
+                  int nidx = myNodes.indexOf(enodes[i]);                  
+                  Fnodal[nidx].scaledAdd (
+                     a/enodes[i].numAdjacentElements(), ipnts[k].F); 
+               }
+            }
+         }
+      }
    }
 
    /* =================== Frame support ======================= */

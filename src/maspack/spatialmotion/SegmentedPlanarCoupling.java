@@ -24,6 +24,9 @@ public class SegmentedPlanarCoupling extends RigidBodyCoupling {
    private Vector3d myNrm = new Vector3d(); // temporary
    private boolean myUnilateral = false;
 
+   // XXX disable transforming of coupling
+   static boolean doCouplingTransform = false;
+
    private void makePlanesFromSegments (ArrayList<Point3d> segPoints) {
       myPlanes = new ArrayList<Plane>();
       // now create the planes
@@ -240,14 +243,16 @@ public class SegmentedPlanarCoupling extends RigidBodyCoupling {
    public void transformGeometry (
       GeometryTransformer gt,  RigidTransform3d TFW, RigidTransform3d TDW) {
       
-      // transform points by inv(TDW) gt TDW
-      for (int i = 0; i < myPoints.size(); i++) {
-         Point3d pnt = myPoints.get(i);
-         pnt.transform (TDW);
-         gt.transformPnt (pnt);
-         pnt.inverseTransform (TDW);
+      if (doCouplingTransform) {
+         // transform points by inv(TDW) gt TDW
+         for (int i = 0; i < myPoints.size(); i++) {
+            Point3d pnt = myPoints.get(i);
+            pnt.transform (TDW);
+            gt.transformPnt (pnt);
+            pnt.inverseTransform (TDW);
+         }
+         makePlanesFromSegments (myPoints);
       }
-      makePlanesFromSegments (myPoints);
    }
    
    // /**

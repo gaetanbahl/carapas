@@ -473,7 +473,7 @@ public abstract class FemElement3d extends FemElement
       }
       centroid.scale (1.0 / numNodes());
    }
-   
+
    /**
     * Compute position within element based on natural coordinates
     * @param pnt  populated position within element
@@ -722,7 +722,7 @@ public abstract class FemElement3d extends FemElement
             nodes[i].deregisterNodeNeighbor(nodes[j]);
          }
          // nodes[i].addMass(-massPerNode);
-         nodes[i].invalidateMassIfNecessary ();  // signal dirty   
+         nodes[i].invalidateMassIfNecessary ();  // signal dirty
          nodes[i].removeElementDependency(this);
       }
 
@@ -917,7 +917,7 @@ public abstract class FemElement3d extends FemElement
       }
       return -1; // failed
    }
-
+   
    // performs golden-section search to minimize f in the range [a, b]
    private double gss(Function1x1 f, double a, double b, double tol, double ftol) {
 
@@ -1311,7 +1311,7 @@ public abstract class FemElement3d extends FemElement
       myVolume = vol;
       return minDetJ;
    }
-   
+
    public void computeJacobian(Vector3d s, Matrix3d J) {
       FemNode3d[] nodes = getNodes();
       J.setZero();
@@ -1320,6 +1320,14 @@ public abstract class FemElement3d extends FemElement
          getdNds(dNds, i, s);
          J.addOuterProduct(nodes[i].getLocalPosition(), dNds);
       }
+   }
+
+   /**
+    * Volumes array for use with incompressibility 
+    * @return current volumes
+    */
+   public double[] getVolumes() {
+      return myVolumes;
    }
 
    public void computePressures (
@@ -1344,6 +1352,14 @@ public abstract class FemElement3d extends FemElement
       
    }
 
+   /**
+    * Lagrange pressures array for use with incompressibility 
+    * @return pressures
+    */
+   public double[] getLagrangePressures() {
+      return myLagrangePressures;
+   }
+   
    /**
     * Default method to compute the element rest volume and partial volumes.
     * Uses quadrature. If the number of pressure values is 1, then there is
@@ -1375,6 +1391,14 @@ public abstract class FemElement3d extends FemElement
          myRestVolumes[0] = vol;         
       }
       return vol;
+   }
+
+   /**
+    * Volumes array for use with incompressibility 
+    * @return rest volumes
+    */
+   public double[] getRestVolumes() {
+      return myRestVolumes;
    }
 
 //    /** 
@@ -1423,6 +1447,13 @@ public abstract class FemElement3d extends FemElement
       myWarper.addNodeForce0(f, offset, i, corotated);
    }
 
+   public StiffnessWarper3d getStiffnessWarper() {
+      if (myWarper == null){
+         myWarper = new StiffnessWarper3d (numNodes());
+      }
+      return myWarper;
+   }
+   
    public void updateWarpingStiffness() {
       FemMaterial mat = getEffectiveMaterial();
       if (mat.isLinear()) {
@@ -1457,15 +1488,15 @@ public abstract class FemElement3d extends FemElement
       return true;
    }
 
-   public void computeWarping() {
-      if (!myWarpingStiffnessValidP) {
-         updateWarpingStiffness();
-      }
-      IntegrationPoint3d wpnt = getWarpingPoint();
-      IntegrationData3d wdata = getWarpingData();
-      wpnt.computeJacobianAndGradient (myNodes, wdata.myInvJ0);
-      myWarper.computeRotation (wpnt.F, null);
-   }
+//   public void computeWarping() {
+//      if (!myWarpingStiffnessValidP) {
+//         updateWarpingStiffness();
+//      }
+//      IntegrationPoint3d wpnt = getWarpingPoint();
+//      IntegrationData3d wdata = getWarpingData();
+//      wpnt.computeJacobianAndGradient (myNodes, wdata.myInvJ0);
+//      myWarper.computeRotation (wpnt.F, null);
+//   }
 
    public void computeWarping (Matrix3d F, SymmetricMatrix3d P) {
       if (myWarpingStiffnessValidP && myWarper == null) {
@@ -1476,7 +1507,7 @@ public abstract class FemElement3d extends FemElement
       }
       myWarper.computeRotation (F, P);
    }
-   
+
    public void updateWarping(Matrix3dBase R) {
       if (!myWarpingStiffnessValidP) {
          updateWarpingStiffness();
