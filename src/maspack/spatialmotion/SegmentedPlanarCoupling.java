@@ -23,7 +23,7 @@ public class SegmentedPlanarCoupling extends RigidBodyCoupling {
    private Point3d myTmp = new Point3d(); // temporary
    private Vector3d myNrm = new Vector3d(); // temporary
    private boolean myUnilateral = false;
-   
+
    // XXX disable transforming of coupling
    static boolean doCouplingTransform = false;
 
