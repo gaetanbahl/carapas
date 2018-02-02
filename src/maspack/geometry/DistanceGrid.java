@@ -9,41 +9,37 @@ package maspack.geometry;
 
 import java.awt.Color;
 import java.io.BufferedReader;
-import java.io.PrintWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
-import java.util.HashSet;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
-import maspack.matrix.AffineTransform3dBase;
-import maspack.matrix.*;
+import maspack.matrix.IdentityVector3dTransform;
+import maspack.matrix.Matrix3d;
+import maspack.matrix.Point3d;
+import maspack.matrix.RigidTransform3d;
+import maspack.matrix.RotationMatrix3d;
 import maspack.matrix.Vector3d;
 import maspack.matrix.Vector3i;
-import maspack.matrix.Matrix3d;
+import maspack.matrix.VectorTransformer3d;
 import maspack.render.PointLineRenderProps;
 import maspack.render.RenderList;
 import maspack.render.RenderObject;
 import maspack.render.RenderProps;
 import maspack.render.Renderable;
 import maspack.render.Renderer;
-import maspack.render.Renderer.DrawMode;
 import maspack.render.Renderer.LineStyle;
 import maspack.render.Renderer.PointStyle;
-import maspack.render.Renderer.Shading;
-import maspack.util.StringHolder;
-import maspack.util.DoubleHolder;
-import maspack.util.ArraySupport;
-import maspack.util.QuadraticSolver;
+import maspack.util.IndentingPrintWriter;
 import maspack.util.InternalErrorException;
+import maspack.util.NumberFormat;
 import maspack.util.ReaderTokenizer;
 import maspack.util.Scannable;
-import maspack.util.NumberFormat;
-import maspack.util.IndentingPrintWriter;
+import maspack.util.StringHolder;
 
 /**
  * Implements a distance field on a regular 3D grid. Distances, normals and
@@ -1477,7 +1473,7 @@ public class DistanceGrid implements Renderable, Scannable {
     * (local coordinates).
     * @return interpolated distance, or <code>OUTSIDE_GRID</code>.
     */
-   double getLocalDistanceAndNormal (
+   public double getLocalDistanceAndNormal (
       Vector3d norm, Matrix3d Dnrm, Point3d point) {
 
       Vector3d coords = new Vector3d();

@@ -33,13 +33,14 @@ import maspack.geometry.BSPTree;
 import maspack.geometry.BVNode;
 import maspack.geometry.BVTree;
 import maspack.geometry.Boundable;
+import maspack.geometry.DistanceGrid;
+import maspack.geometry.Face;
 import maspack.geometry.KDComparator;
 import maspack.geometry.KDTree;
 import maspack.geometry.MeshBase;
 import maspack.geometry.MeshFactory;
 import maspack.geometry.OBB;
 import maspack.geometry.PolygonalMesh;
-import maspack.geometry.SignedDistanceGrid;
 import maspack.geometry.Vertex3d;
 import maspack.graph.DirectedEdge;
 import maspack.graph.DirectedGraph;
@@ -245,7 +246,8 @@ public class MFreeFactory {
       sdres.z = Math.min(sdres.z, 30);
       
       Logger.getSystemLogger().debug("Creating signed distance grid");
-      SignedDistanceGrid sdgrid = new SignedDistanceGrid(mesh, 0.1, sdres);
+      List<Face> faces = mesh.getFaces();
+      DistanceGrid sdgrid = new DistanceGrid(faces, 0.1, sdres, true);
       Logger.getSystemLogger().debug("done");
       double tol = 1e-15;
 

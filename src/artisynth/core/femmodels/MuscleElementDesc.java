@@ -96,192 +96,18 @@ public class MuscleElementDesc extends MuscleElementDescBase {
    public Vector3d[] getDirections() {
       return myDirs;
    }
-
+   
    @Override
    public Vector3d getMuscleDirection(IntegrationPoint3d pnt) {
       return getMuscleDirection(pnt.getNumber());
    }
-
+   
    @Override
    public Vector3d getMuscleDirection(int ipntIdx) {
-         if (myDirs != null) {
-         return myDirs[ipntIdx];
-            }
-      return myDir;
-         }
-         
-         if (drawLine) {
-            ipnt[i].computeGradientForRender(F, myElement.getNodes(), idata[i].myInvJ0);
-            ipnt[i].computeCoordsForRender(coords0, myElement.getNodes());
-            F.mul(dir,dir);
-            
-            double size = myElement.computeDirectedRenderSize (dir);
-            dir.scale(0.5*size);
-            dir.scale(len);
-            
-            coords0[0] -= (float)dir.x / 2;
-            coords0[1] -= (float)dir.y / 2;
-            coords0[2] -= (float)dir.z / 2;
-            coords1[0] = coords0[0] + (float)dir.x;
-            coords1[1] = coords0[1] + (float)dir.y;
-            coords1[2] = coords0[2] + (float)dir.z;
-            
-            renderer.drawLine(
-               props, coords0, coords1, myDirectionColor,
-               /*capped=*/true, /*highlight=*/false);   
-         }
-      }
-      
-   }
-   
-   protected void renderElementDirection(Renderer renderer, RenderProps props,
-      float[] coords0, float[] coords1, Matrix3d F, Vector3d dir, double len) {
-      
-      myElement.computeRenderCoordsAndGradient (F, coords0);
-
       if (myDirs != null) {
-         // If there are directions for each integration point, use the average
-         // direction of all the dirs.
-         dir.setZero();
-         for (int i=0; i<myDirs.length; i++) {
-            if (myDirs[i] != null) {
-               dir.add (myDirs[i]);
-            }
-         }
-         dir.normalize();
-         F.mul (dir, dir);
+         return myDirs[ipntIdx];
       }
-      else {
-         F.mul (dir, myDir);
-      }
-
-      double size = myElement.computeDirectedRenderSize (dir);      
-      dir.scale (0.5*size);
-      dir.scale(len);
-            
-      coords0[0] -= (float)dir.x/2;
-      coords0[1] -= (float)dir.y/2;
-      coords0[2] -= (float)dir.z/2;
-            
-      coords1[0] = coords0[0] + (float)dir.x;
-      coords1[1] = coords0[1] + (float)dir.y;
-      coords1[2] = coords0[2] + (float)dir.z;
-            
-      renderer.drawLine (
-         props, coords0, coords1, myDirectionColor, 
-         /*capped=*/true, isSelected());
-      
-   }
-   
-   void renderDirection (
-      Renderer renderer, RenderProps props,
-      float[] coords0, float[] coords1, Matrix3d F, Vector3d dir, double len, DirectionRenderType type) {
-
-      
-      switch(type) {
-         case ELEMENT:
-            renderElementDirection(renderer, props, coords0, coords1, F, dir, len);
-            break;
-         case INTEGRATION_POINT:
-            renderINodeDirection(renderer, props, coords0, coords1, F, dir, len);
-            break;
-      }
-      
-   }
-      
-   public void render (Renderer renderer, int flags) {
-      render (renderer, myRenderProps, flags);
-   }   
-
-   public void render (Renderer renderer, RenderProps props, int flags) {
-      double widgetSize = 0;
-      double directionLength = 0;
-      ModelComponent gparent = getGrandParent();
-      DirectionRenderType renderType = DirectionRenderType.ELEMENT;
-      
-      if (gparent instanceof MuscleBundle) {
-         MuscleBundle bundle = (MuscleBundle)gparent;
-         widgetSize = bundle.getElementWidgetSize();
-         directionLength = bundle.getDirectionRenderLen();
-         renderType = bundle.getDirectionRenderType();
-      }      
-      if (widgetSize != 0) {
-         Shading savedShading = renderer.setPropsShading (props);
-         renderer.setFaceColoring (props, myWidgetColor, isSelected());
-         myElement.renderWidget (renderer, widgetSize, props);
-         renderer.setShading (savedShading);
-      }
-      if (directionLength > 0) {
-         Matrix3d F = new Matrix3d();
-         Vector3d dir = new Vector3d();
-         float[] coords0 = new float[3];
-         float[] coords1 = new float[3]; 
-
-         renderDirection (
-            renderer, props, coords0, coords1, F, dir,
-            directionLength, renderType);
-      }
-   }
-
-   private MuscleMaterial getEffectiveMuscleMaterial () {
-      if (myMuscleMat != null) {
-         return myMuscleMat;
-      }
-      else {
-         ModelComponent gparent = getGrandParent();
-         if (gparent instanceof MuscleBundle) {
-            return ((MuscleBundle)gparent).getEffectiveMuscleMaterial();
-         }
-      }
-      return null;      
-   }
-
-   public void computeTangent (
-      Matrix6d D, SymmetricMatrix3d stress,
-      SolidDeformation def, IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
-
-      MuscleMaterial mat = getEffectiveMuscleMaterial();
-      if (mat != null) {
-         Vector3d dir = null;
-         if (myDirs != null) {
-            dir = myDirs[pt.getNumber()];
-         }
-         else {
-            dir = myDir;
-         }
-         if (dir != null) {
-            mat.computeTangent (D, stress, getNetExcitation(), dir, def, baseMat);
-         }
-      }
-   }
-  
-   public void computeStress (
-      SymmetricMatrix3d sigma, SolidDeformation def,
-      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
-      
-      MuscleMaterial mat = getEffectiveMuscleMaterial();
-      if (mat != null) {
-         Vector3d dir = null;
-         if (myDirs != null) {
-            dir = myDirs[pt.getNumber()];
-         }
-         else {
-            dir = myDir;
-         }
-         if (dir != null) {
-            mat.computeStress (sigma, getNetExcitation(), dir, def, baseMat);
-         }
-      }
-   }
-
-   public boolean hasSymmetricTangent() {
-      MuscleMaterial mat = getEffectiveMuscleMaterial();
-      if (mat != null) {
-         return mat.hasSymmetricTangent();
-      }
-      else {
-         return true;
-      }
+      return myDir;
    }
 
    public void interpolateDirection (
@@ -325,8 +151,8 @@ public class MuscleElementDesc extends MuscleElementDescBase {
       }
       setDirection (dir);
    }
-
-public void interpolateIpntDirection (
+   
+   public void interpolateIpntDirection (
       DelaunayInterpolator interp, Vector3d[] restDirs) {
 
       int[] idxs = new int[4];
@@ -408,7 +234,7 @@ public void interpolateIpntDirection (
          }
       }
    }
-   
+ 
    void scanDirections (ReaderTokenizer rtok) throws IOException {
       rtok.scanToken ('[');
       LinkedList<Vector3d> directions = new LinkedList<Vector3d>();
@@ -457,7 +283,7 @@ public void interpolateIpntDirection (
       }
       rtok.pushBack();
       return super.scanItem (rtok, tokens);
-   }   
+   }
 
    public void writeItems (
       PrintWriter pw, NumberFormat fmt, CompositeComponent ancestor)
@@ -466,7 +292,7 @@ public void interpolateIpntDirection (
       if (myDirs != null && myDirs.length > 0) {
          printDirections (pw, fmt);
       }
-      }      
+   }
 
    @Override
    public MuscleElementDesc clone() {
