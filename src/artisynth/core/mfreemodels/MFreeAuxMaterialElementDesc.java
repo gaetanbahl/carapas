@@ -8,21 +8,9 @@ package artisynth.core.mfreemodels;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.List;
+import java.util.Arrays;
 import java.util.Deque;
 
-import maspack.geometry.GeometryTransformer;
-import maspack.matrix.AffineTransform3dBase;
-import maspack.matrix.Matrix6d;
-import maspack.matrix.Matrix3d;
-import maspack.matrix.SymmetricMatrix3d;
-import maspack.matrix.Vector3d;
-import maspack.properties.PropertyList;
-import maspack.render.Renderer;
-import maspack.render.Renderer.Shading;
-import maspack.util.IndentingPrintWriter;
-import maspack.util.NumberFormat;
-import maspack.util.ReaderTokenizer;
 import artisynth.core.femmodels.AuxiliaryMaterial;
 import artisynth.core.femmodels.IntegrationData3d;
 import artisynth.core.femmodels.IntegrationPoint3d;
@@ -31,14 +19,24 @@ import artisynth.core.materials.MaterialBase;
 import artisynth.core.materials.SolidDeformation;
 import artisynth.core.modelbase.ComponentUtils;
 import artisynth.core.modelbase.CompositeComponent;
-import artisynth.core.modelbase.CompositeComponentBase;
 import artisynth.core.modelbase.DynamicActivityChangeEvent;
-import artisynth.core.modelbase.ModelComponent;
 import artisynth.core.modelbase.RenderableComponentBase;
-import artisynth.core.modelbase.ScanWriteUtils;
 import artisynth.core.modelbase.TransformGeometryContext;
 import artisynth.core.modelbase.TransformableGeometry;
-import artisynth.core.util.*;
+import artisynth.core.util.ScalableUnits;
+import artisynth.core.util.ScanToken;
+import maspack.geometry.GeometryTransformer;
+import maspack.matrix.AffineTransform3dBase;
+import maspack.matrix.Matrix3d;
+import maspack.matrix.Matrix6d;
+import maspack.matrix.SymmetricMatrix3d;
+import maspack.matrix.Vector3d;
+import maspack.properties.PropertyList;
+import maspack.render.Renderer;
+import maspack.render.Renderer.Shading;
+import maspack.util.IndentingPrintWriter;
+import maspack.util.NumberFormat;
+import maspack.util.ReaderTokenizer;
 
 /**
  * A class wrapping the description of each FEM element. It implements the 
@@ -51,8 +49,6 @@ implements AuxiliaryMaterial, ScalableUnits, TransformableGeometry {
 
    MFreeElement3d myElement;
    private FemMaterial myMat;
-   SymmetricMatrix3d myStress = new SymmetricMatrix3d();
-   Matrix6d myD = new Matrix6d();
 
    // fraction to scale material's contribution
    private double myFrac = 1;
@@ -137,6 +133,17 @@ implements AuxiliaryMaterial, ScalableUnits, TransformableGeometry {
    public boolean isInvertible() {
       FemMaterial mat = getEffectiveMaterial();
       return mat == null || mat.isInvertible();
+   }
+   
+   @Override
+   public boolean isLinear() {
+      FemMaterial mat = getEffectiveMaterial();
+      return mat == null || mat.isLinear();
+   }
+   
+   public boolean isCorotated() {
+      FemMaterial mat = getEffectiveMaterial();
+      return mat == null || mat.isCorotated();
    }
 
    protected FemMaterial getEffectiveMaterial() {
@@ -324,15 +331,6 @@ implements AuxiliaryMaterial, ScalableUnits, TransformableGeometry {
             frac = myFracs[idx];
          }
 
-//         if (mat instanceof LinearMaterial) {
-//            LinearMaterial lmat = (LinearMaterial)mat;
-//            Matrix3d R = null;
-//            if (lmat.isCorotated()) {
-//               R = myElement.myWarper.R;
-//            }
-//            addLinearTangent(frac, D, pt, R);
-//         } else {
-         
          if (frac > 0) {
             Matrix3d Q = dt.getFrame();
             if (Q == null) {
@@ -343,6 +341,8 @@ implements AuxiliaryMaterial, ScalableUnits, TransformableGeometry {
          } else {
             D.setZero();
          }
+      } else {
+         D.setZero();
       }
       
    }
@@ -522,6 +522,23 @@ implements AuxiliaryMaterial, ScalableUnits, TransformableGeometry {
          myElement.renderWidget (renderer, myRenderProps, 0);
          renderer.setShading (savedShading);
       }      
+   }
+
+   @Override
+   public MFreeAuxMaterialElementDesc clone() {
+      MFreeAuxMaterialElementDesc copy;
+      try {
+         copy = (MFreeAuxMaterialElementDesc)super.clone();
+      } catch (CloneNotSupportedException e) {
+         throw new RuntimeException(e);
+      }
+      
+      if (myFracs != null) {
+         copy.myFracs = Arrays.copyOf(myFracs, myFracs.length);
+      }
+      copy.myWidgetColor = Arrays.copyOf(myWidgetColor, myWidgetColor.length);
+      
+      return copy;
    }
 
 }

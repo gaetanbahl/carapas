@@ -1,12 +1,10 @@
 package artisynth.core.materials;
 
-import maspack.matrix.Matrix6d;
 import maspack.matrix.Matrix3d;
+import maspack.matrix.Matrix6d;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.properties.PropertyList;
 import maspack.properties.PropertyUtils;
-import artisynth.core.modelbase.PropertyChangeListener;
-import artisynth.core.modelbase.PropertyChangeEvent;
 
 public abstract class FemMaterial extends MaterialBase {
 
@@ -63,6 +61,10 @@ public abstract class FemMaterial extends MaterialBase {
       return myViscoBehavior;
    }
 
+   /**
+    * Allows setting of viscoelastic behaviour
+    * @param veb visco-elastic behaviour
+    */
    public void setViscoBehavior (ViscoelasticBehavior veb) {
       if (veb != null) {
          ViscoelasticBehavior newVeb = veb.clone();
@@ -113,9 +115,29 @@ public abstract class FemMaterial extends MaterialBase {
    public boolean isIncompressible() {
       return false;
    }
-
+   
    public boolean isViscoelastic() {
-	  return false;
+      return false;
+   }
+   
+   /**
+    * Linear stress/stiffness response to deformation, allows tangent
+    * to be pre-computed and stored.
+    * 
+    * @return true if linear response
+    */
+   public boolean isLinear() {
+      return false;
+   }
+   
+   /**
+    * Deformation is computed by first removing a rotation component 
+    * (either explicit or computed from strain)
+    * 
+    * @return true if material is corotated
+    */
+   public boolean isCorotated() {
+      return false;
    }
    
    public boolean equals (FemMaterial mat) {

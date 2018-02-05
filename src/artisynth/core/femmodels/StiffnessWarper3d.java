@@ -6,7 +6,14 @@
  */
 package artisynth.core.femmodels;
 
-import maspack.matrix.*;
+import artisynth.core.materials.FemMaterial;
+import artisynth.core.materials.SolidDeformation;
+import maspack.matrix.Matrix3d;
+import maspack.matrix.Matrix6d;
+import maspack.matrix.SVDecomposition3d;
+import maspack.matrix.SymmetricMatrix3d;
+import maspack.matrix.Vector3d;
+import maspack.matrix.VectorNd;
 
 /** 
  * Implements stiffness warping for a particular 3d fem element.
@@ -39,6 +46,61 @@ public class StiffnessWarper3d {
             K0[i][j] = new Matrix3d();
          }
          f0[i] = new Vector3d();
+      }
+   }
+
+   public void computeInitialStiffness (FemElement3d e, FemMaterial mat) {
+
+      // reset stiffness and RHS
+      for (int i=0; i<e.myNodes.length; i++) {
+         for (int j=0; j<e.myNodes.length; j++) {
+            K0[i][j].setZero();
+         }
+         f0[i].setZero();
+      }
+
+      IntegrationPoint3d[] ipnts = e.getIntegrationPoints();
+      IntegrationData3d[] idata = e.getIntegrationData();
+
+      Matrix6d D = new Matrix6d(); // fill in ...
+
+      SolidDeformation def = new SolidDeformation();
+      def.setAveragePressure(0);
+      def.setF(Matrix3d.IDENTITY);
+      def.setR(Matrix3d.IDENTITY);
+
+      for (int k=0; k<ipnts.length; k++) {
+
+         IntegrationPoint3d pt = ipnts[k];
+         IntegrationData3d dt = idata[k];
+                  
+         double dv0 = dt.myDetJ0*pt.getWeight();
+         if (dt.myScaling != 1) {
+            dv0 *= dt.myScaling;
+         }
+
+         Matrix3d Q = dt.myFrame == null ? Matrix3d.IDENTITY : dt.myFrame;
+         Vector3d[] GNx0 = pt.updateShapeGradient(dt.myInvJ0);
+
+         // compute tangent matrix under zero stress
+         mat.computeTangent(D, SymmetricMatrix3d.ZERO, def, Q, null);
+         
+         for (int i=0; i<e.myNodes.length; i++) {
+            for (int j=0; j<e.myNodes.length; j++) {
+               FemUtilities.addMaterialStiffness (
+                  K0[i][j], GNx0[i], D, GNx0[j], dv0);
+            }
+         }
+      }      
+      
+      // initial RHS
+      Vector3d tmp = new Vector3d();
+      for (int i=0; i<e.myNodes.length; i++) {
+         tmp.setZero();
+         for (int j=0; j<e.myNodes.length; j++) {
+            K0[i][j].mulAdd (tmp, e.myNodes[j].myRest, tmp);
+         }
+         f0[i].set (tmp);
       }
    }
 
@@ -122,7 +184,14 @@ public class StiffnessWarper3d {
       computeRotation (A, null);
    }
 
-   public void computeRotation (Matrix3d F, SymmetricMatrix3d P) {
+   /**
+    * Computes F = RP, R a rotation matrix, P a symmetric matrix
+    * @param F matrix to decompose
+    * @param R rotational component
+    * @param P symmetric component
+    */
+   public static void computeRotation (Matrix3d F, Matrix3d R, SymmetricMatrix3d P) {
+      SVDecomposition3d SVD = new SVDecomposition3d();
       try {
          SVD.factor (F);
       }
@@ -130,9 +199,11 @@ public class StiffnessWarper3d {
          System.out.println ("F=\n" + F.toString ("%g"));
          R.setIdentity();
       }
+      
       Matrix3d U = SVD.getU();
       Matrix3d V = SVD.getV();
-      SVD.getS (tmp);
+      Vector3d s = new Vector3d();
+      SVD.getS(s);
 
       double detU = U.orthogonalDeterminant();
       double detV = V.orthogonalDeterminant();
@@ -148,13 +219,21 @@ public class StiffnessWarper3d {
             U.m12 = -U.m12;
             U.m22 = -U.m22;
          }
-         tmp.z = -tmp.z;
+         s.z = -s.z;
       }
       R.mulTransposeRight (U, V);
       if (P != null) {
          // place the symmetric part in P
-         P.mulDiagTransposeRight (V, tmp);
+         P.mulDiagTransposeRight (V, s);
       }
+   }
+
+   public void computeRotation (Matrix3d F, SymmetricMatrix3d P) {
+      computeRotation(F, R, P);
+   }
+   
+   public Matrix3d getRotation() {
+	   return R;
    }
 
    public void addNodeStiffness (Matrix3d Kij, int i, int j, boolean warping) {

@@ -400,6 +400,16 @@ implements AuxiliaryMaterial, ExcitationComponent {
    public boolean isInvertible() {
       return myMuscleMat == null || myMuscleMat.isInvertible();
    }
+   
+   @Override
+   public boolean isLinear() {
+      return myMuscleMat == null;
+   }
+   
+   @Override
+   public boolean isCorotated() {
+      return myMuscleMat == null;
+   }
 
    public void setMuscleMaterial(MuscleMaterial mat) {
       if (mat == null) {

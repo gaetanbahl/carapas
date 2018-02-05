@@ -226,8 +226,7 @@ public class FemModel3d extends FemModel
    // protected ArrayList<FemSurface> myEmbeddedSurfaces;
    protected MeshComponentList<FemMeshComp> myMeshList;
 
-   HashMap<FemElement3d,int[]> ansysElemProps =
-   new HashMap<FemElement3d,int[]>();
+   HashMap<FemElement3d,int[]> ansysElemProps = new HashMap<FemElement3d,int[]>();
 
    // protected boolean myClearMeshColoring = false;
    protected boolean myComputeNodalStress = false;
@@ -328,8 +327,6 @@ public class FemModel3d extends FemModel
 
    protected void setDefaultValues() {
       super.setDefaultValues();
-      // myNu = DEFAULT_NU;
-      // myE = DEFAULT_E;
       myDensity = DEFAULT_DENSITY;
       myStiffnessDamping = DEFAULT_STIFFNESS_DAMPING;
       myMassDamping = DEFAULT_MASS_DAMPING;
@@ -459,7 +456,6 @@ public class FemModel3d extends FemModel
          }
       }
 
-
       // make sure no surfaces depend on it
       for (FemMeshComp fm : myMeshList) {
          if (myAutoGenerateSurface && fm.isSurfaceMesh()) {
@@ -476,8 +472,7 @@ public class FemModel3d extends FemModel
 
       if (myNodes.remove(p)) {
          return true;
-      }
-      else {
+      } else {
          return false;
       }
    }
@@ -890,7 +885,7 @@ public class FemModel3d extends FemModel
          nodalExtrapMat = e.getNodalExtrapolationMatrix();
          if (linMat != null) {
             linMat.addStress(wpnt.sigma,
-               myEps, corotated ? e.myWarper.R : null);
+               myEps, corotated ? e.myWarper.getRotation() : null);
             for (int i = 0; i < nodes.length; i++) {
                FemNode3d nodei = nodes[i];
                if (myComputeNodalStress) {
@@ -1190,7 +1185,7 @@ public class FemModel3d extends FemModel
          else if (e.integrationPointsMapToNodes()) {
             IntegrationData3d[] idata = e.getIntegrationData();
             for (int i = 0; i < nodes.length; i++) {
-               nodes[i].myVolume += idata[i].myDv;
+               nodes[i].myVolume += idata[i].getDv();
             }
          }
       }
@@ -1517,6 +1512,53 @@ public class FemModel3d extends FemModel
          }
       }
       // System.out.println ("symmetric=" + mySolveMatrix.isSymmetric(1e-6));
+   }
+
+   // builds a Stiffness matrix, where entries are ordered by node numbers
+   public SparseBlockMatrix getStiffnessMatrix() {
+
+      if (!myStressesValidP || !myStiffnessesValidP) {
+         updateStressAndStiffness();
+      }
+
+      SparseBlockMatrix M = new SparseBlockMatrix();
+      int nnodes = numNodes();
+      int[] sizes = new int[nnodes];
+      for (int i=0; i<nnodes; ++i) {
+         sizes[i] = 3;
+      }
+      M.addRows (sizes, sizes.length);
+      M.addCols (sizes, sizes.length);
+      M.setVerticallyLinked (true);
+
+      int idx = 0;
+      for (FemNode3d node : getNodes()) {
+         node.setIndex(idx++);
+      }
+
+      // create solve blocks
+      for (FemNode3d node : getNodes()) {
+         MatrixBlock blk = node.createSolveBlock();
+         M.addBlock(node.getIndex(), node.getIndex(), blk);
+      }
+      for (int i = 0; i < myNodes.size(); i++) {
+         FemNode3d node = myNodes.get(i);
+         for (FemNodeNeighbor nbr : getNodeNeighbors(node)) {
+            FemNode3d other = nbr.getNode();
+            Matrix3x3Block blk = null;
+            if (other != node) {
+               blk = new Matrix3x3Block();
+               M.addBlock(node.getIndex(), nbr.getNode().getIndex(), blk);
+            } else {
+               blk = (Matrix3x3Block)M.getBlock(node.getIndex(), node.getIndex());
+            }
+            nbr.addPosJacobian(blk, -1.0);
+         }
+      }
+
+      // System.out.println ("symmetric=" + mySolveMatrix.isSymmetric(1e-6));
+
+      return M;
    }
 
    protected void addNodeNeighborBlock(

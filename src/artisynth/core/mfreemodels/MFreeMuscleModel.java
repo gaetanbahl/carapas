@@ -7,39 +7,12 @@
 package artisynth.core.mfreemodels;
 
 import java.awt.Color;
-import java.io.PrintWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
-import java.util.ArrayList;
 
-import maspack.geometry.BVNode;
-import maspack.geometry.BVTree;
-import maspack.geometry.Boundable;
-import maspack.geometry.LineSegment;
-import maspack.geometry.PolylineMesh;
-import maspack.geometry.Vertex3d;
-import maspack.geometry.GeometryTransformer;
-import maspack.matrix.AffineTransform3dBase;
-import maspack.matrix.Matrix3d;
-import maspack.matrix.Matrix6d;
-import maspack.matrix.Point3d;
-import maspack.matrix.SVDecomposition3d;
-import maspack.matrix.SparseNumberedBlockMatrix;
-import maspack.matrix.SymmetricMatrix3d;
-import maspack.matrix.Vector3d;
-import maspack.matrix.VectorNd;
-import maspack.properties.PropertyList;
-import maspack.properties.PropertyMode;
-import maspack.properties.PropertyUtils;
-import maspack.render.Renderer;
-import maspack.render.RenderList;
-import maspack.render.RenderProps;
-import maspack.render.Renderer.LineStyle;
-import maspack.util.NumberFormat;
-import maspack.util.ReaderTokenizer;
-import maspack.widgets.LabeledComponentBase;
-import artisynth.core.femmodels.AuxiliaryMaterial;
 import artisynth.core.femmodels.FemModel;
 import artisynth.core.femmodels.IntegrationData3d;
 import artisynth.core.femmodels.IntegrationPoint3d;
@@ -58,15 +31,38 @@ import artisynth.core.mfreemodels.MFreeMuscleBundle.DirectionRenderType;
 import artisynth.core.modelbase.ComponentList;
 import artisynth.core.modelbase.CompositeComponent;
 import artisynth.core.modelbase.DynamicActivityChangeEvent;
-import artisynth.core.modelbase.ModelComponentBase;
 import artisynth.core.modelbase.ModelComponent;
 import artisynth.core.modelbase.RenderableComponentList;
 import artisynth.core.modelbase.TransformGeometryContext;
-import artisynth.core.modelbase.TransformableGeometry;
 import artisynth.core.util.ScanToken;
+import maspack.geometry.BVNode;
+import maspack.geometry.BVTree;
+import maspack.geometry.Boundable;
+import maspack.geometry.GeometryTransformer;
+import maspack.geometry.LineSegment;
+import maspack.geometry.PolylineMesh;
+import maspack.geometry.Vertex3d;
+import maspack.matrix.Matrix3d;
+import maspack.matrix.Matrix6d;
+import maspack.matrix.Point3d;
+import maspack.matrix.SVDecomposition3d;
+import maspack.matrix.SparseNumberedBlockMatrix;
+import maspack.matrix.SymmetricMatrix3d;
+import maspack.matrix.Vector3d;
+import maspack.matrix.VectorNd;
+import maspack.properties.PropertyList;
+import maspack.properties.PropertyMode;
+import maspack.properties.PropertyUtils;
+import maspack.render.RenderList;
+import maspack.render.RenderProps;
+import maspack.render.Renderer;
+import maspack.render.Renderer.LineStyle;
+import maspack.util.NumberFormat;
+import maspack.util.ReaderTokenizer;
+import maspack.widgets.LabeledComponentBase;
 
 public class MFreeMuscleModel extends MFreeModel3d
-   implements AuxiliaryMaterial, ExcitationComponent {
+   implements ExcitationComponent {
 
    protected MFreeMuscleBundleList myMuscleList;
    protected MuscleMaterial myMuscleMat;
@@ -406,11 +402,6 @@ public class MFreeMuscleModel extends MFreeModel3d
 
    public MuscleMaterial createMuscleMaterial() {
       return new GenericMuscle();
-   }
-
-   @Override
-   public boolean isInvertible() {
-      return myMuscleMat == null || myMuscleMat.isInvertible();
    }
 
    public void setMuscleMaterial(MuscleMaterial mat) {
@@ -1006,12 +997,12 @@ public class MFreeMuscleModel extends MFreeModel3d
    protected void renderElementDirection(Renderer renderer, RenderProps props, MFreeElement3d elem,
       float[] coords0, float[] coords1, Matrix3d F, Vector3d dir, double len) {
       
-      ArrayList<IntegrationData3d> idata = elem.getIntegrationData();   
+      IntegrationData3d[] idata = elem.getIntegrationData();   
       elem.computeRenderCoordsAndGradient(F, coords0);
       int ndirs = 0;
       dir.setZero();
-      for (int i = 0; i < idata.size(); i++) {
-         Matrix3d Frame = idata.get(i).getFrame();
+      for (int i = 0; i < idata.length; i++) {
+         Matrix3d Frame = idata[i].getFrame();
          if (Frame != null) {
             dir.x += Frame.m00;
             dir.y += Frame.m10;
@@ -1045,11 +1036,11 @@ public class MFreeMuscleModel extends MFreeModel3d
    protected void renderIPointDirection(Renderer renderer, RenderProps props, MFreeElement3d elem,
       float[] coords0, float[] coords1, Matrix3d F, Vector3d dir, double len) {
       
-      ArrayList<MFreeIntegrationPoint3d> ipnt = elem.getIntegrationPoints();
-      ArrayList<IntegrationData3d> idata = elem.getIntegrationData();   
+      MFreeIntegrationPoint3d[] ipnt = elem.getIntegrationPoints();
+      IntegrationData3d[] idata = elem.getIntegrationData();   
       
-      for (int i=0; i<ipnt.size(); i++) {
-         Matrix3d Frame = idata.get(i).getFrame();
+      for (int i=0; i<ipnt.length; i++) {
+         Matrix3d Frame = idata[i].getFrame();
          
          if (Frame != null) {
          
@@ -1057,8 +1048,8 @@ public class MFreeMuscleModel extends MFreeModel3d
             dir.y = Frame.m10;
             dir.z = Frame.m20;
             
-            ipnt.get(i).computeGradientForRender(F, elem.getNodes(), idata.get(i).getInvJ0());
-            ipnt.get(i).computeCoordsForRender(coords0, elem.getNodes());
+            ipnt[i].computeGradientForRender(F, elem.getNodes(), idata[i].getInvJ0());
+            ipnt[i].computeCoordsForRender(coords0, elem.getNodes());
             F.mul(dir,dir);
             dir.scale(len);
             

@@ -6,33 +6,14 @@
  */
 package artisynth.core.mfreemodels;
 
-import java.io.PrintWriter;
-import java.io.IOException;
 import java.awt.Color;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Deque;
 
-import maspack.geometry.DelaunayInterpolator;
-import maspack.geometry.PolylineMesh;
-import maspack.geometry.GeometryTransformer;
-import maspack.matrix.AffineTransform3dBase;
-import maspack.matrix.Point3d;
-import maspack.matrix.SparseNumberedBlockMatrix;
-import maspack.matrix.Vector3d;
-import maspack.properties.HasProperties;
-import maspack.properties.PropertyList;
-import maspack.properties.PropertyMode;
-import maspack.properties.PropertyUtils;
-import maspack.render.IsRenderable;
-import maspack.render.Renderer;
-import maspack.render.RenderList;
-import maspack.render.RenderProps;
-import maspack.render.RenderableUtils;
-import maspack.util.InternalErrorException;
-import maspack.util.NumberFormat;
-import maspack.util.ReaderTokenizer;
 import artisynth.core.femmodels.FemMarker;
 import artisynth.core.femmodels.FemModel;
 import artisynth.core.femmodels.FemMuscleModel;
@@ -48,7 +29,6 @@ import artisynth.core.mechmodels.ExcitationSourceList;
 import artisynth.core.mechmodels.ExcitationUtils;
 import artisynth.core.mechmodels.Muscle;
 import artisynth.core.mechmodels.Point;
-import artisynth.core.modelbase.ComponentUtils;
 import artisynth.core.modelbase.CompositeComponent;
 import artisynth.core.modelbase.CompositeComponentBase;
 import artisynth.core.modelbase.DynamicActivityChangeEvent;
@@ -60,6 +40,24 @@ import artisynth.core.modelbase.RenderableComponentList;
 import artisynth.core.modelbase.TransformGeometryContext;
 import artisynth.core.modelbase.TransformableGeometry;
 import artisynth.core.util.ScanToken;
+import maspack.geometry.DelaunayInterpolator;
+import maspack.geometry.GeometryTransformer;
+import maspack.geometry.PolylineMesh;
+import maspack.matrix.AffineTransform3dBase;
+import maspack.matrix.Point3d;
+import maspack.matrix.SparseNumberedBlockMatrix;
+import maspack.matrix.Vector3d;
+import maspack.properties.HasProperties;
+import maspack.properties.PropertyList;
+import maspack.properties.PropertyMode;
+import maspack.properties.PropertyUtils;
+import maspack.render.RenderList;
+import maspack.render.RenderProps;
+import maspack.render.RenderableUtils;
+import maspack.render.Renderer;
+import maspack.util.InternalErrorException;
+import maspack.util.NumberFormat;
+import maspack.util.ReaderTokenizer;
 
 public class MFreeMuscleBundle extends CompositeComponentBase 
    implements ExcitationComponent, RenderableComponent, TransformableGeometry {
@@ -746,11 +744,11 @@ public class MFreeMuscleBundle extends CompositeComponentBase
       MFreeModel3d femMod = getAncestorModel(this);
 
       for (MFreeElement3d e : femMod.getElements()) {
-         ArrayList<MFreeIntegrationPoint3d> pnts = e.getIntegrationPoints();
+         MFreeIntegrationPoint3d[] pnts = e.getIntegrationPoints();
          boolean elemIsActive = false;
-         Vector3d[] dirs = new Vector3d[pnts.size()];
-         for (int i = 0; i < pnts.size(); i++) {
-            pnts.get(i).computePosition(pos, e.getNodes());
+         Vector3d[] dirs = new Vector3d[pnts.length];
+         for (int i = 0; i < pnts.length; i++) {
+            pnts[i].computePosition(pos, e.getNodes());
            
             int nsegs = FemMuscleModel.computeAverageFiberDirection(
                dir, pos, rad, mesh);

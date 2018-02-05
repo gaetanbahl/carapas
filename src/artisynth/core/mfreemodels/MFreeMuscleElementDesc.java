@@ -8,11 +8,32 @@ package artisynth.core.mfreemodels;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.LinkedList;
+import java.util.Arrays;
 import java.util.Deque;
+import java.util.LinkedList;
+import java.util.List;
 
+import artisynth.core.femmodels.AuxiliaryMaterial;
+import artisynth.core.femmodels.IntegrationData3d;
+import artisynth.core.femmodels.IntegrationPoint3d;
+import artisynth.core.materials.FemMaterial;
+import artisynth.core.materials.MaterialBase;
+import artisynth.core.materials.MuscleMaterial;
+import artisynth.core.materials.SolidDeformation;
+import artisynth.core.mechmodels.ExcitationComponent;
+import artisynth.core.mechmodels.ExcitationSource;
+import artisynth.core.mechmodels.ExcitationSourceList;
+import artisynth.core.mechmodels.ExcitationUtils;
+import artisynth.core.mfreemodels.MFreeMuscleBundle.DirectionRenderType;
+import artisynth.core.modelbase.ComponentUtils;
+import artisynth.core.modelbase.CompositeComponent;
+import artisynth.core.modelbase.DynamicActivityChangeEvent;
+import artisynth.core.modelbase.ModelComponent;
+import artisynth.core.modelbase.RenderableComponentBase;
+import artisynth.core.modelbase.TransformGeometryContext;
+import artisynth.core.modelbase.TransformableGeometry;
+import artisynth.core.util.ScalableUnits;
+import artisynth.core.util.ScanToken;
 import maspack.geometry.DelaunayInterpolator;
 import maspack.geometry.GeometryTransformer;
 import maspack.matrix.AffineTransform3dBase;
@@ -22,37 +43,15 @@ import maspack.matrix.Point3d;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.matrix.Vector3d;
 import maspack.properties.PropertyList;
-import maspack.render.Renderer;
 import maspack.render.RenderList;
 import maspack.render.RenderProps;
+import maspack.render.Renderer;
 import maspack.render.Renderer.Shading;
 import maspack.render.color.ColorUtils;
 import maspack.util.ArraySort;
 import maspack.util.IndentingPrintWriter;
 import maspack.util.NumberFormat;
 import maspack.util.ReaderTokenizer;
-import artisynth.core.femmodels.AuxiliaryMaterial;
-import artisynth.core.femmodels.IntegrationData3d;
-import artisynth.core.femmodels.IntegrationPoint3d;
-import artisynth.core.materials.FemMaterial;
-import artisynth.core.materials.MaterialBase;
-import artisynth.core.materials.MuscleMaterial;
-import artisynth.core.materials.SolidDeformation;
-import artisynth.core.mechmodels.ExcitationComponent;
-import artisynth.core.mechmodels.ExcitationUtils;
-import artisynth.core.mechmodels.ExcitationSourceList;
-import artisynth.core.mfreemodels.MFreeMuscleBundle.DirectionRenderType;
-import artisynth.core.modelbase.ComponentUtils;
-import artisynth.core.modelbase.CompositeComponent;
-import artisynth.core.modelbase.CompositeComponentBase;
-import artisynth.core.modelbase.DynamicActivityChangeEvent;
-import artisynth.core.modelbase.ModelComponent;
-import artisynth.core.modelbase.ModelComponentBase;
-import artisynth.core.modelbase.RenderableComponentBase;
-import artisynth.core.modelbase.ScanWriteUtils;
-import artisynth.core.modelbase.TransformGeometryContext;
-import artisynth.core.modelbase.TransformableGeometry;
-import artisynth.core.util.*;
 
 /**
  * A class wrapping the description of each FEM element belonging to a
@@ -165,7 +164,19 @@ public class MFreeMuscleElementDesc
       MuscleMaterial mat = getEffectiveMuscleMaterial();
       return mat == null || mat.isInvertible();
    }
+   
+   @Override
+   public boolean isLinear() {
+      MuscleMaterial mat = getEffectiveMuscleMaterial();
+      return mat == null;
+   }
 
+   @Override
+   public boolean isCorotated() {
+      MuscleMaterial mat = getEffectiveMuscleMaterial();
+      return mat == null;
+   }
+   
    /**
     * {@inheritDoc}
     */
@@ -341,10 +352,10 @@ public class MFreeMuscleElementDesc
    protected void renderINodeDirection(Renderer renderer, RenderProps props,
       float[] coords0, float[] coords1, Matrix3d F, Vector3d dir, double len) {
       
-      ArrayList<MFreeIntegrationPoint3d> ipnts = myElement.getIntegrationPoints();
-      ArrayList<IntegrationData3d> idata = myElement.getIntegrationData();   
+      MFreeIntegrationPoint3d[] ipnts = myElement.getIntegrationPoints();
+      IntegrationData3d[] idata = myElement.getIntegrationData();   
       
-      for (int i=0; i<ipnts.size(); i++) {
+      for (int i=0; i<ipnts.length; i++) {
       
          boolean drawLine = true;
          if (myDirs != null) {
@@ -359,8 +370,8 @@ public class MFreeMuscleElementDesc
          }
          
          if (drawLine) {
-            ipnts.get(i).computeGradientForRender(F, myElement.getNodes(), idata.get(i).getInvJ0());
-            ipnts.get(i).computeCoordsForRender(coords0, myElement.getNodes());
+            ipnts[i].computeGradientForRender(F, myElement.getNodes(), idata[i].getInvJ0());
+            ipnts[i].computeCoordsForRender(coords0, myElement.getNodes());
             F.mul(dir,dir);
             dir.scale(len);
             
@@ -496,8 +507,10 @@ public class MFreeMuscleElementDesc
 //      }
 //   }
 //   
+   
+   
    @Override
-   public void computeTangent (
+   public void computeTangent(
       Matrix6d D, SymmetricMatrix3d stress,
       SolidDeformation def, IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
 
@@ -505,7 +518,7 @@ public class MFreeMuscleElementDesc
       if (mat != null) {
          Vector3d dir = null;
          if (myDirs != null) {
-            int idx = myElement.getIntegrationPoints().indexOf(pt);
+            int idx = myElement.getIntegrationPointIndex(pt);
             dir = myDirs[idx];
          }
          else {
@@ -516,45 +529,24 @@ public class MFreeMuscleElementDesc
          }
       }
    }
-  
-//   public void addStress (
-//      SymmetricMatrix3d sigma, IntegrationPoint3d pt, 
-//      IntegrationData3d dt, FemMaterial baseMat) {
-//      
-//      MuscleMaterial mat = getEffectiveMuscleMaterial();
-//      if (mat != null) {
-//         Vector3d dir = null;
-//         int idx = myElement.getIntegrationPoints().indexOf(pt);
-//         if (myDirs != null) {
-//            try {
-//               dir = myDirs[idx];
-//            } catch (ArrayIndexOutOfBoundsException e) {
-//               System.out.println("Pnt #: " + pt.getNumber() + ", Size: " + myDirs.length);
-//            }
-//         }
-//         else {
-//            dir = myDir;
-//         }
-//         if (dir != null) {
-//            mat.addStress (sigma, getNetExcitation(), dir, pt, baseMat);
-//         }
-//      }
-//   }
    
    @Override
-   public void computeStress (
+   public void computeStress(
       SymmetricMatrix3d sigma, SolidDeformation def,
       IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
       
       MuscleMaterial mat = getEffectiveMuscleMaterial();
       if (mat != null) {
          Vector3d dir = null;
-         int idx = myElement.getIntegrationPoints().indexOf(pt);
+         int idx = myElement.getIntegrationPointIndex(pt);
          if (myDirs != null) {
+            if (idx < 0) {
+               idx = 0;  // assume first node
+            }
             try {
                dir = myDirs[idx];
             } catch (ArrayIndexOutOfBoundsException e) {
-               System.out.println("Pnt #: " + pt.getNumber() + ", Size: " + myDirs.length);
+               System.out.println("Pnt #: " + idx + ", Size: " + myDirs.length);
             }
          }
          else {
@@ -834,6 +826,38 @@ public class MFreeMuscleElementDesc
       if (myExcitationSources != null) {
          myExcitationSources.write (pw, "excitationSources", fmt, ancestor);
       }      
+   }
+
+   @Override
+   public MFreeMuscleElementDesc clone() {
+      MFreeMuscleElementDesc other;
+      try {
+         other = (MFreeMuscleElementDesc)(super.clone());
+      } catch (CloneNotSupportedException e) {
+         throw new RuntimeException("Cannot clone super");
+      }
+      
+      if (myExcitationSources != null) {
+         other.myExcitationSources = new ExcitationSourceList();
+         for (ExcitationSource ex : myExcitationSources) {
+            other.addExcitationSource(ex.getComponent(), ex.getGain());
+         }
+      }
+
+      // the following are set if an activation color is specified:
+      if (myDirectionColor != null) {
+         other.myDirectionColor = Arrays.copyOf(myDirectionColor, myDirectionColor.length);
+      }
+      if (myWidgetColor != null) {
+         other.myWidgetColor = Arrays.copyOf(myWidgetColor, myWidgetColor.length);
+      }
+      
+      other.myDir = myDir.clone();
+      if (myDirs != null) {
+         other.myDirs = Arrays.copyOf(myDirs, myDirs.length);
+      }
+      
+      return other;
    }
 
 
