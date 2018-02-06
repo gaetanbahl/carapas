@@ -42,6 +42,7 @@ import maspack.geometry.MeshFactory;
 import maspack.geometry.OBB;
 import maspack.geometry.PolygonalMesh;
 import maspack.geometry.Vertex3d;
+import maspack.geometry.MeshFactory.FaceType;
 import maspack.graph.DirectedEdge;
 import maspack.graph.DirectedGraph;
 import maspack.graph.Vertex;
@@ -100,7 +101,7 @@ public class MFreeFactory {
       }
       return createBeam(model, fType, size, res, ires);
    }
-
+   
    public static MFreeModel3d createBeam(MFreeModel3d model,
       RadialWeightFunctionType fType,
       double[] size, int res[], int[] ipntRes) {
@@ -130,9 +131,10 @@ public class MFreeFactory {
 
       // surface mesh
       PolygonalMesh surface =
-         MeshFactory.createQuadBox(
-            size[0], size[1], size[2], res[0], res[1], res[2], true);
-      surface.triangulate();
+         MeshFactory.createBox(
+            size[0], size[1], size[2], Point3d.ZERO, 
+            res[0], res[1], res[2], 
+            true, FaceType.TRI);
 
       // offset ipnts from border
       dx = size[0] / ipntRes[0];
@@ -261,7 +263,7 @@ public class MFreeFactory {
                z = zOffset + k * dz;
                Point3d pnt = new Point3d(x, y, z);
                pnt.transform(trans);
-
+               
                double d = sdgrid.getLocalDistanceAndNormal(null, null, pnt);
                if (d < tol) {
                   pnts[i][j][k] = pnt;
@@ -320,7 +322,7 @@ public class MFreeFactory {
          marcher.march(nextSample);  // update distances to first point
       }
       Logger.getSystemLogger().debug("done.");
-
+      
       return out;
    }
 
@@ -329,9 +331,9 @@ public class MFreeFactory {
    
       return createModel(model, nodeLocs, ipntLoc, 
          surface, DEFAULT_RADIAL_KERNEL_TYPE);
-
+      
    }
-
+   
    public static MFreeModel3d createModel(MFreeModel3d model,
       Point3d[] nodeLocs, Point3d[] ipntLocs, 
       PolygonalMesh surface, RadialWeightFunctionType fType) {
@@ -341,7 +343,7 @@ public class MFreeFactory {
       }
 
       MFreeNode3d[] nodes = new MFreeNode3d[nodeLocs.length];
-
+      
       // determine best node-radii to use
       double[] nodeRad = computeNodeRadii(nodeLocs, ipntLocs, surface, 
          DEFAULT_MINIMUM_DEPENDENCIES, 1.1);
@@ -362,7 +364,7 @@ public class MFreeFactory {
       return createModel(model, nodes, surface, cpnts);
 
    }
-
+   
    //   public static MFreeModel3d createPairedModel(MFreeModel3d model,
    //      Point3d[] nodeLocs, double nodeRad,
    //      Point3d[] ipntLoc, RadialWeightFunctionType fType,
@@ -440,7 +442,7 @@ public class MFreeFactory {
    //      return model;
    //
    //   }
-
+   
    private static class IndexedPoint3d {
       public Point3d pnt;
       public int idx;
@@ -449,14 +451,14 @@ public class MFreeFactory {
          this.idx = idx;
       }
    }
-
+   
    private static class MyKdComparator implements KDComparator<IndexedPoint3d> {
 
       @Override
       public int compare(IndexedPoint3d a, IndexedPoint3d b, int dim) {
          double x = a.pnt.get(dim);
          double y = b.pnt.get(dim);
-
+         
          if ( x < y) {
             return -1;
          } else if ( x > y) {
@@ -482,14 +484,14 @@ public class MFreeFactory {
       if (pnts.size() <= 3) {
          return true;
       }
-   
+
       // assumes points do not overlap
       Vector3d v1 = new Vector3d(pnts.get(0).pnt);
       v1.sub(pnts.get(1).pnt);
       double v1n = v1.norm();
       double eps = v1n*1e-5;  // epsilon for plane projection
       v1.scale(1.0/v1n); // normalize
-
+      
       // find non-colinear point
       Vector3d v2 = new Vector3d(pnts.get(0).pnt);
       Vector3d normal = new Vector3d();
@@ -505,12 +507,12 @@ public class MFreeFactory {
             break;
          }
       }
-
+      
       // colinear
       if (jl < 0) {
          return true;
       }
-
+      
       double d = normal.dot(pnts.get(0).pnt);
       for (int k=jl+1; k<pnts.size(); ++k) {
          double dd = normal.dot(pnts.get(k).pnt)-d;
@@ -518,13 +520,13 @@ public class MFreeFactory {
             return false;
          }
       }
-
+      
       return true;
    }
    
    private static double[] computeNodeRadii(Point3d[] nodes, Point3d[] ipnts, 
       MeshBase mesh, int minK, double marginScale) {
-
+      
       Point3d min = new Point3d(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
       Point3d max = new Point3d(Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY);
       
@@ -536,30 +538,28 @@ public class MFreeFactory {
       }
       Vector3d widths = new Vector3d(max);
       widths.sub(min);
-
-      RigidTransform3d trans = new RigidTransform3d(min, AxisAngle.IDENTITY);
-
+      
       IndexedPoint3d[] inodes = new IndexedPoint3d[nodes.length];
       for (int i=0; i<nodes.length; ++i) {
          inodes[i] = new IndexedPoint3d(nodes[i], i);
       }
       KDTree<IndexedPoint3d> kdtree = new KDTree<IndexedPoint3d>(3, Arrays.asList(inodes), new MyKdComparator());
-
+      
       //      KPointDistanceGrid grid = new KPointDistanceGrid(minK, trans, new int[] {30, 30, 30}, widths);
       //      for (Point3d node : nodes) {
       //         grid.addPoint(node);
       //      }
-
+      
       double[] r = new double[nodes.length];
-
+      
       //      int[] closest = new int[minK];
       //      double[] dists = new double[minK];
-
+      
       IndexedPoint3d idpnt = new IndexedPoint3d(null, 0);
-
+      
       for (Point3d node : nodes) {
          idpnt.pnt = node;
-
+         
          List<IndexedPoint3d> nearest = kdtree.nearestNeighbourSearch(idpnt, minK, 0);
          // check for coplanarity
          int kk = minK;
@@ -567,14 +567,14 @@ public class MFreeFactory {
             kk += 1;
             nearest = kdtree.nearestNeighbourSearch(idpnt,  kk, 0);
          }
-
+         
          // grid.getClosest(node, minK, closest, dists);
          //         for (int k=0; k<minK; ++k) {
          //            //            if (r[closest[k]] < dists[k]) {
          //            //               r[closest[k]] = dists[k];
          //            //            }
          //         }
-
+         
          for (IndexedPoint3d nbr : nearest) {
             double rl = nbr.pnt.distance(node)*marginScale;
             if (rl > r[nbr.idx]) {
@@ -582,7 +582,7 @@ public class MFreeFactory {
             }
          }
       }
-
+      
       for (Point3d ipnt : ipnts) {
          idpnt.pnt = ipnt;
          List<IndexedPoint3d> nearest = kdtree.nearestNeighbourSearch(idpnt, minK, 0);
@@ -599,7 +599,7 @@ public class MFreeFactory {
             }
          }
       }
-
+      
       for (Vertex3d vtx : mesh.getVertices()) {
          idpnt.pnt = vtx.getWorldPoint();
          List<IndexedPoint3d> nearest = kdtree.nearestNeighbourSearch(idpnt, minK, 0);
@@ -616,7 +616,7 @@ public class MFreeFactory {
             }
          }
       }
-
+      
       return r;
    }
 
@@ -624,7 +624,7 @@ public class MFreeFactory {
 
       MFreeNode3d node;
       Point3d[] pnts;
-
+      
       public RestNode(MFreeNode3d node, double r) {
          this.node = node;
          pnts = new Point3d[2];
@@ -632,11 +632,11 @@ public class MFreeFactory {
          pnts[0] = new Point3d(pos.x+r, pos.y+r, pos.z+r);
          pnts[1] = new Point3d(pos.x-r, pos.y-r, pos.z-r);
       }
-
+      
       public MFreeNode3d getNode() {
          return node;
       }
-
+      
       @Override
       public int numPoints() {
          return 2;
@@ -662,15 +662,15 @@ public class MFreeFactory {
       public double computeCovariance(Matrix3d C) {
          return -1;
       }
-
+      
    }
-
+   
    public static MFreeModel3d createModel(MFreeModel3d model,
       MFreeNode3d[] nodes, PolygonalMesh surface,
       CubaturePoint3d[] cpnts) {
 
       MFreeShapeFunction func = new MLSShapeFunction();
-
+      
       FunctionTimer timer = new FunctionTimer();
 
       // timer.start();
@@ -684,7 +684,7 @@ public class MFreeFactory {
       for (int i=0; i<nodes.length; ++i) {
          rnodes[i] = new RestNode(nodes[i], nodes[i].getInfluenceRadius());
       }
-
+      
       timer.start();
       nodeTree.build(rnodes, nodes.length);
       timer.stop();
@@ -946,14 +946,14 @@ public class MFreeFactory {
 
    public static void createNodeMeshes(MFreeModel3d model,
       Collection<MFreeNode3d> nodes, PolygonalMesh surface) {
-
+      
       // set nodal influence regions
       PolygonalMesh icoSphere = MeshFactory.createIcosahedralSphere(1, 2);
 
       if (nodes == null) {
          nodes = model.getNodes();
       }
-
+      
       HashMap<MFreeNode3d,PolygonalMesh> meshMap = new HashMap<MFreeNode3d,PolygonalMesh>();
       AffineTransform3d trans = new AffineTransform3d();
       for (MFreeNode3d node : nodes) {
@@ -972,7 +972,7 @@ public class MFreeFactory {
             meshMap.put(node, nmesh);
          }
       }
-
+      
       // I do this after generating all meshes so that isInDomain doesn't start
       // using the meshes before all are ready (speed issue)
       for (MFreeNode3d node : nodes) {
@@ -1024,10 +1024,10 @@ public class MFreeFactory {
          }
       }
       ArrayList<MFreeNode3d> nodes = new ArrayList<>(nodeset);
-
+      
       boolean[][] connectivityChart = buildIntersectionChart(nodes); 
       DirectedGraph<int[],Integer> connectivityGraph = IntersectionFactory.buildConnectivityGraph(connectivityChart);
-
+      
       HashMap<int[],BSPTree> nullMap = new HashMap<int[],BSPTree>(1);
       for (int i = 0; i < nodes.size(); i++) {
          MFreeNode3d node = nodes.get(i);
@@ -1350,7 +1350,7 @@ public class MFreeFactory {
       for (Vertex3d vtx : mesh2.getVertices()) {
          vtx.setIndex(idx++);
       }
-         
+      
       MFreeMeshComp surfaceMFree = new MFreeMeshComp(model, "surface");
       surfaceMFree.setMesh(mesh2);
       
@@ -1384,14 +1384,14 @@ public class MFreeFactory {
             VectorNd coords = new VectorNd(new double[] { 1 });
             
             surfaceMFree.setVertexAttachment(vtx.getIndex(),  coords.getBuffer(), deps);
-         
+            
          }
       }
-
+      
       // integration regions by copying elements
       ArrayList<MFreeElement3d> elemList = new ArrayList<MFreeElement3d>(fem.numElements());
       HashMap<FemElement3d,MFreeElement3d> elemMap = new HashMap<FemElement3d,MFreeElement3d>(fem.numElements());
-
+      
       for (FemElement3d elem : fem.getElements()) {
          
          MFreeNode3d[] elemNodes = new MFreeNode3d[elem.numNodes()];
@@ -1520,7 +1520,7 @@ public class MFreeFactory {
       
       ArrayList<MFreeElement3d> elems = new ArrayList<MFreeElement3d>();
       HashMap<MFreeNode3d,LinkedList<MFreeElement3d>> elemMap = new HashMap<>();
-
+      
       MFreeShapeFunction fun = new MLSShapeFunction();
       for (A pnt : pnts) {
          MFreeNode3d[] nodes = pnt.getDependentNodes();

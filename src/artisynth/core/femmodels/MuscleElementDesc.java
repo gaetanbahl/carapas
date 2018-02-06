@@ -174,8 +174,6 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
       return mat == null;
    }
    
-   
-   
    /**
     * {@inheritDoc}
     */

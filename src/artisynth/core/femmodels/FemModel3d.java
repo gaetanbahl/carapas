@@ -295,6 +295,7 @@ public class FemModel3d extends FemModel
       return myElementWidgetSizeMode;
    }
 
+   @Override
    public void getCollidables(List<Collidable> list, int level) {
       list.add(this);
       // traverse forward for additional collidables (e.g. FemMeshComp)
@@ -358,14 +359,13 @@ public class FemModel3d extends FemModel
       myFrame = new FemModelFrame ("frame");
       myNodes = new PointList<FemNode3d>(FemNode3d.class, "nodes", "n");
       myElements = new FemElement3dList("elements", "e");
-      myAdditionalMaterialsList =
-      new AuxMaterialBundleList("materials", "mat");
+      myAdditionalMaterialsList = new AuxMaterialBundleList("materials", "mat");
+      myMeshList =  new MeshComponentList<FemMeshComp>(
+    	         FemMeshComp.class, "meshes", "msh");
       addFixed(myFrame);
       addFixed(myNodes);
       addFixed(myElements);
       addFixed(myAdditionalMaterialsList);
-      myMeshList =  new MeshComponentList<FemMeshComp>(
-         FemMeshComp.class, "meshes", "msh");
       addFixed(myMeshList);
       super.initializeChildComponents();
    }
@@ -472,9 +472,8 @@ public class FemModel3d extends FemModel
 
       if (myNodes.remove(p)) {
          return true;
-      } else {
-         return false;
       }
+      return false;
    }
 
    @Override

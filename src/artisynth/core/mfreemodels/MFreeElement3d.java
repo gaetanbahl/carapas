@@ -7,6 +7,7 @@
 package artisynth.core.mfreemodels;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import artisynth.core.femmodels.AuxiliaryMaterial;
 import artisynth.core.femmodels.FemElement;
@@ -52,6 +53,8 @@ public class MFreeElement3d extends FemElement implements Boundable {
    
    protected DynamicArray<IntegrationData3d> myIntegrationData;
    protected DynamicArray<MFreeIntegrationPoint3d> myIntegrationPoints;
+   protected HashMap<MFreeIntegrationPoint3d,Integer> myIntegrationPointIndices;
+   
    protected double[] myNodalExtrapolationMatrix;
    //   protected ArrayList<int[]> myIntegrationNodeIdxs;
    //   protected VectorNd myIntegrationWeights;
@@ -125,10 +128,11 @@ public class MFreeElement3d extends FemElement implements Boundable {
       myNodes = nodes.clone();
       // active = new boolean[myNodes.length][myNodes.length];
       // setAllTermsActive(true);   // on by default
-      myIntegrationData = new DynamicArray<IntegrationData3d>(IntegrationData3d.class);
-      myIntegrationPoints = new DynamicArray<MFreeIntegrationPoint3d>(MFreeIntegrationPoint3d.class);
+      myIntegrationData = new DynamicArray<>(IntegrationData3d.class);
+      myIntegrationPoints = new DynamicArray<>(MFreeIntegrationPoint3d.class);
       //      myIntegrationNodeIdxs = new ArrayList<int[]>();
       //      myIntegrationWeights = new VectorNd(0);
+      myIntegrationPointIndices = new HashMap<>();
       myNodalExtrapolationMatrix = null;
 
       setShapeFunction(fun);
@@ -269,7 +273,7 @@ public class MFreeElement3d extends FemElement implements Boundable {
    }
    
    public int getIntegrationPointIndex(IntegrationPoint3d pnt) {
-      int idx = myIntegrationPoints.indexOf((MFreeIntegrationPoint3d)pnt);
+      int idx = myIntegrationPointIndices.get(pnt);
       return idx;
    }
    
@@ -332,9 +336,11 @@ public class MFreeElement3d extends FemElement implements Boundable {
       //      int idx = myIntegrationWeights.adjustSize(1);
       //      myIntegrationWeights.set(idx, iwgt);
       myIntegrationData.add(idata);
-      ipnt.setNumber(myIntegrationPoints.size());
+      // ipnt.setNumber(myIntegrationPoints.size());
+      myIntegrationPointIndices.put(ipnt, myIntegrationPoints.size());
       myIntegrationPoints.add(ipnt);
       //      myIntegrationNodeIdxs.add(idxs);
+      
       
       myNodalExtrapolationMatrix = null;
       

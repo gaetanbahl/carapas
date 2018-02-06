@@ -22,9 +22,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 
-import com.jogamp.common.jvm.JNILibLoaderBase;
-import com.jogamp.common.os.NativeLibrary;
-
 import maspack.concurrency.NamedThreadFactory;
 import maspack.image.dicom.DicomElement.VR;
 import maspack.util.BinaryFileInputStream;
@@ -52,7 +49,7 @@ public class DicomReader {
    private void initializeDecoders() {
       imageDecoders = new ArrayList<DicomImageDecoder>(3);
       imageDecoders.add(new DicomImageDecoderRaw()); // raw format
-      imageDecoders.add(new DicomImageDecoderGDCM()); // GDCM decoder
+      // imageDecoders.add(new DicomImageDecoderGDCM()); // GDCM decoder
       // ImageMagick, if found
       DicomImageDecoderImageMagick dIM = new DicomImageDecoderImageMagick();
       if (dIM.isValid()) {
@@ -545,8 +542,6 @@ public class DicomReader {
       int tagId, VR vr, BinaryInputStream in, boolean explicit)
       throws IOException {
 
-      JNILibLoaderBase base;
-      
       int length = 0;
       if (vr == VR.OB || vr == VR.OW || vr == VR.OF || vr == VR.SQ
          || vr == VR.UN || vr == VR.UT) {

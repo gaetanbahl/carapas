@@ -10,9 +10,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 
-import artisynth.core.femmodels.AuxMaterialElementDesc;
 import artisynth.core.femmodels.AuxiliaryMaterial;
 import artisynth.core.femmodels.FemMarker;
 import artisynth.core.femmodels.FemModel;
@@ -31,11 +29,6 @@ import artisynth.core.materials.SolidDeformation;
 import artisynth.core.materials.ViscoelasticBehavior;
 import artisynth.core.materials.ViscoelasticState;
 import artisynth.core.mechmodels.Collidable;
-import artisynth.core.mechmodels.CollidableBody;
-import artisynth.core.mechmodels.CollidableDynamicComponent;
-import artisynth.core.mechmodels.CollisionHandler;
-import artisynth.core.mechmodels.ContactMaster;
-import artisynth.core.mechmodels.ContactPoint;
 import artisynth.core.mechmodels.DynamicComponent;
 import artisynth.core.mechmodels.HasAuxState;
 import artisynth.core.mechmodels.MechSystemModel;
@@ -59,11 +52,9 @@ import maspack.geometry.BVFeatureQuery.ObjectDistanceCalculator;
 import maspack.geometry.BVNode;
 import maspack.geometry.BVTree;
 import maspack.geometry.Boundable;
-import maspack.geometry.DistanceGrid;
 import maspack.geometry.GeometryTransformer;
 import maspack.geometry.MeshBase;
 import maspack.geometry.PolygonalMesh;
-import maspack.geometry.Vertex3d;
 import maspack.matrix.AffineTransform3dBase;
 import maspack.matrix.DenseMatrix;
 import maspack.matrix.EigenDecomposition;
@@ -98,7 +89,7 @@ import maspack.util.InternalErrorException;
 
 public class MFreeModel3d extends FemModel implements TransformableGeometry,
    ScalableUnits, MechSystemModel,
-   CollidableBody, CopyableComponent {
+   Collidable, CopyableComponent {
 
    protected SparseBlockMatrix M = null;
    protected VectorNd b = null;
@@ -116,7 +107,6 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
 
    protected MFreeMeshComp mySurfaceMesh;
    protected boolean mySurfaceMeshValid = false;
-   protected int myCollidableIndex;
 
    // record inverted elements
    private double myMinDetJ; // used to record inverted elements
@@ -292,14 +282,12 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       myAuxMaterialsList = new MFreeAuxMaterialBundleList("materials", "m");
       myMeshList =
          new MeshComponentList<MFreeMeshComp>(
-            MFreeMeshComp.class, "geometry", "g");
-      // myEvaluationPoints = new CountedList<MFreePoint3d>();
+            MFreeMeshComp.class, "meshes", "msh");
 
       addFixed(myNodes);
       addFixed(myElements);
       addFixed(myAuxMaterialsList);
       addFixed(myMeshList);
-
       super.initializeChildComponents();
    }
 
@@ -482,8 +470,9 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          updateStressAndStiffness();
       }
       boolean hasGravity = !myGravity.equals(Vector3d.ZERO);
-      Vector3d fk = new Vector3d();
-      Vector3d fd = new Vector3d();
+      Vector3d fk = new Vector3d();  // stiffness force
+      Vector3d fd = new Vector3d();  // damping force
+      Vector3d md = new Vector3d();  // mass damping (used with attached frames)
 
       // gravity, internal and mass damping
       for (MFreeNode3d n : myNodes) {
@@ -506,10 +495,6 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          n.subForce(fk);
          n.subForce(fd);
       }
-
-      //      if (stepAdjust != null && myMinDetJ <= 0) {
-      //         stepAdjust.recommendAdjustment(0.5, "element inversion");
-      //      }
    }
 
    private void computePressuresAndRinv(
@@ -1715,26 +1700,6 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       return myMeshList.get(idx).getMesh();
    }
 
-   @Override
-   public PolygonalMesh getCollisionMesh() {
-      for (MFreeMeshComp mc : myMeshList) {
-         if (mc.getMesh() instanceof PolygonalMesh) {
-            return (PolygonalMesh)(mc.getMesh());
-         }
-      }
-      return null;
-   }
-
-   @Override
-   public boolean hasDistanceGrid() {
-      return false;
-   }
-
-   @Override   
-   public DistanceGrid getDistanceGrid() {
-      return null;
-   }
-
    public Collidability getCollidable() {
       MFreeMeshComp mesh = mySurfaceMesh;
       if (mesh != null) {
@@ -2239,6 +2204,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          int i = node.getNumber();
          double m = totalMass / mTrace * massMatrixDiag.get(i);
          node.setMass(m);
+         node.setMassExplicit(true);
       }
 
    }
@@ -2962,7 +2928,6 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
 
    @Override
    public void updateBounds(Vector3d pmin, Vector3d pmax) {
-      // TODO Auto-generated method stub
       updatePosState();
       super.updateBounds(pmin, pmax);
       for (MFreeMeshComp mc : myMeshList) {
@@ -2991,44 +2956,6 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
             PropertyUtils
             .setModeAndUpdate(this, "colorMap", myColorMapMode, mode);
       }
-   }
-
-   public void getVertexMasters (List<ContactMaster> mlist, Vertex3d vtx) {
-
-      // XXX currently assumed vtx is instance of MFreeVertex3d
-      // This will change once MFreeModel uses FemMeshComp equivalent
-      if (vtx instanceof MFreeVertex3d) {
-         MFreeVertex3d mvtx = (MFreeVertex3d)vtx;
-
-         MFreeNode3d[] nodes = mvtx.getDependentNodes();
-         VectorNd coords = mvtx.getNodeCoordinates ();
-
-         for (int j = 0; j < nodes.length; j++) {
-            mlist.add(new ContactMaster(nodes[j], coords.get(j)));
-         }      
-      } else {
-         System.out.println("Unknown masters.");
-      }
-   }
-
-   public boolean containsContactMaster (CollidableDynamicComponent comp) {
-      return comp.getParent() == myNodes;      
-   }   
-
-   public boolean allowCollision (
-      ContactPoint cpnt, Collidable other, Set<Vertex3d> attachedVertices) {
-      if (CollisionHandler.attachedNearContact(cpnt, other, attachedVertices)) {
-         return false;
-      }
-      return true;
-   }
-
-   public int getCollidableIndex() {
-      return myCollidableIndex;
-   }
-
-   public void setCollidableIndex (int idx) {
-      myCollidableIndex = idx;
    }
 
    @Override
