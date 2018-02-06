@@ -11,15 +11,15 @@ public class SolidDeformation {
    Matrix3d myF;    // deformation gradient
    double myDetF;   // determinant of the deformation gradient
    double myP;      // local pressure
-   MaterialCoordinate myCoord;  // local material coordinate
    Matrix3dBase myRot;          // local rotation (if stiffness warping)
+   MaterialCoordinate myCoord;  // local material coordinate
 
    public SolidDeformation() {
       myF = new Matrix3d();
       myDetF = 0;
       myP = 0;
-      myCoord = null;
       myRot = null;
+      myCoord = null;
    }
 
    /**
@@ -97,7 +97,7 @@ public class SolidDeformation {
    public Matrix3dBase getR() {
       return myRot;
    }
-   
+
    /**
     * Computes the right Cauchy-Green tensor from the deformation gradient.
     */

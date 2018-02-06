@@ -8,22 +8,18 @@ package artisynth.core.mfreemodels;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
 
+import artisynth.core.femmodels.AuxiliaryMaterial;
 import artisynth.core.femmodels.IntegrationData3d;
 import artisynth.core.femmodels.IntegrationPoint3d;
-import artisynth.core.femmodels.MuscleElementDesc;
-import artisynth.core.materials.BulkIncompressibleBehavior;
-import artisynth.core.materials.ConstitutiveMaterial;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.MaterialBase;
 import artisynth.core.materials.MuscleMaterial;
 import artisynth.core.materials.SolidDeformation;
-import artisynth.core.materials.ViscoelasticBehavior;
 import artisynth.core.mechmodels.ExcitationComponent;
 import artisynth.core.mechmodels.ExcitationSource;
 import artisynth.core.mechmodels.ExcitationSourceList;
@@ -65,7 +61,7 @@ import maspack.util.ReaderTokenizer;
 */
 public class MFreeMuscleElementDesc
    extends RenderableComponentBase
-   implements ConstitutiveMaterial, ExcitationComponent, ScalableUnits, TransformableGeometry {
+   implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableGeometry {
 
    MFreeElement3d myElement;
    private MuscleMaterial myMuscleMat;
@@ -168,17 +164,19 @@ public class MFreeMuscleElementDesc
       MuscleMaterial mat = getEffectiveMuscleMaterial();
       return mat == null || mat.isInvertible();
    }
-
-   @Override
-   public boolean isLinear() {
-      return false;
-   }
    
    @Override
-   public boolean isCorotated() {
-      return false;
+   public boolean isLinear() {
+      MuscleMaterial mat = getEffectiveMuscleMaterial();
+      return mat == null;
    }
 
+   @Override
+   public boolean isCorotated() {
+      MuscleMaterial mat = getEffectiveMuscleMaterial();
+      return mat == null;
+   }
+   
    /**
     * {@inheritDoc}
     */
@@ -513,17 +511,14 @@ public class MFreeMuscleElementDesc
    
    @Override
    public void computeTangent(
-      Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def, Matrix3d Q,
-      FemMaterial baseMat) {
+      Matrix6d D, SymmetricMatrix3d stress,
+      SolidDeformation def, IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
 
       MuscleMaterial mat = getEffectiveMuscleMaterial();
       if (mat != null) {
          Vector3d dir = null;
          if (myDirs != null) {
-            int idx = def.getMaterialCoordinate().getCoordinateIndex();
-            if (idx < 0) {
-               idx = 0;
-            }
+            int idx = myElement.getIntegrationPointIndex(pt);
             dir = myDirs[idx];
          }
          else {
@@ -534,17 +529,16 @@ public class MFreeMuscleElementDesc
          }
       }
    }
-  
-
+   
    @Override
    public void computeStress(
-      SymmetricMatrix3d sigma, SolidDeformation def, Matrix3d Q,
-      FemMaterial baseMat) {
+      SymmetricMatrix3d sigma, SolidDeformation def,
+      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
       
       MuscleMaterial mat = getEffectiveMuscleMaterial();
       if (mat != null) {
          Vector3d dir = null;
-         int idx = def.getMaterialCoordinate().getCoordinateIndex();
+         int idx = myElement.getIntegrationPointIndex(pt);
          if (myDirs != null) {
             if (idx < 0) {
                idx = 0;  // assume first node
@@ -832,26 +826,6 @@ public class MFreeMuscleElementDesc
       if (myExcitationSources != null) {
          myExcitationSources.write (pw, "excitationSources", fmt, ancestor);
       }      
-   }
-
-   @Override
-   public boolean isIncompressible() {
-      return false;
-   }
-   
-   @Override
-   public BulkIncompressibleBehavior getIncompressibleBehavior() {
-      return null;
-   }
-
-   @Override
-   public boolean isViscoelastic() {
-      return false;
-   }
-
-   @Override
-   public ViscoelasticBehavior getViscoBehavior() {
-      return null;
    }
 
    @Override

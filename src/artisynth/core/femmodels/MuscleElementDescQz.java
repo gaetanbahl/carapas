@@ -13,8 +13,6 @@ import maspack.matrix.Vector3d;
 
 /**
  * Uses the z-axis of frame Q supplied when computed stress and tangent.
- * XXX Technically, this should be a subclass of MuscleElementDescBase,
- * but put here to avoid massive refactoring.
  */
 public class MuscleElementDescQz extends MuscleElementDesc {
  

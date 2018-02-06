@@ -1,7 +1,8 @@
 package artisynth.core.materials;
 
-import artisynth.core.modelbase.PropertyChangeEvent;
-import artisynth.core.modelbase.PropertyChangeListener;
+import maspack.matrix.Matrix3d;
+import maspack.matrix.Matrix6d;
+import maspack.matrix.SymmetricMatrix3d;
 import maspack.properties.PropertyList;
 import maspack.properties.PropertyUtils;
 import maspack.util.DynamicArray;
@@ -14,19 +15,17 @@ public abstract class FemMaterial extends MaterialBase implements ConstitutiveMa
 
    static DynamicArray<Class<?>> mySubclasses = new DynamicArray<>(
       new Class<?>[] {
-         LinearMaterial.class,
-         StVenantKirchoffMaterial.class,
-         MooneyRivlinMaterial.class,
-         CubicHyperelastic.class,
-         OgdenMaterial.class,
-         FungMaterial.class,
-         NeoHookeanMaterial.class,
-         IncompNeoHookeanMaterial.class,
-         AnisotropicLinearMaterial.class,
-         NullMaterial.class,
-         IncompressibleMaterial.class
-      });
-
+      LinearMaterial.class,
+      StVenantKirchoffMaterial.class,
+      MooneyRivlinMaterial.class,
+      CubicHyperelastic.class,
+      OgdenMaterial.class,
+      FungMaterial.class,
+      NeoHookeanMaterial.class,
+      IncompNeoHookeanMaterial.class,
+      IncompressibleMaterial.class,
+      NullMaterial.class,
+   });
 
    /**
     * Allow adding of classes (for use in control panels)
@@ -74,39 +73,13 @@ public abstract class FemMaterial extends MaterialBase implements ConstitutiveMa
       return myProps;
    }
 
-   @Override
-   public boolean isInvertible() {
-      return false;
-   }
-
-   @Override
-   public boolean isIncompressible() {
-      return false;
-   }
-
-   @Override
-   public boolean isLinear() {
-      return false;
-   }
-
-   @Override
-   public boolean isCorotated() {
-      return false;
-   }
-
-   @Override
-   public boolean isViscoelastic() {
-      return myViscoBehavior != null;
-   }
-
-   @Override
    public ViscoelasticBehavior getViscoBehavior () {
       return myViscoBehavior;
    }
 
    /**
     * Allows setting of viscoelastic behaviour
-    * @param veb
+    * @param veb visco-elastic behaviour
     */
    public void setViscoBehavior (ViscoelasticBehavior veb) {
       if (veb != null) {
@@ -129,6 +102,65 @@ public abstract class FemMaterial extends MaterialBase implements ConstitutiveMa
       return null;
    }
 
+   /**
+    * Computes the tangent stiffness matrix
+    * @param D tangent stiffness, populated
+    * @param stress the current stress tensor
+    * @param def deformation information, includes deformation gradient and pressure
+    * @param Q coordinate frame specifying directions of anisotropy
+    * @param baseMat underlying base material (if any)
+    */
+   public abstract void computeTangent (
+      Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def, 
+      Matrix3d Q, FemMaterial baseMat);
+   
+   /**
+    * Computes the strain tensor given the supplied deformation
+    * @param sigma strain tensor, populated
+    * @param def deformation information, includes deformation gradient and pressure
+    * @param Q coordinate frame specifying directions of anisotropy
+    * @param baseMat underlying base material (if any)
+    */
+   public abstract void computeStress (
+      SymmetricMatrix3d sigma, SolidDeformation def, Matrix3d Q,
+      FemMaterial baseMat);
+
+   /**
+    * Returns true if this material is defined for a deformation gradient
+    * with a non-positive determinant.
+    */
+   public boolean isInvertible() {
+      return false;
+   }
+
+   public boolean isIncompressible() {
+      return false;
+   }
+   
+   public boolean isViscoelastic() {
+      return false;
+   }
+   
+   /**
+    * Linear stress/stiffness response to deformation, allows tangent
+    * to be pre-computed and stored.
+    * 
+    * @return true if linear response
+    */
+   public boolean isLinear() {
+      return false;
+   }
+   
+   /**
+    * Deformation is computed by first removing a rotation component 
+    * (either explicit or computed from strain)
+    * 
+    * @return true if material is corotated
+    */
+   public boolean isCorotated() {
+      return false;
+   }
+   
    public boolean equals (FemMaterial mat) {
       return true;
    }
@@ -148,7 +180,6 @@ public abstract class FemMaterial extends MaterialBase implements ConstitutiveMa
       mat.setViscoBehavior (myViscoBehavior);
       return mat;
    }
-
 }
-
-
+   
+   

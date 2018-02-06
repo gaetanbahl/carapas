@@ -61,33 +61,16 @@ public class StiffnessWarper3d {
 
       Matrix6d D = new Matrix6d(); // fill in ...
 
-      //      double dia = (1 - nu) / (1 - 2 * nu);
-      //      double off = nu / (1 - 2 * nu);
-      //      double E = lmat.getYoungsModulus();
-      //      double nu = lmat.getPoissonsRatio();
-      //
-      //      D.m00 = dia; D.m01 = off; D.m02 = off;
-      //      D.m10 = off; D.m11 = dia; D.m12 = off;
-      //      D.m20 = off; D.m21 = off; D.m22 = dia;
-      //      D.m33 = 0.5;
-      //      D.m44 = 0.5;
-      //      D.m55 = 0.5;
-      //      D.scale (E/(1+nu));
-
       SolidDeformation def = new SolidDeformation();
       def.setAveragePressure(0);
       def.setF(Matrix3d.IDENTITY);
       def.setR(Matrix3d.IDENTITY);
-      FemIntegrationCoordinate mcoord = new FemIntegrationCoordinate();
-      def.setMaterialCoordinate(mcoord);
 
       for (int k=0; k<ipnts.length; k++) {
 
          IntegrationPoint3d pt = ipnts[k];
          IntegrationData3d dt = idata[k];
-         
-         mcoord.set(e, pt);
-         
+                  
          double dv0 = dt.myDetJ0*pt.getWeight();
          if (dt.myScaling != 1) {
             dv0 *= dt.myScaling;
@@ -103,6 +86,57 @@ public class StiffnessWarper3d {
             for (int j=0; j<e.myNodes.length; j++) {
                FemUtilities.addMaterialStiffness (
                   K0[i][j], GNx0[i], D, GNx0[j], dv0);
+            }
+         }
+      }      
+      
+      // initial RHS
+      Vector3d tmp = new Vector3d();
+      for (int i=0; i<e.myNodes.length; i++) {
+         tmp.setZero();
+         for (int j=0; j<e.myNodes.length; j++) {
+            K0[i][j].mulAdd (tmp, e.myNodes[j].myRest, tmp);
+         }
+         f0[i].set (tmp);
+      }
+   }
+
+   public void computeInitialStiffness (FemElement3d e, double E, double nu) {
+
+      IntegrationPoint3d[] ipnts = e.getIntegrationPoints();
+      IntegrationData3d[] idata = e.getIntegrationData();
+
+      Matrix6d D = new Matrix6d(); // fill in ...
+      double dia = (1 - nu) / (1 - 2 * nu);
+      double off = nu / (1 - 2 * nu);
+
+      D.m00 = dia; D.m01 = off; D.m02 = off;
+      D.m10 = off; D.m11 = dia; D.m12 = off;
+      D.m20 = off; D.m21 = off; D.m22 = dia;
+      D.m33 = 0.5;
+      D.m44 = 0.5;
+      D.m55 = 0.5;
+      D.scale (E/(1+nu));
+
+
+      for (int i=0; i<e.myNodes.length; i++) {
+         for (int j=0; j<e.myNodes.length; j++) {
+            K0[i][j].setZero();
+         }
+         f0[i].setZero();
+      }
+
+      for (int k=0; k<ipnts.length; k++) {
+         IntegrationPoint3d pt = ipnts[k];
+         double dv = idata[k].myDetJ0*pt.getWeight();
+         Vector3d[] GNx0 = pt.updateShapeGradient(idata[k].myInvJ0);
+         if (idata[k].myScaling != 1) {
+            dv *= idata[k].myScaling;
+         }
+         for (int i=0; i<e.myNodes.length; i++) {
+            for (int j=0; j<e.myNodes.length; j++) {
+               FemUtilities.addMaterialStiffness (
+                  K0[i][j], GNx0[i], D, SymmetricMatrix3d.ZERO, GNx0[j], dv);
             }
          }
       }      
@@ -228,7 +262,8 @@ public class StiffnessWarper3d {
       }
    }
 
-   public void addNodeStiffness (FemNodeNeighbor nbr, int i, int j, boolean warping) {
+   public void addNodeStiffness (
+      FemNodeNeighbor nbr, int i, int j, boolean warping) {
       if (warping) {
          Matrix3d A = new Matrix3d();
          A.mulTransposeRight (K0[i][j], R);

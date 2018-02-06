@@ -89,7 +89,7 @@ public class LinearMaterial extends LinearMaterialBase {
 
    @Override
    public void addStress (
-      SymmetricMatrix3d sigma, SymmetricMatrix3d eps, Matrix3dBase R) {
+      SymmetricMatrix3d sigma, SymmetricMatrix3d Eps, Matrix3dBase R) {
 
       // save for the rotated case
       double m00 = sigma.m00;
@@ -107,8 +107,8 @@ public class LinearMaterial extends LinearMaterialBase {
       double lam = myE*myNu/((1+myNu)*(1-2*myNu));
       double mu = myE/(2*(1+myNu));
 
-      double lamtrEps = lam*eps.trace();
-      sigma.scaledAdd (2*mu, eps);
+      double lamtrEps = lam*Eps.trace();
+      sigma.scaledAdd (2*mu, Eps);
       sigma.m00 += lamtrEps;
       sigma.m11 += lamtrEps;
       sigma.m22 += lamtrEps;
@@ -128,7 +128,6 @@ public class LinearMaterial extends LinearMaterialBase {
          sigma.m20 += m02;
          sigma.m21 += m12;
       }
-      
    }
 
    public void computeStress (
@@ -152,8 +151,7 @@ public class LinearMaterial extends LinearMaterialBase {
       // rotate stress back to original frame
       if (isCorotated()) {
          sigma.mulLeftAndTransposeRight (R);
-      }
-      
+      }  
    }
 
    public void computeTangent (

@@ -45,6 +45,7 @@ import artisynth.core.util.ObjectToken;
 import artisynth.core.util.ScanToken;
 import artisynth.core.util.StringToken;
 import maspack.geometry.BVFeatureQuery;
+import maspack.geometry.DistanceGrid;
 import maspack.geometry.Face;
 import maspack.geometry.HalfEdge;
 import maspack.geometry.MeshBase;
@@ -394,7 +395,7 @@ public class MFreeMeshComp extends FemMeshBase implements CollidableBody, PointA
             elems = new HashSet<MFreeElement3d>(node.getMFreeElementDependencies());
          }
          else {
-            elems.retainAll (node.getElementDependencies());
+            elems.retainAll (node.getMFreeElementDependencies());
          }
       }
       if (elems.size() != 1) {
@@ -417,6 +418,8 @@ public class MFreeMeshComp extends FemMeshBase implements CollidableBody, PointA
       return (MFreeElement3d)elems.toArray()[0];
    }
 
+   
+   
    public static MFreeMeshComp createEmbedded(MFreeMeshComp surf, MeshBase mesh) {
       if (surf == null || surf.myModel == null) {
          throw new IllegalArgumentException("Cannot determine proper FEM");
@@ -1147,6 +1150,16 @@ public class MFreeMeshComp extends FemMeshBase implements CollidableBody, PointA
    }
 
    @Override
+   public boolean hasDistanceGrid() {
+      return false;
+   }
+   
+   @Override   
+   public DistanceGrid getDistanceGrid() {
+      return null;
+   }
+
+   @Override
    public Collidability getCollidable () {
       return myCollidability;
    }
@@ -1280,16 +1293,6 @@ public class MFreeMeshComp extends FemMeshBase implements CollidableBody, PointA
       }
       ax.setFromNodes (nodeWeights.keySet(), weightVec);
       return ax;
-   }
-
-   @Override
-   public boolean hasDistanceGrid() {
-      return false;
-   }
-
-   @Override
-   public SignedDistanceGrid getDistanceGrid() {
-      return null;
    }
 
 }

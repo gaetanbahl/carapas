@@ -18,8 +18,8 @@ import java.util.Map;
 
 import artisynth.core.materials.BulkIncompressibleBehavior;
 import artisynth.core.materials.BulkIncompressibleBehavior.BulkPotential;
-import artisynth.core.materials.ConstitutiveMaterial;
 import artisynth.core.materials.FemMaterial;
+import artisynth.core.materials.IncompressibleBehavior;
 import artisynth.core.materials.IncompressibleMaterial;
 import artisynth.core.materials.LinearMaterial;
 import artisynth.core.materials.SolidDeformation;
@@ -302,6 +302,7 @@ public class FemModel3d extends FemModel
       return myElementWidgetSizeMode;
    }
 
+   @Override
    public void getCollidables(List<Collidable> list, int level) {
       list.add(this);
       // traverse forward for additional collidables (e.g. FemMeshComp)
@@ -334,6 +335,8 @@ public class FemModel3d extends FemModel
 
    protected void setDefaultValues() {
       super.setDefaultValues();
+      // myNu = DEFAULT_NU;
+      // myE = DEFAULT_E;
       myDensity = DEFAULT_DENSITY;
       myStiffnessDamping = DEFAULT_STIFFNESS_DAMPING;
       myMassDamping = DEFAULT_MASS_DAMPING;
@@ -365,10 +368,9 @@ public class FemModel3d extends FemModel
       myFrame = new FemModelFrame ("frame");
       myNodes = new PointList<FemNode3d>(FemNode3d.class, "nodes", "n");
       myElements = new FemElement3dList("elements", "e");
+      myAdditionalMaterialsList = new AuxMaterialBundleList("materials", "mat");
       myMeshList =  new MeshComponentList<FemMeshComp>(
     	         FemMeshComp.class, "meshes", "msh");
-      myAdditionalMaterialsList =
-         new AuxMaterialBundleList("materials", "mat");
       addFixed(myFrame);
       addFixed(myNodes);
       addFixed(myElements);
@@ -488,47 +490,12 @@ public class FemModel3d extends FemModel
       return myElements.get(idx);
    }
 
-   public void addElement(FemElement3d e) {
-	      myElements.add(e);
-	      if (myAutoGenerateSurface) {
-	         mySurfaceMeshValid = false;
-	         myInternalSurfaceMeshComp = null;
-	      }
-	   }
-
-	   public void addNumberedElement(FemElement3d e, int elemId) {
-	      myElements.addNumbered(e, elemId);
-	      if (myAutoGenerateSurface) {
-	         mySurfaceMeshValid = false;
-	         myInternalSurfaceMeshComp = null;
-	      }
-	   }
-
-	   public boolean removeElement(FemElement3d e) {
-	      boolean success = myElements.remove(e);
-	      if (myAutoGenerateSurface) {
-	         mySurfaceMeshValid = false;
-	         myInternalSurfaceMeshComp = null;
-	      }
-	      return success;
-	   }
-
-	   public void clearElements() {
-	      myElements.removeAll();
-	      for (int i = 0; i < myNodes.size(); i++) {
-	         myNodes.get(i).clearMass();
-	      }
-	      if (myAutoGenerateSurface) {
-	         mySurfaceMeshValid = false;
-	         myInternalSurfaceMeshComp = null;
-	      }
-	   }
-
    public LinkedList<FemNodeNeighbor> getNodeNeighbors(FemNode3d node) {
       return node.getNodeNeighbors();
    }
 
-   private LinkedList<FemNodeNeighbor> myEmptyNeighborList = new LinkedList<FemNodeNeighbor>();
+   private LinkedList<FemNodeNeighbor> myEmptyNeighborList =
+   new LinkedList<FemNodeNeighbor>();
 
    /**
     * Gets the indirect neighbors for a node. This is used when computing
@@ -550,6 +517,42 @@ public class FemModel3d extends FemModel
       return node.getElementDependencies();
    }
 
+   public void addElement(FemElement3d e) {
+      myElements.add(e);
+      if (myAutoGenerateSurface) {
+         mySurfaceMeshValid = false;
+         myInternalSurfaceMeshComp = null;
+      }
+   }
+
+   public void addNumberedElement(FemElement3d e, int elemId) {
+      myElements.addNumbered(e, elemId);
+      if (myAutoGenerateSurface) {
+         mySurfaceMeshValid = false;
+         myInternalSurfaceMeshComp = null;
+      }
+   }
+
+   public boolean removeElement(FemElement3d e) {
+      boolean success = myElements.remove(e);
+      if (myAutoGenerateSurface) {
+         mySurfaceMeshValid = false;
+         myInternalSurfaceMeshComp = null;
+      }
+      return success;
+   }
+
+   public void clearElements() {
+      myElements.removeAll();
+      for (int i = 0; i < myNodes.size(); i++) {
+         myNodes.get(i).clearMass();
+      }
+      if (myAutoGenerateSurface) {
+         mySurfaceMeshValid = false;
+         myInternalSurfaceMeshComp = null;
+      }
+   }
+   
    /**
     * Adds a marker to this FemModel. If the marker has not already been
     * set (i.e., if no nodes or elements have been assigned to it), then
@@ -703,14 +706,12 @@ public class FemModel3d extends FemModel
    }
 
    protected void computePressuresAndRinv(
-      FemElement3d e, FemMaterial imat, double scale) {
+      FemElement3d e, BulkIncompressibleBehavior imat, double scale) {
 
       int npvals = e.numPressureVals();
 
       myRinv.setSize(npvals, npvals);
       myPressures.setSize(npvals);
-
-      BulkIncompressibleBehavior ib = imat.getIncompressibleBehavior();
 
       double[] pbuf = myPressures.getBuffer();
       double restVol = e.getRestVolume();
@@ -720,7 +721,7 @@ public class FemModel3d extends FemModel
          IntegrationPoint3d[] ipnts = e.getIntegrationPoints();
          IntegrationData3d[] idata = e.getIntegrationData();
 
-         if (ib.getBulkPotential() != BulkPotential.QUADRATIC) {
+         if (imat.getBulkPotential() != BulkPotential.QUADRATIC) {
             myRinv.setZero();
          }
          for (int k = 0; k < ipnts.length; k++) {
@@ -731,10 +732,10 @@ public class FemModel3d extends FemModel
             double dV = detJ0 * pt.getWeight();
             double[] H = pt.getPressureWeights().getBuffer();
             for (int i = 0; i < npvals; i++) {
-               pbuf[i] += H[i] * ib.getEffectivePressure(detJ) * dV;
+               pbuf[i] += H[i] * imat.getEffectivePressure(detJ) * dV;
             }
-            if (ib.getBulkPotential() != BulkPotential.QUADRATIC) {
-               double mod = ib.getEffectiveModulus(detJ);
+            if (imat.getBulkPotential() != BulkPotential.QUADRATIC) {
+               double mod = imat.getEffectiveModulus(detJ);
                for (int i = 0; i < npvals; i++) {
                   for (int j = 0; j < npvals; j++) {
                      myRinv.add(i, j, H[i] * H[j] * mod * dV);
@@ -745,9 +746,9 @@ public class FemModel3d extends FemModel
          Matrix W = e.getPressureWeightMatrix();
          W.mul(myPressures, myPressures);
          myPressures.scale(1 / restVol);
-         if (ib.getBulkPotential() == BulkPotential.QUADRATIC) {
+         if (imat.getBulkPotential() == BulkPotential.QUADRATIC) {
             myRinv.set(W);
-            myRinv.scale(scale*ib.getBulkModulus() / restVol);
+            myRinv.scale(scale*imat.getBulkModulus() / restVol);
          }
          else {
             // optimize later
@@ -759,9 +760,9 @@ public class FemModel3d extends FemModel
       }
       else {
          double Jpartial = e.myVolumes[0] / e.myRestVolumes[0];
-         pbuf[0] = (ib.getEffectivePressure(Jpartial) +
+         pbuf[0] = (imat.getEffectivePressure(Jpartial) +
                     0 * e.myLagrangePressures[0]);
-         myRinv.set(0, 0, scale*ib.getEffectiveModulus(Jpartial) / restVol);
+         myRinv.set(0, 0, scale*imat.getEffectiveModulus(Jpartial) / restVol);
       }
    }
 
@@ -840,7 +841,7 @@ public class FemModel3d extends FemModel
          imat = (IncompressibleMaterial)mat;
          if (softIncomp == IncompMethod.ELEMENT) {
 
-            computePressuresAndRinv (e, imat, vebTangentScale);
+            computePressuresAndRinv (e, imat.getIncompressibleBehavior(), vebTangentScale);
             if (D != null) {
                constraints = e.getIncompressConstraints();
                for (int i = 0; i < e.myNodes.length; i++) {
@@ -886,7 +887,8 @@ public class FemModel3d extends FemModel
       if (myComputeNodalStress || myComputeNodalStrain) {
          // nodalExtrapMat = e.getNodalExtrapolationMatrix();
          if (linMat != null) {
-            linMat.addStress(wpnt.sigma, myEps, corotated ? e.myWarper.getRotation() : null);
+            linMat.addStress(wpnt.sigma,
+               myEps, corotated ? e.myWarper.R : null);
             for (int i = 0; i < nodes.length; i++) {
                FemNode3d nodei = nodes[i];
                if (myComputeNodalStress) {
@@ -983,13 +985,13 @@ public class FemModel3d extends FemModel
             def.setAveragePressure(0);
             if (e.numAuxiliaryMaterials() > 0) {
                for (AuxiliaryMaterial aux : e.myAuxMaterials) {
-                  aux.computeStress(sigmaAux, def, Q, mat);
+                  aux.computeStress(sigmaAux, def, pt, dt, mat);
                   if (scaling != 1) {
                      sigmaAux.scale(scaling);
                   }
                   pt.sigma.add(sigmaAux);
                   if (D != null) {
-                     aux.computeTangent(DAux, sigmaAux, def, Q, mat);
+                     aux.computeTangent(DAux, sigmaAux, def, pt, dt, mat);
                      if (scaling != 1) {
                         DAux.scale(scaling);
                      }
@@ -1340,7 +1342,7 @@ public class FemModel3d extends FemModel
       double[] pbuf = myPressures.getBuffer();
       if (mat.isIncompressible() && softIncomp != IncompMethod.NODAL) {
          if (softIncomp == IncompMethod.ELEMENT) {
-            computePressuresAndRinv (e, mat, vebTangentScale);
+            computePressuresAndRinv (e, ib, vebTangentScale);
             if (D != null) {
                constraints = e.getIncompressConstraints();
                for (int i = 0; i < e.myNodes.length; i++) {
@@ -1507,7 +1509,7 @@ public class FemModel3d extends FemModel
          if (e.numAuxiliaryMaterials() > 0) {
             for (AuxiliaryMaterial aux : e.myAuxMaterials) {
 
-               aux.computeStress(sigmaTmp, def, Q, mat);
+               aux.computeStress(sigmaTmp, def, pt, dt, mat);
                if (scaling != 1) {
                   sigmaTmp.scale(scaling);
                }
@@ -1521,7 +1523,7 @@ public class FemModel3d extends FemModel
                   nonlinearStress.add(sigmaTmp);
                }
                if (D != null) {
-                  aux.computeTangent(tangentTmp, sigmaTmp, def, Q, mat);
+                  aux.computeTangent(tangentTmp, sigmaTmp, def, pt, dt, mat);
                   if (scaling != 1) {
                      tangentTmp.scale(scaling);
                   }
@@ -1832,9 +1834,7 @@ public class FemModel3d extends FemModel
       myNodalRestVolumesValidP = true;
    }
 
-   public void computeNodalIncompressibility(FemMaterial mat, Matrix6d D) {
-      
-      BulkIncompressibleBehavior ib = mat.getIncompressibleBehavior();
+   public void computeNodalIncompressibility(BulkIncompressibleBehavior ib, Matrix6d D) {
       
       for (FemNode3d n : myNodes) {
          if (volumeIsControllable(n)) {
@@ -1940,7 +1940,7 @@ public class FemModel3d extends FemModel
 
       // incompressibility
       if ( (softIncomp == IncompMethod.NODAL) && myMaterial != null && myMaterial.isIncompressible()) {
-         computeNodalIncompressibility(myMaterial, D);
+         computeNodalIncompressibility(myMaterial.getIncompressibleBehavior(), D);
       }
 
       if (checkTangentStability && minE != null) {
@@ -2180,7 +2180,7 @@ public class FemModel3d extends FemModel
       return M;
    }
 
-   private void addNodeNeighborBlock(
+   protected void addNodeNeighborBlock(
       SparseNumberedBlockMatrix S, FemNodeNeighbor nbr, int bi) {
 
       int bj = nbr.myNode.getSolveIndex();

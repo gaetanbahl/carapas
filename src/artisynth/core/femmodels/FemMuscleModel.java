@@ -405,7 +405,7 @@ public class FemMuscleModel extends FemModel3d
    //   public boolean isCorotated() {
    //      return myMuscleMat == null || myMuscleMat.isCorotated();
    //   }
-   
+
    public void setMuscleMaterial(MuscleMaterial mat) {
       if (mat == null) {
          throw new IllegalArgumentException(

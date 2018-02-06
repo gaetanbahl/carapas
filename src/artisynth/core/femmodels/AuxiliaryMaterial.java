@@ -6,12 +6,11 @@
  */
 package artisynth.core.femmodels;
 
-import artisynth.core.materials.FemMaterial;
-import artisynth.core.materials.SolidDeformation;
-import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.util.Clonable;
+import artisynth.core.materials.FemMaterial;
+import artisynth.core.materials.SolidDeformation;
 
 public interface AuxiliaryMaterial extends Clonable {
 
@@ -20,39 +19,28 @@ public interface AuxiliaryMaterial extends Clonable {
       SolidDeformation def, IntegrationPoint3d pt,
       IntegrationData3d dt, FemMaterial baseMat);
 
-   public abstract void computeStress (
-      SymmetricMatrix3d sigma,
-      SolidDeformation def, Matrix3d Q, FemMaterial baseMat);
-
-//   public abstract void addStress(
-//      SymmetricMatrix3d sigma, IntegrationPoint3d pt, IntegrationData3d dt,
-//      FemMaterial baseMat);
-
    public abstract void computeTangent(
       Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def,
-      IntegrationPoint3d pt,IntegrationData3d dt, FemMaterial baseMat);
-   
-   public abstract void computeTangent(
-      Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def,
-      Matrix3d Q, FemMaterial baseMat);
-
-//   public abstract void addTangent(
-//      Matrix6d D, SymmetricMatrix3d stress, IntegrationPoint3d pt,
-//      IntegrationData3d dt, FemMaterial baseMat);
-
-//   // prevent duplicating stress computation
-//   public void computeStressAndTangent(SymmetricMatrix3d sigma, Matrix6d D,
-//      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat);
-
-//   public void addStressAndTangent(SymmetricMatrix3d sigma, Matrix6d D,
-//      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat);
+      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat);
 
    public abstract boolean hasSymmetricTangent();
 
    public abstract boolean isInvertible();
 
+   /**
+    * Linear stress/stiffness response to deformation, allows tangent
+    * to be pre-computed and stored.
+    * 
+    * @return true if linear response
+    */
    public abstract boolean isLinear();
    
+   /**
+    * Deformation is computed by first removing a rotation component 
+    * (either explicit or computed from strain)
+    * 
+    * @return true if material is corotated
+    */
    public abstract boolean isCorotated();
 
 }

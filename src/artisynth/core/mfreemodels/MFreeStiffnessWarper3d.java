@@ -70,7 +70,7 @@ public class MFreeStiffnessWarper3d {
       def.setR(Matrix3d.IDENTITY);
       MFreeIntegrationCoordinate mcoord = new MFreeIntegrationCoordinate();
       def.setMaterialCoordinate(mcoord);
-      
+
       Matrix6d D = new Matrix6d(); // fill in ...
       
       for (int k=0; k<ipnts.length; k++) {
@@ -92,7 +92,7 @@ public class MFreeStiffnessWarper3d {
                FemUtilities.addMaterialStiffness (
                   KA, GNx[i], D, SymmetricMatrix3d.ZERO, GNx[j], dv);
                K0[i][j].add(KA);
-
+               
             }
          }
       }      
@@ -119,7 +119,7 @@ public class MFreeStiffnessWarper3d {
    public RotationMatrix3d getRotation() {
       return R;
    }
-   
+
    public void computeRotation (Matrix3d F, SymmetricMatrix3d P) {
       if (R == null) {
          R = new RotationMatrix3d();
@@ -158,7 +158,7 @@ public class MFreeStiffnessWarper3d {
 //            System.out.println(pntStr + ".nbr = [" + (myElem.myNodes[i].getNumber()+1) + "," +(nbr.getNode().getNumber()+1) + "];");
             
             nbr.addStiffness (K0[i][j]);
-
+            
          }
       // }
    }

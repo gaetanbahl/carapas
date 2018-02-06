@@ -11,12 +11,12 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Deque;
 
-import artisynth.core.materials.BulkIncompressibleBehavior;
-import artisynth.core.materials.ConstitutiveMaterial;
+import artisynth.core.femmodels.AuxiliaryMaterial;
+import artisynth.core.femmodels.IntegrationData3d;
+import artisynth.core.femmodels.IntegrationPoint3d;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.MaterialBase;
 import artisynth.core.materials.SolidDeformation;
-import artisynth.core.materials.ViscoelasticBehavior;
 import artisynth.core.modelbase.ComponentUtils;
 import artisynth.core.modelbase.CompositeComponent;
 import artisynth.core.modelbase.DynamicActivityChangeEvent;
@@ -45,7 +45,7 @@ import maspack.util.ReaderTokenizer;
  */
 public class MFreeAuxMaterialElementDesc
 extends RenderableComponentBase
-   implements ConstitutiveMaterial, ScalableUnits, TransformableGeometry {
+implements AuxiliaryMaterial, ScalableUnits, TransformableGeometry {
 
    MFreeElement3d myElement;
    private FemMaterial myMat;
@@ -134,7 +134,7 @@ extends RenderableComponentBase
       FemMaterial mat = getEffectiveMaterial();
       return mat == null || mat.isInvertible();
    }
-
+   
    @Override
    public boolean isLinear() {
       FemMaterial mat = getEffectiveMaterial();
@@ -163,165 +163,60 @@ extends RenderableComponentBase
       if (myElement != null)
          myElement.updateBounds(pmin, pmax);
    }
-
-//   public void addTangent (
-//      Matrix6d D, SymmetricMatrix3d stress, IntegrationPoint3d pt, 
-//      IntegrationData3d dt, FemMaterial baseMat) {
-//
-//      FemMaterial mat = getEffectiveMaterial();
-//      if (mat != null) {
-//         double frac = myFrac;
-//         if (myFracs != null) {
-//            int idx = myElement.getIntegrationPointIndex(pt);
-//            frac = myFracs[idx];
-//         }
-//
-////         if (mat instanceof LinearMaterial) {
-////            LinearMaterial lmat = (LinearMaterial)mat;
-////            Matrix3d R = null;
-////            if (lmat.isCorotated()) {
-////               R = myElement.myWarper.R;
-////            }
-////            addLinearTangent(frac, D, pt, R);
-////         } else {
-//         
-//         if (frac > 0) {
-//            mat.computeTangent(myD, stress, pt, dt, baseMat);
-//            D.scaledAdd(frac, myD);
-//         }
-////         }
-//      }
-//   }
-
-   //   private void updateElementWarping() {
-   //      
-   //         if (myWarpingStress == null) {
-   //            myWarpingStress = new SymmetricMatrix3d();
-   //            if (myElement.myWarper == null) {
-   //               myElement.myWarper = new StiffnessWarper3d (myElement.numNodes());
-   //            }
-   //         }
-   //      
-   //         // handle linear materials differently
-   //         LinearMaterial linMat = (LinearMaterial)getEffectiveMaterial();
-   //         boolean corotated = linMat.isCorotated();
-   //         IntegrationPoint3d wpnt = myElement.getWarpingPoint();
-   //         IntegrationData3d data = myElement.getWarpingData();
-   //         wpnt.computeJacobianAndGradient (myElement.myNodes, data.myInvJ0);
-   //         wpnt.sigma.setZero();
-   //         if (corotated) {
-   //            myElement.computeWarping (wpnt.F, myWarpingStress);
-   //         }
-   //         else {
-   //            myWarpingStress.setSymmetric (wpnt.F);
-   //         }
-   //         // compute Cauchy strain
-   //         myWarpingStress.m00 -= 1;
-   //         myWarpingStress.m11 -= 1;
-   //         myWarpingStress.m22 -= 1;
-   //         
-   //   }
-
-   //   public void addLinearTangent(double scale, Matrix6d D, IntegrationPoint3d pt, Matrix3dBase R) {
-   //      LinearMaterial lmat = (LinearMaterial)getEffectiveMaterial();
-   //      lmat.addAuxiliaryTangent(scale, D, R);
-   //   }
-   //
-   //   public void addLinearStress(double scale, SymmetricMatrix3d sigma,
-   //      IntegrationPoint3d pt, Matrix3dBase R) {
-   //      LinearMaterial lmat = (LinearMaterial)getEffectiveMaterial();
-   //      lmat.addAuxiliaryStress(scale, sigma, pt, R);
-   //   }
-   
-   //   public void addLinearStiffness() {
-   //      
-   //      FemMaterial mat = getEffectiveMaterial();
-   //      if (! (mat instanceof LinearMaterial)) {
-   //         return;
-   //      }
-   //      
-   //      FemNode3d[] nodes = myElement.myNodes;
-   //      LinearMaterial lmat = (LinearMaterial)mat;
-   //      
-   //      for (int i = 0; i < nodes.length; i++) {
-   //         int bi = nodes[i].getSolveIndex();
-   //         if (bi != -1) {
-   //            FemNode3d n = nodes[i];     
-   //               for (int j=0; j < nodes.length; j++) {
-   //                  myElement.addNodeStiffness (i, j, lmat.isCorotated());
-   //               }
-   //            myElement.addNodeForce (n.myInternalForce, i, lmat.isCorotated());
-   //         }
-   //      }
-   //   }
-
-//   public void addStress (
-//      SymmetricMatrix3d sigma, IntegrationPoint3d pt, 
-//      IntegrationData3d dt, FemMaterial baseMat) {
-//
-//      FemMaterial mat = getEffectiveMaterial();
-//      if (mat != null) {
-//         double frac = myFrac;
-//         if (myFracs != null) {
-//            int idx = myElement.getIntegrationPointIndex(pt);
-//            frac = myFracs[idx];
-//         }
-//
-////         if (mat instanceof LinearMaterial) {
-////            LinearMaterial lmat = (LinearMaterial)mat;
-////            Matrix3d R = null;
-////            if (lmat.isCorotated()) {
-////               R = myElement.myWarper.R;
-////            }
-////            addLinearStress(frac, sigma, pt, R);
-////         } else {
-//       
-//         if (frac > 0) {
-//            mat.computeStress(myStress, pt, dt, baseMat);
-//            sigma.scaledAdd(frac, myStress);
-//         }
-////         }
-//      }
-//   }
    
    @Override
-   public void computeStress(
-      SymmetricMatrix3d sigma, SolidDeformation def, Matrix3d Q,
-      FemMaterial baseMat) {
+   public void computeStress (
+      SymmetricMatrix3d sigma, SolidDeformation def,
+      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
       
       FemMaterial mat = getEffectiveMaterial();
       if (mat != null) {
          double frac = myFrac;
          if (myFracs != null) {
-            int idx = def.getMaterialCoordinate().getCoordinateIndex();
+            int idx = myElement.getIntegrationPointIndex(pt);
             frac = myFracs[idx];
          }
+
+//         if (mat instanceof LinearMaterial) {
+//            LinearMaterial lmat = (LinearMaterial)mat;
+//            Matrix3d R = null;
+//            if (lmat.isCorotated()) {
+//               R = myElement.myWarper.R;
+//            }
+//            addLinearStress(frac, sigma, pt, R);
+//         } else {
          if (frac > 0) {
+            Matrix3d Q = dt.getFrame();
+            if (Q == null) {
+               Q = Matrix3d.IDENTITY;
+            }
             mat.computeStress(sigma, def, Q, baseMat);
             sigma.scale(frac);
          } else {
             sigma.setZero();
          }
-      } else {
-         sigma.setZero();
+//         }
       }
       
    }
-   
+
    @Override
-   public void computeTangent(
-      Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def, Matrix3d Q,
-      FemMaterial baseMat) {
-    
+   public void computeTangent(Matrix6d D, SymmetricMatrix3d stress,
+      SolidDeformation def, IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
+      
       FemMaterial mat = getEffectiveMaterial();
       if (mat != null) {
          double frac = myFrac;
          if (myFracs != null) {
-            int idx = def.getMaterialCoordinate().getCoordinateIndex();
+            int idx = myElement.getIntegrationPointIndex(pt);
             frac = myFracs[idx];
          }
 
          if (frac > 0) {
+            Matrix3d Q = dt.getFrame();
+            if (Q == null) {
+               Q = Matrix3d.IDENTITY;
+            }           
             mat.computeTangent(D, stress, def, Q, baseMat);
             D.scale(frac);
          } else {
@@ -331,8 +226,8 @@ extends RenderableComponentBase
          D.setZero();
       }
       
-   }
-   
+   }   
+
    public boolean hasSymmetricTangent() {
       FemMaterial mat = getEffectiveMaterial();
       if (mat != null) {
@@ -464,43 +359,7 @@ extends RenderableComponentBase
    }
 
    @Override
-   public boolean isIncompressible() {
-      FemMaterial mat = getEffectiveMaterial();
-      if (mat == null) {
-         return false;
-      }
-      return mat.isIncompressible();
-   }
-
-   @Override
-   public BulkIncompressibleBehavior getIncompressibleBehavior() {
-      FemMaterial mat = getEffectiveMaterial();
-      if (mat == null) {
-         return null;
-      }
-      return mat.getIncompressibleBehavior();
-   }
-   
-   @Override
-   public boolean isViscoelastic() {
-      FemMaterial mat = getEffectiveMaterial();
-      if (mat == null) {
-         return false;
-      }
-      return mat.isViscoelastic();
-   }
-
-   @Override
-   public ViscoelasticBehavior getViscoBehavior() {
-      FemMaterial mat = getEffectiveMaterial();
-      if (mat == null) {
-         return null;
-      }
-      return mat.getViscoBehavior();
-   }
-
-   @Override
-   public ConstitutiveMaterial clone() {
+   public MFreeAuxMaterialElementDesc clone() {
       MFreeAuxMaterialElementDesc copy;
       try {
          copy = (MFreeAuxMaterialElementDesc)super.clone();

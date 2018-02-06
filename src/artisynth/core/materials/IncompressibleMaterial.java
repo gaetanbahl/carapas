@@ -16,6 +16,11 @@ public class IncompressibleMaterial extends FemMaterial {
    public static PropertyList myProps =
       new PropertyList(IncompressibleMaterial.class, FemMaterial.class);
 
+   public enum BulkPotential {
+      QUADRATIC,
+      LOGARITHMIC
+   };
+   
    static {
       myProps.addInheritable (
          "bulkModulus:Inherited", "Bulk modulus", 
@@ -60,16 +65,37 @@ public class IncompressibleMaterial extends FemMaterial {
       return myKappaMode;
    }
 
-   public synchronized void setBulkPotential (BulkPotential potential) {
+   public synchronized void setBulkPotential(BulkIncompressibleBehavior.BulkPotential potential) {
       myIncompBehaviour.setBulkPotential(potential);
       myBulkPotentialMode =
          PropertyUtils.propagateValue (
             this, "bulkPotential", potential, myBulkPotentialMode);
       notifyHostOfPropertyChange();
    }
+   
+   public synchronized void setBulkPotential (BulkPotential potential) {
+      switch (potential) {
+         case LOGARITHMIC:
+            setBulkPotential(BulkIncompressibleBehavior.BulkPotential.LOGARITHMIC);
+            break;
+         case QUADRATIC:
+            setBulkPotential(BulkIncompressibleBehavior.BulkPotential.QUADRATIC);
+         default:
+            break;
+         
+      }
+   }
 
    public BulkPotential getBulkPotential() {
-      return myIncompBehaviour.getBulkPotential();
+      BulkIncompressibleBehavior.BulkPotential oldPotential = myIncompBehaviour.getBulkPotential();
+      switch (oldPotential) {
+         case LOGARITHMIC:
+            return BulkPotential.LOGARITHMIC;
+         case QUADRATIC:
+            return BulkPotential.QUADRATIC;
+         default:
+      }
+      return null;
    }
 
    public void setBulkPotentialMode (PropertyMode mode) {

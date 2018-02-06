@@ -42,6 +42,7 @@ import maspack.geometry.MeshFactory;
 import maspack.geometry.OBB;
 import maspack.geometry.PolygonalMesh;
 import maspack.geometry.Vertex3d;
+import maspack.geometry.MeshFactory.FaceType;
 import maspack.graph.DirectedEdge;
 import maspack.graph.DirectedGraph;
 import maspack.graph.Vertex;
@@ -68,20 +69,6 @@ public class MFreeFactory {
    
    public static RadialWeightFunctionType DEFAULT_RADIAL_KERNEL_TYPE = 
       RadialWeightFunctionType.SPLINE;
-   
-   //   public enum MFreeShapeFunctionType {
-   //      MLS, GMLS
-   //   }
-   //   
-   //   public static MFreeShapeFunction create(MFreeShapeFunctionType type) {
-   //      switch(type) {
-   //         case MLS:
-   //            return new MLSShapeFunction();
-   //         case GMLS:
-   //            return new GMLSShapeFunction(3, 1, 1, 1);
-   //      }
-   //      return null;
-   //   }
 
    public static MFreeModel3d createBeam(MFreeModel3d model,
       double[] size, int res[]) {
@@ -130,9 +117,10 @@ public class MFreeFactory {
 
       // surface mesh
       PolygonalMesh surface =
-         MeshFactory.createQuadBox(
-            size[0], size[1], size[2], res[0], res[1], res[2], true);
-      surface.triangulate();
+         MeshFactory.createBox(
+            size[0], size[1], size[2], Point3d.ZERO, 
+            res[0], res[1], res[2], 
+            true, FaceType.TRI);
 
       // offset ipnts from border
       dx = size[0] / ipntRes[0];
@@ -536,8 +524,6 @@ public class MFreeFactory {
       }
       Vector3d widths = new Vector3d(max);
       widths.sub(min);
-      
-      RigidTransform3d trans = new RigidTransform3d(min, AxisAngle.IDENTITY);
       
       IndexedPoint3d[] inodes = new IndexedPoint3d[nodes.length];
       for (int i=0; i<nodes.length; ++i) {

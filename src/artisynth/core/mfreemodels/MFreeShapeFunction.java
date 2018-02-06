@@ -10,13 +10,6 @@ import maspack.matrix.Point3d;
 import maspack.matrix.Vector3d;
 
 public interface MFreeShapeFunction {
-
-   //   
-   //   public abstract double eval(MFreeNode3d node, MFreeNode3d[] nodes,
-   //      Point3d pnt);
-   //   
-   //   public abstract double evalDerivative(MFreeNode3d node, MFreeNode3d[] nodes, 
-   //      Point3d in, int[] derivatives);
    
    /**
     * Current coordinate to be used for evaluation
