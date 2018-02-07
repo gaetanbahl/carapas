@@ -21,7 +21,7 @@ public interface AuxiliaryMaterial extends Clonable {
 
    public abstract void computeTangent(
       Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def,
-      IntegrationPoint3d pt,IntegrationData3d dt, FemMaterial baseMat);
+      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat);
 
    public abstract boolean hasSymmetricTangent();
 

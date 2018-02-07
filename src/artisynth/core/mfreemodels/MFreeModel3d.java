@@ -21,8 +21,8 @@ import artisynth.core.femmodels.IntegrationData3d;
 import artisynth.core.femmodels.IntegrationPoint3d;
 import artisynth.core.gui.ControlPanel;
 import artisynth.core.gui.FemControlPanel;
+import artisynth.core.materials.BulkIncompressibleBehavior;
 import artisynth.core.materials.FemMaterial;
-import artisynth.core.materials.IncompressibleMaterial;
 import artisynth.core.materials.IncompressibleMaterial.BulkPotential;
 import artisynth.core.materials.LinearMaterial;
 import artisynth.core.materials.SolidDeformation;
@@ -498,7 +498,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    }
 
    private void computePressuresAndRinv(
-      MFreeElement3d e, IncompressibleMaterial imat, double scale) {
+      MFreeElement3d e, BulkIncompressibleBehavior imat, double scale) {
 
       int npvals = e.numPressureVals();
 
@@ -713,7 +713,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       myNodalRestVolumesValidP = true;
    }
 
-   private void updateNodalPressures(IncompressibleMaterial imat) {
+   private void updateNodalPressures(BulkIncompressibleBehavior imat) {
       for (MFreeNode3d n : myNodes) {
          n.myVolume = 0;
       }
@@ -788,7 +788,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
             updateNodalRestVolumes();
          }
          setNodalIncompConstraintsAllocated(true);
-         updateNodalPressures((IncompressibleMaterial)myMaterial);
+         updateNodalPressures(myMaterial.getIncompressibleBehavior());
          for (FemNode3d n : myNodes) {
             for (FemNodeNeighbor nbr : getNodeNeighbors(n)) {
                nbr.getDivBlk().setZero();
@@ -823,7 +823,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       //         // computeElementIncompressibility(D);
       //      } else 
       if (softIncomp == IncompMethod.NODAL && myMaterial != null && myMaterial.isIncompressible()) {
-         computeNodalIncompressibility(myMaterial, D);
+         computeNodalIncompressibility(myMaterial.getIncompressibleBehavior(), D);
       }
 
       if (checkTangentStability && minE != null) {
@@ -890,7 +890,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       IncompMethod softIncomp = getSoftIncompMethod();
 
       if (softIncomp == IncompMethod.NODAL) {
-         updateNodalPressures((IncompressibleMaterial)myMaterial);
+         updateNodalPressures(myMaterial.getIncompressibleBehavior());
       }
 
       // compute new forces as well as stiffness matrix if warping is enabled
@@ -908,11 +908,11 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
    }
 
    private boolean softNodalIncompressAllowed() {
-      return (myMaterial instanceof IncompressibleMaterial);
+      return (myMaterial.isIncompressible());
    }
 
    private boolean hardNodalIncompressAllowed() {
-      return (myMaterial instanceof IncompressibleMaterial);
+      return (myMaterial.isIncompressible());
    }
 
    public IncompMethod getHardIncompMethod() {
@@ -1030,11 +1030,9 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       }
    }
 
-   private void computeNodalIncompressibility(FemMaterial mat, Matrix6d D) {
+   private void computeNodalIncompressibility(BulkIncompressibleBehavior imat, Matrix6d D) {
 
-      if (mat.isIncompressible()) {
-         IncompressibleMaterial imat = (IncompressibleMaterial)mat;
-
+      if (imat != null) {
          for (MFreeNode3d n : myNodes) {
             if (volumeIsControllable(n)) {
                double restVol = n.myRestVolume;
@@ -1073,13 +1071,13 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       for (MFreeElement3d e : myElements) {
          FemMaterial mat = getElementMaterial(e);
          if (mat.isIncompressible()) {
-            computeElementIncompressibility(e, (IncompressibleMaterial)mat, D);
+            computeElementIncompressibility(e, mat.getIncompressibleBehavior(), D);
          }
       }
    }
 
    private void computeElementIncompressibility(
-      MFreeElement3d e, IncompressibleMaterial imat, Matrix6d D) {
+      MFreeElement3d e, BulkIncompressibleBehavior imat, Matrix6d D) {
 
       MFreeIntegrationPoint3d[] ipnts = e.getIntegrationPoints();
       IntegrationData3d[] idata = e.getIntegrationData();
@@ -1338,9 +1336,9 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
       // pressure and incompressibility
       int npvals = e.numPressureVals();
       double pressure = 0;
-      IncompressibleMaterial imat = null;
+      BulkIncompressibleBehavior imat = null;
       if (mat.isIncompressible()) {
-         imat = (IncompressibleMaterial)mat;
+         imat = mat.getIncompressibleBehavior();
       }
       MatrixBlock[] constraints = null;
       SymmetricMatrix3d C = new SymmetricMatrix3d();
@@ -1371,6 +1369,7 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          MFreeIntegrationPoint3d pt = ipnts[k];
          IntegrationData3d dt = idata[k];
          pt.computeJacobianAndGradient(dt.getInvJ0());
+         double scaling = dt.getScaling();
 
          if (mat.isCorotated()) {
             def.setR(wR);
@@ -1470,8 +1469,14 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          }
 
          mat.computeStress(stress, def, Q, null);
+         if (scaling != 1) {
+            stress.scale(scaling);
+         }
          if (tangent != null) {
             mat.computeTangent(tangent, stress, def, Q, null);
+            if (scaling != 1) {
+               tangent.scale(scaling);
+            }
          }
 
          // reset pressure to zero for auxiliary materials
@@ -1480,6 +1485,9 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
          if (e.numAuxiliaryMaterials() > 0) {
             for (AuxiliaryMaterial aux : e.myAuxMaterials) {
                aux.computeStress(sigmaTmp, def, pt, dt, mat);
+               if (scaling != 1) {
+                  sigmaTmp.scale(scaling);
+               }
                if (aux.isLinear()) {
                   if (aux.isCorotated()) {
                      corotatedLinearStress.add(sigmaTmp);
@@ -1491,6 +1499,9 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
                }
                if (D != null) {
                   aux.computeTangent(tangentTmp, sigmaTmp, def, pt, dt, mat);
+                  if (scaling != 1) {
+                     tangentTmp.scale(scaling);
+                  }
                   if (aux.isLinear()) {
                      if (aux.isCorotated()) {
                         corotatedLinearTangent.add(tangentTmp);
@@ -1516,8 +1527,14 @@ public class MFreeModel3d extends FemModel implements TransformableGeometry,
             }
             // veb.computeStress(pt.sigma, state);
             veb.computeStress(nonlinearStress, state);
+            if (scaling != 1) {
+               nonlinearStress.scale(scaling);
+            }
             if (D != null) {
                veb.computeTangent(nonlinearTangent, state);
+               if (scaling != 1) {
+                  nonlinearTangent.scale(scaling);
+               }
             }
          }
          else {

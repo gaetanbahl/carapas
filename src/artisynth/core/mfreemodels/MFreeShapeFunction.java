@@ -10,8 +10,7 @@ import maspack.matrix.Point3d;
 import maspack.matrix.Vector3d;
 
 public interface MFreeShapeFunction {
-   
-   
+    
    /**
     * Current coordinate to be used for evaluation
     * @return

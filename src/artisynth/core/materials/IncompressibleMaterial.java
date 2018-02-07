@@ -1,62 +1,58 @@
 package artisynth.core.materials;
 
-import maspack.matrix.Matrix6d;
 import maspack.matrix.Matrix3d;
+import maspack.matrix.Matrix6d;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.properties.PropertyList;
 import maspack.properties.PropertyMode;
 import maspack.properties.PropertyUtils;
-import maspack.util.InternalErrorException;
 
 public class IncompressibleMaterial extends FemMaterial {
-
-   public static final double DEFAULT_KAPPA = 100000;
-   public static final BulkPotential DEFAULT_BULK_POTENTIAL =
-      BulkPotential.QUADRATIC;
+   
+   PropertyMode myKappaMode = PropertyMode.Inherited;
+   PropertyMode myBulkPotentialMode = PropertyMode.Inherited;
+   
+   public static PropertyList myProps =
+      new PropertyList(IncompressibleMaterial.class, FemMaterial.class);
 
    public enum BulkPotential {
       QUADRATIC,
       LOGARITHMIC
-         };
+   };
+   
+   static {
+      myProps.addInheritable (
+         "bulkModulus:Inherited", "Bulk modulus", 
+         BulkIncompressibleBehavior.DEFAULT_KAPPA);
+      myProps.addInheritable ("bulkPotential:Inherited", "Incompressibility potential function",
+         BulkIncompressibleBehavior.DEFAULT_BULK_POTENTIAL);
+   }
+   
+   BulkIncompressibleBehavior myIncompBehaviour;
 
-   private double myKappa = DEFAULT_KAPPA; // bulk modulus
-   PropertyMode myKappaMode = PropertyMode.Inherited;
-   protected BulkPotential myBulkPotential = DEFAULT_BULK_POTENTIAL;
-   PropertyMode myBulkPotentialMode = PropertyMode.Inherited;
-
+   public PropertyList getAllPropertyInfo() {
+      return myProps;
+   }
+   
    public IncompressibleMaterial() {
       super();
+      myIncompBehaviour = new BulkIncompressibleBehavior();
    }
    
    public IncompressibleMaterial (double kappa) {
       this();
       setBulkModulus (kappa);
    }
-   
-   public static PropertyList myProps =
-      new PropertyList(IncompressibleMaterial.class, FemMaterial.class);
-
-   static {
-      myProps.addInheritable (
-         "bulkModulus:Inherited", "Bulk modulus", DEFAULT_KAPPA);
-      myProps.addInheritable (
-         "bulkPotential:Inherited", "Incompressibility potential function",
-         DEFAULT_BULK_POTENTIAL);
-   }
-
-   public PropertyList getAllPropertyInfo() {
-      return myProps;
-   }
 
    public synchronized void setBulkModulus (double nu) {
-      myKappa = nu;
+      myIncompBehaviour.setBulkModulus(nu);
       myKappaMode =
-         PropertyUtils.propagateValue (this, "bulkModulus", myKappa, myKappaMode);
+         PropertyUtils.propagateValue (this, "bulkModulus", nu, myKappaMode);
       notifyHostOfPropertyChange();
    }
 
    public double getBulkModulus() {
-      return myKappa;
+      return myIncompBehaviour.getBulkModulus();
    }
 
    public void setBulkModulusMode (PropertyMode mode) {
@@ -68,16 +64,16 @@ public class IncompressibleMaterial extends FemMaterial {
       return myKappaMode;
    }
 
-   public synchronized void setBulkPotential (BulkPotential potential) {
-      myBulkPotential = potential;
+   public synchronized void setBulkPotential(BulkPotential potential) {
+      myIncompBehaviour.setBulkPotential(potential);
       myBulkPotentialMode =
          PropertyUtils.propagateValue (
-            this, "bulkPotential", myBulkPotential, myBulkPotentialMode);
+            this, "bulkPotential", potential, myBulkPotentialMode);
       notifyHostOfPropertyChange();
    }
-
+   
    public BulkPotential getBulkPotential() {
-      return myBulkPotential;
+      return myIncompBehaviour.getBulkPotential();
    }
 
    public void setBulkPotentialMode (PropertyMode mode) {
@@ -91,37 +87,20 @@ public class IncompressibleMaterial extends FemMaterial {
    }
 
    public double getEffectiveModulus (double J) {
-      switch (myBulkPotential) {
-         case QUADRATIC: {
-            return myKappa;
-         }
-         case LOGARITHMIC: {
-            return myKappa*(1-Math.log(J))/(J*J);
-         }
-         default: {
-            throw new InternalErrorException (
-               "Unimplemented potential " + myBulkPotential);
-         }
-      }
+      return myIncompBehaviour.getEffectiveModulus(J);
    }
 
    public double getEffectivePressure (double J) {
-      switch (myBulkPotential) {
-         case QUADRATIC: {
-            return myKappa*(J-1);
-         }
-         case LOGARITHMIC: {
-            return myKappa*(Math.log(J))/J;
-         }
-         default: {
-            throw new InternalErrorException (
-               "Unimplemented potential " + myBulkPotential);
-         }
-      }
+      return myIncompBehaviour.getEffectivePressure(J);
    }
 
    public boolean isIncompressible() {
       return true;
+   }
+   
+   @Override
+   public BulkIncompressibleBehavior getIncompressibleBehavior() {
+      return myIncompBehaviour;
    }
 
    public boolean equals (FemMaterial mat) {
@@ -129,10 +108,7 @@ public class IncompressibleMaterial extends FemMaterial {
          return false;
       }
       IncompressibleMaterial imat = (IncompressibleMaterial)mat;
-      if (myKappa != imat.myKappa) {
-         return false;
-      }
-      if (myBulkPotential != imat.myBulkPotential) {
+      if (myIncompBehaviour.equals(imat.myIncompBehaviour)) {
          return false;
       }
       return super.equals (mat);
@@ -141,10 +117,7 @@ public class IncompressibleMaterial extends FemMaterial {
    // Sanchez, March 27, 2013
    // useful for separating incompressibility stuff from computeStressAndStiffness() function
    public void computePressureStress(SymmetricMatrix3d sigma, double p) {
-      sigma.setZero();
-      sigma.m00 = p;
-      sigma.m11 = p;
-      sigma.m22 = p;
+      myIncompBehaviour.computePressureStress(sigma, p);
    }
    
    public void addPressureStress(SymmetricMatrix3d sigma, double p) {
@@ -154,10 +127,7 @@ public class IncompressibleMaterial extends FemMaterial {
    }
 
    public void computePressureTangent(Matrix6d D, double p) {
-      D.setZero();
-      TensorUtils.addScaledIdentityProduct (D, p);
-      TensorUtils.addScaledIdentity (D, -2*p);
-      D.setLowerToUpper();
+      myIncompBehaviour.computePressureTangent(D, p);
    }
    
    public void addPressureTangent(Matrix6d D, double p) {
@@ -170,10 +140,7 @@ public class IncompressibleMaterial extends FemMaterial {
       FemMaterial baseMat) {
 
       double avgp = def.getAveragePressure();
-      sigma.setZero();
-      sigma.m00 += avgp;
-      sigma.m11 += avgp;
-      sigma.m22 += avgp;
+      myIncompBehaviour.computePressureStress(sigma, avgp);
    }
    
    public void computeTangent (
@@ -182,18 +149,14 @@ public class IncompressibleMaterial extends FemMaterial {
 
       // mean pressure
       double p = def.getAveragePressure();      
-      D.setZero();
-
-      TensorUtils.addScaledIdentityProduct (D, p);
-      TensorUtils.addScaledIdentity (D, -2*p);
-      D.setLowerToUpper();
+      myIncompBehaviour.computePressureTangent(D, p);
    }
 
    @Override
    public void scaleDistance (double s) {
       if (s != 1) {
          super.scaleDistance (s);
-         setBulkModulus (myKappa/s);
+         setBulkModulus (getBulkModulus()/s);
       }
    }
 
@@ -201,7 +164,7 @@ public class IncompressibleMaterial extends FemMaterial {
    public void scaleMass (double s) {
       if (s != 1) {
          super.scaleMass (s);
-         setBulkModulus (myKappa*s);
+         setBulkModulus (getBulkModulus()*s);
       }
    }
 
@@ -211,7 +174,7 @@ public class IncompressibleMaterial extends FemMaterial {
       // and for IncompressibleMaterial specifically; not any
       // of the base classes
       return (getClass() == IncompressibleMaterial.class &&
-              myBulkPotential == BulkPotential.QUADRATIC);
+              getBulkPotential() == BulkPotential.QUADRATIC);
    }
 
 }

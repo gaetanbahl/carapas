@@ -5,11 +5,12 @@ import maspack.matrix.Matrix6d;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.properties.PropertyList;
 import maspack.properties.PropertyUtils;
+import maspack.util.DynamicArray;
 
 public abstract class FemMaterial extends MaterialBase {
 
-   static Class<?>[] mySubClasses = new Class<?>[] {
-      NullMaterial.class,
+   static DynamicArray<Class<?>> mySubclasses = new DynamicArray<>(
+      new Class<?>[] {
       LinearMaterial.class,
       StVenantKirchoffMaterial.class,
       MooneyRivlinMaterial.class,
@@ -18,11 +19,22 @@ public abstract class FemMaterial extends MaterialBase {
       FungMaterial.class,
       NeoHookeanMaterial.class,
       IncompNeoHookeanMaterial.class,
-      IncompressibleMaterial.class
-   };
+      IncompressibleMaterial.class,
+      NullMaterial.class,
+   });
+
+   /**
+    * Allow adding of classes (for use in control panels)
+    * @param cls
+    */
+   public static void registerSubclass(Class<? extends FemMaterial> cls) {
+      if (!mySubclasses.contains(cls)) {
+         mySubclasses.add(cls);
+      }
+   }
 
    public static Class<?>[] getSubClasses() {
-      return mySubClasses;
+      return mySubclasses.getArray();
    }
 
    ViscoelasticBehavior myViscoBehavior;
@@ -79,6 +91,10 @@ public abstract class FemMaterial extends MaterialBase {
          myViscoBehavior = null;
          notifyHostOfPropertyChange ("viscoBehavior");
       }
+   }
+
+   public BulkIncompressibleBehavior getIncompressibleBehavior() {
+      return null;
    }   
 
    /**

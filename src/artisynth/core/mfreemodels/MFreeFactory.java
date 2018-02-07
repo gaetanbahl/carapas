@@ -70,20 +70,6 @@ public class MFreeFactory {
    public static RadialWeightFunctionType DEFAULT_RADIAL_KERNEL_TYPE = 
       RadialWeightFunctionType.SPLINE;
    
-   //   public enum MFreeShapeFunctionType {
-   //      MLS, GMLS
-   //   }
-   //   
-   //   public static MFreeShapeFunction create(MFreeShapeFunctionType type) {
-   //      switch(type) {
-   //         case MLS:
-   //            return new MLSShapeFunction();
-   //         case GMLS:
-   //            return new GMLSShapeFunction(3, 1, 1, 1);
-   //      }
-   //      return null;
-   //   }
-
    public static MFreeModel3d createBeam(MFreeModel3d model,
       double[] size, int res[]) {
       return createBeam(model, DEFAULT_RADIAL_KERNEL_TYPE, 

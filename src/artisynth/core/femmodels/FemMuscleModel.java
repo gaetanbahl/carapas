@@ -61,7 +61,7 @@ import artisynth.core.modelbase.TransformableGeometry;
 import artisynth.core.util.ScanToken;
 
 public class FemMuscleModel extends FemModel3d
-implements AuxiliaryMaterial, ExcitationComponent {
+   implements AuxiliaryMaterial, ExcitationComponent {
 
    protected MuscleBundleList myMuscleList;
    protected MuscleMaterial myMuscleMat;
@@ -323,8 +323,7 @@ implements AuxiliaryMaterial, ExcitationComponent {
 
    public FemMuscleModel (String name) {
       super(name);
-      myMuscleList =
-      new MuscleBundleList("bundles", "b");
+      myMuscleList = new MuscleBundleList("bundles", "b");
       myExciterList =
       new ComponentList<MuscleExciter>(MuscleExciter.class, "exciters", "x");
       addFixed (myMuscleList);

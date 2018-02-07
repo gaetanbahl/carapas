@@ -8,50 +8,46 @@ package artisynth.core.femmodels;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.List;
 import java.util.Deque;
 
-import maspack.matrix.AffineTransform3dBase;
-import maspack.matrix.Matrix3d;
-import maspack.matrix.Matrix6d;
-import maspack.matrix.SymmetricMatrix3d;
-import maspack.matrix.Vector3d;
-import maspack.geometry.GeometryTransformer;
-import maspack.properties.PropertyList;
-import maspack.render.Renderer;
-import maspack.render.RenderProps;
-import maspack.render.Renderer.Shading;
-import maspack.util.IndentingPrintWriter;
-import maspack.util.NumberFormat;
-import maspack.util.ReaderTokenizer;
 import artisynth.core.femmodels.AuxMaterialBundle.FractionRenderType;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.MaterialBase;
 import artisynth.core.materials.SolidDeformation;
 import artisynth.core.modelbase.ComponentUtils;
 import artisynth.core.modelbase.CompositeComponent;
-import artisynth.core.modelbase.CompositeComponentBase;
 import artisynth.core.modelbase.DynamicActivityChangeEvent;
 import artisynth.core.modelbase.ModelComponent;
 import artisynth.core.modelbase.RenderableComponentBase;
-import artisynth.core.modelbase.ScanWriteUtils;
 import artisynth.core.modelbase.TransformGeometryContext;
 import artisynth.core.modelbase.TransformableGeometry;
-import artisynth.core.util.*;
+import artisynth.core.util.ScalableUnits;
+import artisynth.core.util.ScanToken;
+import maspack.geometry.GeometryTransformer;
+import maspack.matrix.AffineTransform3dBase;
+import maspack.matrix.Matrix3d;
+import maspack.matrix.Matrix6d;
+import maspack.matrix.SymmetricMatrix3d;
+import maspack.matrix.Vector3d;
+import maspack.properties.PropertyList;
+import maspack.render.RenderProps;
+import maspack.render.Renderer;
+import maspack.render.Renderer.Shading;
+import maspack.util.IndentingPrintWriter;
+import maspack.util.NumberFormat;
+import maspack.util.ReaderTokenizer;
 
 /**
  * A class wrapping the description of each FEM element. It implements the 
  * AuxiliaryMaterial required to mix material types together within a single
  * element.
  */
-public class AuxMaterialElementDesc
-extends RenderableComponentBase
-implements AuxiliaryMaterial, ScalableUnits, TransformableGeometry {
+public class AuxMaterialElementDesc extends RenderableComponentBase
+   implements AuxiliaryMaterial, ScalableUnits, TransformableGeometry {
 
    FemElement3d myElement;
    private FemMaterial myMat;
-   SymmetricMatrix3d myStress = new SymmetricMatrix3d();
-   Matrix6d myD = new Matrix6d();
+   
    private float[] rcoords = new float[3];
    
    // fraction to scale material's contribution
@@ -91,7 +87,7 @@ implements AuxiliaryMaterial, ScalableUnits, TransformableGeometry {
       myProps.add ("renderProps", "render properties", null);
       myProps.add ("fraction", "material fraction", 1);
       myProps.add (
-         "material", "muscle material parameters", null);
+         "material", "fem material parameters", null);
    }
 
    public PropertyList getAllPropertyInfo() {

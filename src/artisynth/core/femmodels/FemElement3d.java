@@ -6,34 +6,56 @@
  */
 package artisynth.core.femmodels;
 
-import java.io.*;
-import java.util.*;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
+import java.util.Map;
 
-import maspack.matrix.*;
-import maspack.util.*;
-import maspack.geometry.*;
-import maspack.properties.*;
-import maspack.util.InternalErrorException;
-import maspack.render.Renderer;
-import maspack.render.RenderableUtils;
-import maspack.render.RenderProps;
-import artisynth.core.materials.LinearMaterial;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.IncompressibleMaterial;
 import artisynth.core.mechmodels.DynamicAttachment;
 import artisynth.core.mechmodels.Frame;
+import artisynth.core.mechmodels.FrameAttachable;
 import artisynth.core.mechmodels.Particle;
+import artisynth.core.mechmodels.Point;
 import artisynth.core.mechmodels.PointAttachable;
 import artisynth.core.mechmodels.PointAttachment;
-import artisynth.core.mechmodels.FrameAttachable;
-import artisynth.core.mechmodels.Point;
-import artisynth.core.modelbase.CompositeComponent;
 import artisynth.core.modelbase.ComponentUtils;
+import artisynth.core.modelbase.CompositeComponent;
 import artisynth.core.modelbase.ModelComponent;
-import artisynth.core.util.*;
+import artisynth.core.util.ScanToken;
+import maspack.geometry.Boundable;
+import maspack.matrix.LUDecomposition;
+import maspack.matrix.Matrix;
+import maspack.matrix.Matrix1x1;
+import maspack.matrix.Matrix2d;
+import maspack.matrix.Matrix3d;
+import maspack.matrix.Matrix3dBase;
+import maspack.matrix.Matrix4d;
+import maspack.matrix.MatrixBlock;
+import maspack.matrix.MatrixBlockBase;
+import maspack.matrix.MatrixNd;
+import maspack.matrix.Point3d;
+import maspack.matrix.RigidTransform3d;
+import maspack.matrix.SymmetricMatrix3d;
+import maspack.matrix.Vector3d;
+import maspack.matrix.VectorNd;
+import maspack.properties.PropertyList;
+import maspack.properties.PropertyMode;
+import maspack.properties.PropertyUtils;
+import maspack.render.RenderProps;
+import maspack.render.RenderableUtils;
+import maspack.render.Renderer;
+import maspack.util.IndentingPrintWriter;
+import maspack.util.InternalErrorException;
+import maspack.util.NumberFormat;
+import maspack.util.ReaderTokenizer;
 
 public abstract class FemElement3d extends FemElement
    implements Boundable, PointAttachable, FrameAttachable {
+   
    protected FemNode3d[] myNodes;
    protected FemNodeNeighbor[][] myNbrs = null;
    // average shape function gradient; used for incompressibility
@@ -693,7 +715,7 @@ public abstract class FemElement3d extends FemElement
       myNbrs = null;
 
       FemNode3d[] nodes = getNodes();
-      //double massPerNode = getMass()/numNodes();
+      // double massPerNode = getMass()/numNodes();
       for (int i = 0; i < nodes.length; i++) {
          for (int j = 0; j < nodes.length; j++) {
             nodes[i].deregisterNodeNeighbor(nodes[j]);
@@ -887,7 +909,6 @@ public abstract class FemElement3d extends FemElement
       }
       return -1; // failed
    }
-   
 
    public int getNaturalCoordinatesStd (
       Vector3d coords, Point3d pnt, int maxIters) {
@@ -1244,13 +1265,15 @@ public abstract class FemElement3d extends FemElement
       // System.out.println("updating stiffness: E="+myE+", nu="+myNu);
 
       FemMaterial mat = getEffectiveMaterial();
-      if (mat instanceof LinearMaterial) {
+      if (mat.isLinear()) {
          if (myWarper == null){
             myWarper = new StiffnessWarper3d (numNodes());
          }
-         LinearMaterial lmat = (LinearMaterial)mat;
-         myWarper.computeInitialStiffness (
-            this, lmat.getYoungsModulus(), lmat.getPoissonsRatio());
+         myWarper.computeInitialStiffness (this, mat);
+
+//          LinearMaterial lmat = (LinearMaterial)mat;
+//          myWarper.computeInitialStiffness (
+//             this, lmat.getYoungsModulus(), lmat.getPoissonsRatio());
 //         IntegrationPoint3d wpnt = getWarpingPoint();
 //         IntegrationData3d wdata = getWarpingData();
 //         wdata.computeRestJacobian (wpnt.GNs, myNodes);
@@ -1375,9 +1398,7 @@ public abstract class FemElement3d extends FemElement
       if (myAuxMaterials == null) {
          return new AuxiliaryMaterial[0];
       }
-      else {
-         return myAuxMaterials.toArray (new AuxiliaryMaterial[0]);
-      }
+      return myAuxMaterials.toArray (new AuxiliaryMaterial[0]);
    }
 
    static int numEdgeSegs = 10;
