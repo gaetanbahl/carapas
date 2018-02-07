@@ -41,6 +41,7 @@ public abstract class LinearMaterialBase extends FemMaterial {
       myCorotated = corotated;
    }
 
+   @Override
    public boolean isInvertible() {
       return true;
    }   
@@ -57,6 +58,7 @@ public abstract class LinearMaterialBase extends FemMaterial {
       notifyHostOfPropertyChange();
    }
 
+   @Override
    public boolean isCorotated() {
       return myCorotated;
    }

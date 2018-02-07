@@ -82,17 +82,17 @@ public class TransverseLinearMaterial extends LinearMaterialBase {
       }
       svd.pseudoInverse(myC);
       
-      Matrix6d C = AnisotropicLinearMaterial.createIsotropicStiffness((myE.x + myE.y)/2, (myNu.x + myNu.y)/2);
-      Matrix6d Cinv = new Matrix6d();
-      svd.factor(C);
-      svd.pseudoInverse(Cinv);
-      
-      if (!C.epsilonEquals(myC, 1e-6)) {
-         System.out.println("Hmm...");
-         System.out.println(C);
-         System.out.println(" vs ");
-         System.out.println(myC);
-      }
+      //      Matrix6d C = AnisotropicLinearMaterial.createIsotropicStiffness((myE.x + myE.y)/2, (myNu.x + myNu.y)/2);
+      //      Matrix6d Cinv = new Matrix6d();
+      //      svd.factor(C);
+      //      svd.pseudoInverse(Cinv);
+      //      
+      //      if (!C.epsilonEquals(myC, 1e-6)) {
+      //         System.out.println("Hmm...");
+      //         System.out.println(C);
+      //         System.out.println(" vs ");
+      //         System.out.println(myC);
+      //      }
    }
    
    /**

@@ -118,7 +118,7 @@ public class FemModel3d extends FemModel
    implements TransformableGeometry, ScalableUnits, MechSystemModel, Collidable,
               CopyableComponent, HasAuxState, HasSurfaceMesh,
               PointAttachable, ConnectableBody {
-
+ 
    protected FemModelFrame myFrame;
    protected FrameFem3dConstraint myFrameConstraint;
    protected boolean myFrameRelativeP;
@@ -808,10 +808,10 @@ public class FemModel3d extends FemModel
       // see if material is linear
       boolean corotated = false;
       IntegrationPoint3d wpnt = null;
-      LinearMaterial linMat = null;
-      if (mat instanceof LinearMaterial) {
-
-         linMat = (LinearMaterial)mat;
+      FemMaterial linMat = null;
+      // if (mat instanceof LinearMaterial) {
+      if (mat.isLinear()) {
+         linMat = mat;
          corotated = linMat.isCorotated();
          wpnt = e.getWarpingPoint();
          IntegrationData3d data = e.getWarpingData();
@@ -881,8 +881,15 @@ public class FemModel3d extends FemModel
       if (myComputeNodalStress || myComputeNodalStrain) {
          // nodalExtrapMat = e.getNodalExtrapolationMatrix();
          if (linMat != null) {
-            linMat.addStress(wpnt.sigma,
-               myEps, corotated ? e.myWarper.getRotation() : null);
+            
+            // XXX double-check same value
+            //            linMat.addStress(wpnt.sigma,
+            //               myEps, corotated ? e.myWarper.getRotation() : null);
+            SolidDeformation def = new SolidDeformation();
+            def.setF(wpnt.F);
+            def.setR(corotated ? e.myWarper.getRotation() : null);
+            linMat.computeStress(wpnt.sigma, def, Matrix3d.IDENTITY, null);
+            
             for (int i = 0; i < nodes.length; i++) {
                FemNode3d nodei = nodes[i];
                if (myComputeNodalStress) {
@@ -1955,7 +1962,7 @@ public class FemModel3d extends FemModel
 
    private boolean softNodalIncompressAllowed() {
       return (numTetElements() + numNodalMappedElements() == myElements.size() && 
-      myMaterial instanceof IncompressibleMaterial);
+         myMaterial.isIncompressible());
    }
 
    private boolean hardNodalIncompressAllowed() {
@@ -3930,7 +3937,7 @@ public class FemModel3d extends FemModel
       for (FemElement3d e : myElements) {
          FemNode3d[] enodes = e.myNodes;
          FemMaterial mat = getElementMaterial(e);
-         if (mat instanceof LinearMaterial) {
+         if (mat.isLinear()) {
             IntegrationPoint3d wpnt = e.getWarpingPoint();
             IntegrationData3d data = e.getWarpingData();
             wpnt.computeJacobianAndGradient (enodes, data.myInvJ0);
