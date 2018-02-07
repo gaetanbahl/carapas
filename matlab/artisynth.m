@@ -17,6 +17,7 @@ if (isempty(AP))
     AP = [ AP, AH ];
     setenv ('ARTISYNTH_PATH', AP);    
 end
+setArtisynthClasspath (AH, AP);
 args = [];
 if (isempty(varargin) == 0)
    nargs = length(varargin);
