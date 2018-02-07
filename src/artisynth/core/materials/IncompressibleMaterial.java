@@ -1,6 +1,5 @@
 package artisynth.core.materials;
 
-import artisynth.core.materials.BulkIncompressibleBehavior.BulkPotential;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.SymmetricMatrix3d;
@@ -65,7 +64,7 @@ public class IncompressibleMaterial extends FemMaterial {
       return myKappaMode;
    }
 
-   public synchronized void setBulkPotential(BulkIncompressibleBehavior.BulkPotential potential) {
+   public synchronized void setBulkPotential(BulkPotential potential) {
       myIncompBehaviour.setBulkPotential(potential);
       myBulkPotentialMode =
          PropertyUtils.propagateValue (
@@ -73,29 +72,8 @@ public class IncompressibleMaterial extends FemMaterial {
       notifyHostOfPropertyChange();
    }
    
-   public synchronized void setBulkPotential (BulkPotential potential) {
-      switch (potential) {
-         case LOGARITHMIC:
-            setBulkPotential(BulkIncompressibleBehavior.BulkPotential.LOGARITHMIC);
-            break;
-         case QUADRATIC:
-            setBulkPotential(BulkIncompressibleBehavior.BulkPotential.QUADRATIC);
-         default:
-            break;
-         
-      }
-   }
-
    public BulkPotential getBulkPotential() {
-      BulkIncompressibleBehavior.BulkPotential oldPotential = myIncompBehaviour.getBulkPotential();
-      switch (oldPotential) {
-         case LOGARITHMIC:
-            return BulkPotential.LOGARITHMIC;
-         case QUADRATIC:
-            return BulkPotential.QUADRATIC;
-         default:
-      }
-      return null;
+      return myIncompBehaviour.getBulkPotential();
    }
 
    public void setBulkPotentialMode (PropertyMode mode) {

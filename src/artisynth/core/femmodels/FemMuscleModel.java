@@ -318,8 +318,7 @@ public class FemMuscleModel extends FemModel3d
 
    public FemMuscleModel (String name) {
       super(name);
-      myMuscleList =
-      new MuscleBundleList("bundles", "b");
+      myMuscleList = new MuscleBundleList("bundles", "b");
       myExciterList =
       new ComponentList<MuscleExciter>(MuscleExciter.class, "exciters", "x");
       addFixed (myMuscleList);

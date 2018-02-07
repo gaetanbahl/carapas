@@ -26,12 +26,14 @@ import maspack.matrix.VectorNi;
 import maspack.properties.PropertyList;
 import maspack.properties.PropertyMode;
 import maspack.properties.PropertyUtils;
+import maspack.render.Renderable;
 import maspack.render.RenderableUtils;
 import maspack.util.DataBuffer;
 import maspack.util.IntHolder;
 import maspack.util.NumberFormat;
 import artisynth.core.mechmodels.MechSystemSolver.PosStabilization;
 import artisynth.core.modelbase.*;
+import artisynth.core.renderables.IsRenderableHolder;
 import artisynth.core.util.ArtisynthIO;
 import artisynth.core.util.TimeBase;
 
@@ -57,7 +59,7 @@ public abstract class MechSystemBase extends RenderableModelBase
    protected ArrayList<ForceEffector> myForceEffectors;
    protected ArrayList<HasAuxState> myAuxStateComponents;
    protected ArrayList<HasSlaveObjects> mySlaveObjectComponents;
-
+   
    protected VectorNd myInitialForces = new VectorNd();
 
    int[] myDynamicSizes;
@@ -1864,7 +1866,7 @@ public abstract class MechSystemBase extends RenderableModelBase
       for (int i=0; i<myForceEffectors.size(); i++) {
          myForceEffectors.get(i).addSolveBlocks (M);
       }
-//      addAttachmentSolveBlocks(M);
+      //      addAttachmentSolveBlocks(M);
    }
 
    public double getActiveMass() {

@@ -1,5 +1,6 @@
 package artisynth.core.materials;
 
+import artisynth.core.materials.IncompressibleMaterial.BulkPotential;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.SymmetricMatrix3d;
 import maspack.util.InternalErrorException;
@@ -8,7 +9,7 @@ import maspack.util.InternalErrorException;
  * Incompressible behaviour based on Bulk Modulus, allows either quadratic or
  * logarithmic potential function.
  */
-public class BulkIncompressibleBehavior implements IncompressibleBehavior {
+public class BulkIncompressibleBehavior {
 
    public static final double DEFAULT_KAPPA = 100000;
    public static final BulkPotential DEFAULT_BULK_POTENTIAL = BulkPotential.QUADRATIC;
@@ -16,10 +17,10 @@ public class BulkIncompressibleBehavior implements IncompressibleBehavior {
    private double myKappa = DEFAULT_KAPPA; // bulk modulus
    protected BulkPotential myBulkPotential = DEFAULT_BULK_POTENTIAL;
 
-   public enum BulkPotential {
-      QUADRATIC,
-      LOGARITHMIC
-   };
+//   public enum BulkPotential {
+//      QUADRATIC,
+//      LOGARITHMIC
+//   };
          
    public BulkIncompressibleBehavior() {
       this(DEFAULT_BULK_POTENTIAL, DEFAULT_KAPPA);
@@ -46,7 +47,6 @@ public class BulkIncompressibleBehavior implements IncompressibleBehavior {
       return myKappa;
    }
    
-   @Override
    public double getEffectiveModulus(double J) {
       switch (myBulkPotential) {
          case QUADRATIC: {
@@ -62,7 +62,6 @@ public class BulkIncompressibleBehavior implements IncompressibleBehavior {
       }
    }
 
-   @Override
    public double getEffectivePressure(double J) {
       switch (myBulkPotential) {
          case QUADRATIC: {
@@ -97,7 +96,6 @@ public class BulkIncompressibleBehavior implements IncompressibleBehavior {
       return true;
    }
 
-   @Override
    public void computePressureStress(SymmetricMatrix3d sigma, double p) {
       sigma.setZero();
       sigma.m00 = p;
@@ -105,7 +103,6 @@ public class BulkIncompressibleBehavior implements IncompressibleBehavior {
       sigma.m22 = p;
    }
 
-   @Override
    public void computePressureTangent(Matrix6d D, double p) {
       D.setZero();
       TensorUtils.addScaledIdentityProduct (D, p);

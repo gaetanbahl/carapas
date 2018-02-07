@@ -17,10 +17,9 @@ import java.util.List;
 import java.util.Map;
 
 import artisynth.core.materials.BulkIncompressibleBehavior;
-import artisynth.core.materials.BulkIncompressibleBehavior.BulkPotential;
 import artisynth.core.materials.FemMaterial;
-import artisynth.core.materials.IncompressibleBehavior;
 import artisynth.core.materials.IncompressibleMaterial;
+import artisynth.core.materials.IncompressibleMaterial.BulkPotential;
 import artisynth.core.materials.LinearMaterial;
 import artisynth.core.materials.SolidDeformation;
 import artisynth.core.materials.ViscoelasticBehavior;
@@ -165,7 +164,7 @@ public class FemModel3d extends FemModel
    protected boolean myBVTreeValid;
 
    protected FemElement3dList myElements;
-   protected AuxMaterialBundleList myAdditionalMaterialsList;
+   protected AuxMaterialBundleList myAuxiliaryMaterialList;
 
    // private String mySolveMatrixFile = "solve.mat";
    private String mySolveMatrixFile = null;
@@ -368,36 +367,36 @@ public class FemModel3d extends FemModel
       myFrame = new FemModelFrame ("frame");
       myNodes = new PointList<FemNode3d>(FemNode3d.class, "nodes", "n");
       myElements = new FemElement3dList("elements", "e");
-      myAdditionalMaterialsList = new AuxMaterialBundleList("materials", "mat");
+      myAuxiliaryMaterialList = new AuxMaterialBundleList("materials", "mat");
       myMeshList =  new MeshComponentList<FemMeshComp>(
     	         FemMeshComp.class, "meshes", "msh");
       addFixed(myFrame);
       addFixed(myNodes);
       addFixed(myElements);
-      addFixed(myAdditionalMaterialsList);
+      addFixed(myAuxiliaryMaterialList);
       addFixed(myMeshList);
       super.initializeChildComponents();
    }
 
    public void addMaterialBundle(AuxMaterialBundle bundle) {
-      if (!myAdditionalMaterialsList.contains(bundle)) {
+      if (!myAuxiliaryMaterialList.contains(bundle)) {
          for (AuxMaterialElementDesc d : bundle.getElements()) {
             bundle.checkElementDesc(this, d);
          }
-         myAdditionalMaterialsList.add(bundle);
+         myAuxiliaryMaterialList.add(bundle);
       }
    }
 
    public boolean removeMaterialBundle(AuxMaterialBundle bundle) {
-      return myAdditionalMaterialsList.remove(bundle);
+      return myAuxiliaryMaterialList.remove(bundle);
    }
 
    public void clearMaterialBundles() {
-      myAdditionalMaterialsList.removeAll();
+      myAuxiliaryMaterialList.removeAll();
    }
 
    public RenderableComponentList<AuxMaterialBundle> getMaterialBundles() {
-      return myAdditionalMaterialsList;
+      return myAuxiliaryMaterialList;
    }
 
    public FemModel3d (String name) {
@@ -961,7 +960,7 @@ public class FemModel3d extends FemModel
 
             pt.avgp = pressure;
             def.setAveragePressure(pressure);
-            double scaling = dt.myScaling;
+            double scaling = dt.getScaling();
             if (linMat != null) {
                pt.sigma.setZero();
                if (D != null) {
@@ -1375,7 +1374,7 @@ public class FemModel3d extends FemModel
       for (int k = 0; k < ipnts.length; k++) {
          IntegrationPoint3d pt = ipnts[k];
          IntegrationData3d dt = idata[k];
-         double scaling = dt.myScaling;
+         double scaling = dt.getScaling();
          
          pt.computeJacobianAndGradient(e.myNodes, idata[k].myInvJ0);
 
@@ -2309,6 +2308,8 @@ public class FemModel3d extends FemModel
 
    public void prerender(RenderList list) {
             
+      super.prerender(list);
+      
       list.addIfVisible (myFrame);
       list.addIfVisible(myNodes);
       list.addIfVisible(myElements);
@@ -2321,7 +2322,7 @@ public class FemModel3d extends FemModel
       updateStressPlotRange();
       
       list.addIfVisible(myMeshList);
-      myAdditionalMaterialsList.prerender(list);
+      myAuxiliaryMaterialList.prerender(list);
    }
 
    public void getSelection(LinkedList<Object> list, int qid) {
@@ -2352,6 +2353,7 @@ public class FemModel3d extends FemModel
       super.doclear();
       myElements.clear();
       myNodes.clear();
+      myAuxiliaryMaterialList.removeAll();
       clearMeshComps();
    }
 
@@ -2548,6 +2550,7 @@ public class FemModel3d extends FemModel
       TransformGeometryContext context, int flags) {
       context.addAll (myNodes);
       context.addAll (myMarkers);
+      context.addAll(myAuxiliaryMaterialList);
    } 
   
    public IncompMethod getIncompressible() {
@@ -4267,6 +4270,8 @@ public class FemModel3d extends FemModel
    @Override
    public void scaleDistance(double s) {
       super.scaleDistance(s);
+      myAuxiliaryMaterialList.scaleDistance(s);
+      
       myVolume *= (s * s * s);
       myBVTreeValid = false;
       // invalidate trees of meshes as well
@@ -4274,6 +4279,12 @@ public class FemModel3d extends FemModel
       for (MeshComponent mc : myMeshList) {
          mc.scaleDistance(s);
       }
+   }
+   
+   @Override
+   public void scaleMass(double s) {
+      super.scaleMass(s);
+      myAuxiliaryMaterialList.scaleMass(s);
    }
 
    /**
