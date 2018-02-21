@@ -322,4 +322,8 @@ public class StiffnessWarper3d {
          f.set(offset+2, f.get(offset+2) + f0[i].z);
       }
    }
+
+   public Matrix3d getR() {
+      return R;
+   }
 }
