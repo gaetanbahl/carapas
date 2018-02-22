@@ -323,7 +323,7 @@ public class StiffnessWarper3d {
       }
    }
 
-   public Matrix3d getR() {
+   public RotationMatrix3d getR() {
       return R;
    }
 }
