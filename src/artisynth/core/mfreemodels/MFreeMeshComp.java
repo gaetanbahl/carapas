@@ -16,10 +16,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import artisynth.core.femmodels.FemElement3d;
 import artisynth.core.femmodels.FemMeshBase;
+import artisynth.core.femmodels.FemMeshComp;
 import artisynth.core.femmodels.FemModel.Ranging;
 import artisynth.core.femmodels.FemModel.SurfaceRender;
+import artisynth.core.femmodels.FemModel3d;
 import artisynth.core.femmodels.FemNode;
+import artisynth.core.femmodels.FemNode3d;
 import artisynth.core.femmodels.PointFem3dAttachment;
 import artisynth.core.mechmodels.Collidable;
 import artisynth.core.mechmodels.CollidableBody;
@@ -50,7 +54,6 @@ import maspack.geometry.Face;
 import maspack.geometry.HalfEdge;
 import maspack.geometry.MeshBase;
 import maspack.geometry.PolygonalMesh;
-import maspack.geometry.SignedDistanceGrid;
 import maspack.geometry.Vertex3d;
 import maspack.matrix.Point3d;
 import maspack.matrix.Vector2d;
@@ -69,9 +72,9 @@ import maspack.util.ReaderTokenizer;
  * Describes a surface mesh that is "skinned" onto an FEM, such that its vertex
  * positions are determined by weighted combinations of FEM node positions.
  **/
-public class MFreeMeshComp extends FemMeshBase implements CollidableBody, PointAttachable {
+public class MFreeMeshComp extends FemMeshComp implements CollidableBody, PointAttachable {
 
-   MFreeModel3d myModel;
+   protected MFreeModel3d myModel;
 
    protected static double EPS = 1e-10;
    protected ArrayList<PointAttachment> myVertexAttachments;
@@ -389,13 +392,13 @@ public class MFreeMeshComp extends FemMeshBase implements CollidableBody, PointA
       }
       while (he != he0);
 
-      HashSet<MFreeElement3d> elems = null;
+      HashSet<FemElement3d> elems = null;
       for (MFreeNode3d node : nodes) {
          if (elems == null) {
-            elems = new HashSet<MFreeElement3d>(node.getMFreeElementDependencies());
+            elems = new HashSet<>(node.getElementDependencies());
          }
          else {
-            elems.retainAll (node.getMFreeElementDependencies());
+            elems.retainAll (node.getElementDependencies());
          }
       }
       if (elems.size() != 1) {
@@ -489,7 +492,7 @@ public class MFreeMeshComp extends FemMeshBase implements CollidableBody, PointA
       ArrayList<Vertex3d> verts = mesh.getVertices();
 
       Point3d coords = new Point3d();
-      ArrayList<MFreeNode3d> deps = new ArrayList<MFreeNode3d>();
+      ArrayList<FemNode3d> deps = new ArrayList<>();
       MLSShapeFunction sfunc = new MLSShapeFunction();
       
       surf.myVertexAttachments.clear();
@@ -755,9 +758,9 @@ public class MFreeMeshComp extends FemMeshBase implements CollidableBody, PointA
       return true;
    }      
 
-   private MFreeNode3d getNodeFromNumber (
+   private FemNode3d getNodeFromNumber (
       ReaderTokenizer rtok, int nnum) throws IOException {
-      MFreeNode3d node = null;
+      FemNode3d node = null;
       if ((node = myModel.getNodes().getByNumber(nnum)) == null) {
          throw new IOException("Node " + nnum + " not found, " + rtok);
       }
@@ -782,7 +785,7 @@ public class MFreeMeshComp extends FemMeshBase implements CollidableBody, PointA
          rtok.nextToken();
          while (rtok.tokenIsInteger()) {
             int nnum = (int)rtok.lval;
-            MFreeNode3d node = getNodeFromNumber (rtok, nnum);
+            MFreeNode3d node = (MFreeNode3d)getNodeFromNumber (rtok, nnum);
             Vertex3d vtx = myNodeVertexMap.get(node);
             if (vtx == null) {
                vtx = new Vertex3d (new Point3d(node.getPosition()));
@@ -841,7 +844,7 @@ public class MFreeMeshComp extends FemMeshBase implements CollidableBody, PointA
                   ax = attacher;
                }
                else {
-                  MFreeNode3d node = getNodeFromNumber (rtok, nnum);
+                  MFreeNode3d node = (MFreeNode3d)getNodeFromNumber (rtok, nnum);
                   ax = new PointParticleAttachment (node, null);
                }
                mesh.addVertex (vtx);
@@ -1293,6 +1296,10 @@ public class MFreeMeshComp extends FemMeshBase implements CollidableBody, PointA
       }
       ax.setFromNodes (nodeWeights.keySet(), weightVec);
       return ax;
+   }
+
+   public FemModel3d getModel() {
+      return myModel;
    }
 
 }

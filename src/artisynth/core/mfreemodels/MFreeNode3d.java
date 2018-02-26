@@ -8,59 +8,37 @@ package artisynth.core.mfreemodels;
 
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.Map;
 
 import artisynth.core.femmodels.FemElement3d;
 import artisynth.core.femmodels.FemNode3d;
-import artisynth.core.femmodels.FemNodeNeighbor;
 import artisynth.core.mechmodels.Point;
 import artisynth.core.mechmodels.PointState;
 import artisynth.core.modelbase.ModelComponent;
 import artisynth.core.modelbase.TransformGeometryContext;
-import maspack.geometry.BSPTree;
-import maspack.geometry.BVFeatureQuery;
 import maspack.geometry.Boundable;
 import maspack.geometry.GeometryTransformer;
-import maspack.geometry.PolygonalMesh;
-import maspack.geometry.Vertex3d;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Point3d;
-import maspack.matrix.SymmetricMatrix3d;
 import maspack.matrix.Vector3d;
 import maspack.matrix.VectorNd;
 import maspack.properties.PropertyList;
 import maspack.render.RenderList;
 import maspack.render.RenderProps;
-import maspack.render.Renderer;
 
 public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
-   
-   public static boolean DEFAULT_RENDER_BOUNDARY = false;
-   
-   LinkedList<MFreeElement3d> myElementDependencies;
-   MFreeNode3d[] myDependentNodes;
+ 
+   // node-dependency
+   FemNode3d[] myDependentNodes;
    VectorNd myCoords;
    
    protected Vector3d[] tmpF;
    
-   protected boolean renderBoundary = DEFAULT_RENDER_BOUNDARY;
-   protected PolygonalMesh myBoundaryMesh = null;
-   protected boolean renderMeshValid = false;
-
-   // used for computing shape functions, embeds region of
-   // influence
+   // used for computing shape functions, embeds region of influence
    private MFreeWeightFunction myWeightFunction;
    
    // "real" position
    PointState trueState = new PointState();
-   
-   // volumes for incompressibility
-   protected double myRestVolume = 0;
-   protected double myVolume = 0;
-   protected double myPartitionVolume = 0;
-   protected double myPartitionRestVolume = 0;
-   protected double myPressure = 0;
    
    public static PropertyList myProps =
       new PropertyList (MFreeNode3d.class, FemNode3d.class);
@@ -72,9 +50,14 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
       myProps.addReadOnly (
          "falseDisplacement",
          "false displacement");
-      myProps.addReadOnly("nodalPressure getPressure", "nodal pressure");
-      myProps.add("renderBoundary", "Render boundary of influence region", DEFAULT_RENDER_BOUNDARY);
+      myProps.addReadOnly (
+         "truePosition",
+         "true position");
+      myProps.addReadOnly (
+         "trueDisplacement",
+         "true displacement");
    }
+   
    public PropertyList getAllPropertyInfo() {
       return myProps;
    }
@@ -91,80 +74,8 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
       super(x,y,z);
       setRestPosition(new Point3d(x,y,z));
       setFalsePosition(myRest);
-      myElementDependencies = new LinkedList<MFreeElement3d>();
-      
    }
    
-//   double[] pdisp = new double[3];
-//   public int setTargetFalseDisplacement(double[] post, int idx) {
-//      Point3d tpos = getTruePosition();
-//      for (int i=0; i<getPosStateSize(); i++) {
-//         pdisp[i] = post[i]-getTruePosition().x;
-//      }
-//      
-//      return idx+getPosStateSize();
-//   }
-   
-   public void setRestPosition (Point3d pos) {
-      super.setRestPosition(pos);
-   }
-   
-   public int setTargetPos(double[] post, int idx) {
-      return super.setTargetPos(post, idx);
-   }
-   
-   public int getTargetPos(double [] post, double s, double h, int idx) {
-      return super.getTargetPos(post, s, h, idx);
-   }
-   
-   public Point3d getTargetPosition() {
-      return super.getTargetPosition();
-   }
-   
-   public Vector3d getTargetDisplacement() {
-      return super.getTargetDisplacement();
-   }
-   
-   public int setTargetVel(double[] velt, int idx) {
-      return super.setTargetVel(velt, idx);
-   }
-   
-   public int getTargetVel(double velt[], double s, double h, int idx) {
-      return super.getTargetVel(velt, s, h, idx);
-   }
-   
-   public Vector3d getTargetVelocity() {
-      return super.getTargetVelocity();
-   }
-   
-   public void registerNodeNeighbor (MFreeNode3d nbrNode) {
-      FemNodeNeighbor nbr = getNodeNeighbor (nbrNode);
-      if (nbr == null) {
-         nbr = new MFreeNodeNeighbor (nbrNode);
-         myNodeNeighbors.add (nbr);
-      }
-      else {
-         nbr.increaseRefCount();
-      }
-   }
-   
-   public void addElementDependency(MFreeElement3d e) {
-      myElementDependencies.add(e);
-   }
-   
-   public void removeElementDependency(MFreeElement3d e) {
-      myElementDependencies.remove(e);
-   }
-   
-   public LinkedList<MFreeElement3d> getMFreeElementDependencies() {
-      return myElementDependencies;
-   }
-   
-   @Override
-   public int numAdjacentElements() {
-      return myElementDependencies.size();
-   }
-
    public void setWeightFunction(RadialWeightFunction f) {
       myWeightFunction = f;
    }
@@ -173,15 +84,13 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
       return myWeightFunction;
    }
    
-   public boolean isInRestDomain(Point3d coords) {
-      return (myWeightFunction.isInDomain(coords, 0));
+   public boolean isInRestDomain(Vector3d coords) {
+      Point3d c = new Point3d(coords);
+      return (myWeightFunction.isInDomain(c, 0));
    }
 
    public boolean isInDomain(Point3d pos, double tol) {
-      if (myBoundaryMesh != null) {
-         BVFeatureQuery query = new BVFeatureQuery();
-         return query.isInsideOrientedMesh (myBoundaryMesh, pos, tol);
-      } else if (myWeightFunction != null){
+      if (myWeightFunction != null){
          return myWeightFunction.isInDomain(pos, tol);
       }
       return (myWeightFunction.eval(pos) > 0);
@@ -198,20 +107,7 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
          }
       }
       
-      // fall back to using meshes
-      PolygonalMesh mesh2 = node.getBoundaryMesh();
-      PolygonalMesh mesh1 = getBoundaryMesh();
-      if (mesh1 != null && mesh2 != null) {
-         BSPTree mesh1Tree = new BSPTree(mesh1);
-         BSPTree mesh2Tree = new BSPTree(mesh2);
-         PolygonalMesh meshInt = mesh1Tree.intersect(mesh2Tree).generateMesh();
-         if (meshInt.numFaces() > 0) {
-            return true;
-         }
-         return false;
-      }
-      
-      throw new RuntimeException("No idea how to determine if nodes intersect");
+      throw new RuntimeException("I have no idea how to determine if nodes intersect");
       
    }
 
@@ -225,6 +121,10 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
       MFreeNode3d node = (MFreeNode3d)super.copy(flags, copyMap);
       node.myWeightFunction = myWeightFunction.clone();
       return node;
+   }
+   
+   public Point3d getTrueDisplacement() {
+      return myState.getPos();
    }
    
    public void getFalseDisplacement(Vector3d disp) {
@@ -260,11 +160,11 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
       super.setVelocity(vel);
    }
    
-   public MFreeNode3d[] getDependentNodes() {
+   public FemNode3d[] getDependentNodes() {
       return myDependentNodes;
    }
 
-   public void setDependentNodes(MFreeNode3d[] nodes, VectorNd coords) {
+   public void setDependentNodes(FemNode3d[] nodes, VectorNd coords) {
       myDependentNodes = Arrays.copyOf(nodes, nodes.length);
       setNodeCoordinates(coords);
    }
@@ -300,10 +200,10 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
 
    public void setNodeCoordinates(VectorNd coords) {
       myCoords = new VectorNd(coords);
-      updatePosAndVelState();
+      updateSlavePos();
    }
    
-   public void updatePosAndVelState() {
+   public void updateSlavePos() {
       updatePosState();
       updateVelState();
    }
@@ -312,7 +212,7 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
       trueState.setPos(Point3d.ZERO);
       double[] buff = myCoords.getBuffer();
       for (int i=0; i<myDependentNodes.length; i++) {
-         trueState.scaledAddPos(buff[i],  myDependentNodes[i].getFalsePosition());
+         trueState.scaledAddPos(buff[i],  myDependentNodes[i].getPosition());
       }
    }
 
@@ -320,7 +220,7 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
       trueState.setVel(Vector3d.ZERO);
       double[] buff = myCoords.getBuffer();
       for (int i=0; i<myDependentNodes.length; i++) {
-         trueState.scaledAddVel(buff[i],  myDependentNodes[i].getFalseVelocity());
+         trueState.scaledAddVel(buff[i],  myDependentNodes[i].getVelocity());
       }
    }
 
@@ -371,58 +271,11 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
       myRenderCoords[0] = (float)pos.x;
       myRenderCoords[1] = (float)pos.y;
       myRenderCoords[2] = (float)pos.z;
-      renderMeshValid = false;
-      
-      if (myBoundaryMesh != null && renderBoundary) {
-         myBoundaryMesh.prerender(list);
-      }
+     
    }
 
    public RenderProps createRenderProps() {
       return RenderProps.createRenderProps(this);
-   }
-   
-   @Override
-   public void render(Renderer renderer, int flags) {
-      RenderProps myProps = getRenderProps();
-      if (myProps.isVisible()) {
-         super.render(renderer, flags);
-         renderWidget(renderer, myProps, 0);
-      }
-   }
-   
-   public void renderWidget(Renderer renderer, RenderProps props, int flags) {
-
-      if (myBoundaryMesh != null && renderBoundary) {
-         if (!renderMeshValid) {
-            //            if (myNumber == 0) {
-            //               System.out.println("rebuilding node 0");
-            //            }
-            //            for (Vertex3d vtx : myBoundaryMesh.getVertices()) {
-            //               if (vtx instanceof MFreeVertex3d) {
-            //                  ((MFreeVertex3d)vtx).updatePosAndVelState();
-            //               }
-            //            }
-            renderMeshValid = true;
-         }
-         //renderer.drawMesh(props, myBoundaryMesh, 0); 
-         if (isSelected()) {
-            flags |= Renderer.HIGHLIGHT;
-         }
-         myBoundaryMesh.render (renderer, props, flags);
-      }
-   }
-   
-   
-   public void setBoundaryMesh(PolygonalMesh mesh) {
-      myBoundaryMesh = mesh;
-      if (!mesh.isClosed()) {
-         System.out.println("mesh is not closed");
-      }
-   }
-   
-   public PolygonalMesh getBoundaryMesh() {
-      return myBoundaryMesh;
    }
    
    @Override
@@ -453,99 +306,14 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
    @Override 
    public void updateBounds(Vector3d pmin, Vector3d pmax) {
       
-      if (myBoundaryMesh != null) {
-         myBoundaryMesh.updateBounds(pmin, pmax);
-         return;
+      if (myWeightFunction != null) {
+         myWeightFunction.updateBounds(pmin, pmax);
       } else {
-         // assume at rest
-         // XXX
-         if (myWeightFunction != null) {
-            myWeightFunction.updateBounds(pmin, pmax);
-         } else {
-            getTruePosition().updateBounds(pmin, pmax);
-         }
+         getTruePosition().updateBounds(pmin, pmax);
       }
       
    }
       
-   public boolean getRenderBoundary() {
-      return renderBoundary;
-   }
-   
-   public void setRenderBoundary(boolean render) {
-      renderBoundary = render;
-   }
-   
-   public void setRestVolume(double vol) {
-      myRestVolume = vol;
-   }
-   
-   public void setPartitionRestVolume(double vol) {
-      myPartitionRestVolume = vol;
-   }
-   
-   public void setVolume(double vol) {
-      myVolume = vol;
-   }
-   
-   public void setPartitionVolume(double vol) {
-      myPartitionVolume = vol;
-   }
-   
-   public double getRestVolume() {
-      return myRestVolume;
-   }
-   
-   public double getPartitionVolume(double vol) {
-      return myPartitionVolume;
-   }
-   
-   public double getPartitionRestVolume() {
-      return myPartitionRestVolume;
-   }
-   
-   public double getVolume() {
-      return myVolume;
-   }
-   
-   public void addRestVolume(double pvol) {
-      myRestVolume += pvol;
-   }
-   
-   public void addVolume(double pvol) {
-      myVolume += pvol;
-   }
-   
-   public void addPartitionVolume(double pvol) {
-      myPartitionVolume += pvol;
-   }
-   
-   public void addPartitionRestVolume(double pvol) {
-      myPartitionRestVolume += pvol;
-   }
-   
-   public double getPressure() {
-      return myPressure;
-   }
-   
-   SymmetricMatrix3d getAvgStressP() {
-      return myAvgStress;
-   }
-   
-   SymmetricMatrix3d getAvgStrainP() {
-      return myAvgStrain;
-   }
-   
-   void setAvgStress(SymmetricMatrix3d sig) {
-      myAvgStress = sig;
-   }
-   
-   void setAvgStrain(SymmetricMatrix3d eps) {
-      myAvgStrain = eps;
-   }
-   
-   // implementation of IndexedPointSet
-
    @Override
    /**
     * Center only
@@ -569,14 +337,14 @@ public class MFreeNode3d extends FemNode3d implements MFreePoint3d, Boundable {
       GeometryTransformer gt, TransformGeometryContext context, int flags) {
       super.transformGeometry(gt, context, flags);
       
-      updatePosAndVelState();
+      updateSlavePos();
    }
    
    public double computeMassFromDensity() {
       double mass = 0;
-      Iterator<MFreeElement3d> it = myElementDependencies.iterator();
+      Iterator<FemElement3d> it = getElementDependencies().iterator();
       while (it.hasNext()) {
-         MFreeElement3d e = it.next();
+         FemElement3d e = it.next();
          mass += e.getRestVolume()*e.getDensity()/e.numNodes();
       }
       return mass;

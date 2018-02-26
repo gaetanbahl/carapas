@@ -51,6 +51,6 @@ public interface MFreeShapeFunction {
     * @param myNodes
     * @return
     */
-   public boolean maybeUpdate(Point3d coords, MFreeNode3d[] myNodes);
+   public boolean maybeUpdate(Vector3d coords, MFreeNode3d[] myNodes);
    
 }

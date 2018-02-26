@@ -1,7 +1,7 @@
 package artisynth.core.materials;
 
 import maspack.matrix.Matrix3d;
-import maspack.matrix.Matrix3dBase;
+import maspack.matrix.Matrix6d;
 import maspack.matrix.RotationMatrix3d;
 import maspack.matrix.SVDecomposition3d;
 import maspack.matrix.SymmetricMatrix3d;
@@ -72,17 +72,6 @@ public abstract class LinearMaterialBase extends FemMaterial {
       return myCorotatedMode;
    }
 
-   /** 
-    * Computes the Cauchy stress from Cauchy strain and adds it to and existing
-    * stress.
-    * 
-    * @param sigma value to which stress should be added
-    * @param eps Cauchy stress
-    * @param R (optional) Co-Rotation matrix, if any
-    */
-   public abstract void addStress (
-      SymmetricMatrix3d sigma, SymmetricMatrix3d eps, Matrix3dBase R);
-
    private SVDecomposition3d mySVD = null;
    protected RotationMatrix3d computeRotation(Matrix3d F, SymmetricMatrix3d P) {
       if (mySVD == null) {
@@ -94,34 +83,74 @@ public abstract class LinearMaterialBase extends FemMaterial {
    }
    
    /**
-    * Computes strain
-    * @param def
-    * @param eps
-    * @param rotation matrix if corotated
-    * @return rotation matrix if corotated
+    * Multiplies strain by the spatial stiffness tensor C to compute the
+    * stress tensor.  Code must be written so that sigma and eps can be
+    * the same matrix
+    * 
+    * @param sigma stress
+    * @param eps   Cauchy strain
     */
-   protected Matrix3dBase computeStrain(Matrix3d F, SymmetricMatrix3d eps,
-      Matrix3dBase R) {
+   protected abstract void multiplyC(SymmetricMatrix3d sigma, SymmetricMatrix3d eps);
+   
+   /**
+    * Populates the spatial stiffness tensor C
+    * @param C
+    */
+   protected abstract void getC(Matrix6d C);
+   
+   public void computeStress (
+      SymmetricMatrix3d sigma, SolidDeformation def, Matrix3d Q,
+      FemMaterial baseMat) {
 
+      RotationMatrix3d R = def.getR();
+      Matrix3d F = def.getF();
+
+      // cauchy strain, rotated if necessary
       if (myCorotated) {
          if (R == null) {
-            R = computeRotation(F, eps);
+            R = computeRotation(F, sigma);
          } else {
-            // rotate F
-            Matrix3d A = new Matrix3d();
-            A.mulTransposeLeft(R, F);
-            eps.setSymmetric(A);
+            // remove rotation from F
+            sigma.mulTransposeLeftSymmetric(R, F);
          }
       } else {
-         eps.setSymmetric (F);
+         sigma.setSymmetric (F);
       }
-
-      // subtract I to compute Cauchy strain in sigma
-      eps.m00 -= 1;
-      eps.m11 -= 1;
-      eps.m22 -= 1;
+      sigma.m00 -= 1;
+      sigma.m11 -= 1;
+      sigma.m22 -= 1;
       
-      return R;
+      multiplyC(sigma, sigma);
+
+      // rotate stress back to original frame
+      if (isCorotated()) {
+         sigma.mulLeftAndTransposeRight (R);
+      }
+   }
+   
+   @Override
+   public void computeTangent(
+      Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def, Matrix3d Q,
+      FemMaterial baseMat) {
+
+      // get spatial stiffness tensor
+      getC(D);
+      
+      // rotate if corotated
+      if (isCorotated()) {
+
+         // need to rotate this tensor from linear frame into material one
+         RotationMatrix3d R = def.getR();
+         if (R == null) {
+            Matrix3d F = def.getF();
+            R = computeRotation(F, null);
+         }
+
+         // R rotates from material frame to the spatial one. Transpose
+         // of R rotates from spatial frame to material one.
+         TensorUtils.unrotateTangent (D, D, R);
+      }
+      
    }
 
    public boolean equals (FemMaterial mat) {
@@ -139,20 +168,6 @@ public abstract class LinearMaterialBase extends FemMaterial {
    public LinearMaterialBase clone() {
       LinearMaterialBase mat = (LinearMaterialBase)super.clone();
       return mat;
-   }
-
-   @Override
-   public void scaleDistance (double s) {
-      if (s != 1) {
-         super.scaleDistance (s);
-      }
-   }
-
-   @Override
-   public void scaleMass (double s) {
-      if (s != 1) {
-         super.scaleMass (s);
-      }
    }
 
 }

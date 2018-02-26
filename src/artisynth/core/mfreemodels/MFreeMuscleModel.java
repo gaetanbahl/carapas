@@ -13,9 +13,14 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
+import artisynth.core.femmodels.FemElement3d;
 import artisynth.core.femmodels.FemModel;
 import artisynth.core.femmodels.IntegrationData3d;
 import artisynth.core.femmodels.IntegrationPoint3d;
+import artisynth.core.femmodels.MuscleBundle;
+import artisynth.core.femmodels.MuscleBundle.DirectionRenderType;
+import artisynth.core.femmodels.MuscleBundleList;
+import artisynth.core.femmodels.MuscleElementDesc;
 import artisynth.core.gui.ControlPanel;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.GenericMuscle;
@@ -27,7 +32,6 @@ import artisynth.core.mechmodels.ExcitationSourceList;
 import artisynth.core.mechmodels.ExcitationUtils;
 import artisynth.core.mechmodels.Muscle;
 import artisynth.core.mechmodels.MuscleExciter;
-import artisynth.core.mfreemodels.MFreeMuscleBundle.DirectionRenderType;
 import artisynth.core.modelbase.ComponentList;
 import artisynth.core.modelbase.CompositeComponent;
 import artisynth.core.modelbase.DynamicActivityChangeEvent;
@@ -64,7 +68,7 @@ import maspack.widgets.LabeledComponentBase;
 public class MFreeMuscleModel extends MFreeModel3d
    implements ExcitationComponent {
 
-   protected MFreeMuscleBundleList myMuscleList;
+   protected MuscleBundleList myMuscleList;
    protected MuscleMaterial myMuscleMat;
    protected ComponentList<MuscleExciter> myExciterList;
 
@@ -332,7 +336,7 @@ public class MFreeMuscleModel extends MFreeModel3d
    public MFreeMuscleModel (String name) {
       super(name);
       myMuscleList =
-         new MFreeMuscleBundleList("bundles", "b");
+         new MuscleBundleList("bundles", "b");
       myExciterList =
          new ComponentList<MuscleExciter>(MuscleExciter.class, "exciters", "x");
       add(myMuscleList);
@@ -415,19 +419,19 @@ public class MFreeMuscleModel extends MFreeModel3d
       componentChanged(DynamicActivityChangeEvent.defaultEvent);
    }
 
-   public void addMuscleBundle(MFreeMuscleBundle bundle) {
+   public void addMuscleBundle(MuscleBundle bundle) {
       if (!myMuscleList.contains(bundle)) {
-         for (Muscle fibre : bundle.getFibres()) {
-            bundle.checkFibrePoints(this, fibre);
-         }
-         for (MFreeMuscleElementDesc d : bundle.getElements()) {
-            bundle.checkElementDesc(this, d);
-         }
+         //         for (Muscle fibre : bundle.getFibres()) {
+         //            bundle.checkFibrePoints(this, fibre);
+         //         }
+         //         for (MuscleElementDesc d : bundle.getElements()) {
+         //            bundle.checkElementDesc(this, d);
+         //         }
          myMuscleList.add(bundle);
       }
    }
 
-   public boolean removeMuscleBundle(MFreeMuscleBundle bundle) {
+   public boolean removeMuscleBundle(MuscleBundle bundle) {
       return myMuscleList.remove(bundle);
    }
 
@@ -435,7 +439,7 @@ public class MFreeMuscleModel extends MFreeModel3d
       myMuscleList.removeAll();
    }
 
-   public RenderableComponentList<MFreeMuscleBundle> getMuscleBundles() {
+   public RenderableComponentList<MuscleBundle> getMuscleBundles() {
       return myMuscleList;
    }
 
@@ -497,14 +501,14 @@ public class MFreeMuscleModel extends MFreeModel3d
    @Override
    public void applyForces(double t) {
       super.applyForces(t);
-      for (MFreeMuscleBundle mus : myMuscleList) {
+      for (MuscleBundle mus : myMuscleList) {
          mus.applyForce(t);
       }
    }
 
    public void addPosJacobian(
       SparseNumberedBlockMatrix M, double s) {
-      for (MFreeMuscleBundle mus : myMuscleList) {
+      for (MuscleBundle mus : myMuscleList) {
          mus.addPosJacobian(M, s);
       }
       super.addPosJacobian(M, s);
@@ -513,14 +517,14 @@ public class MFreeMuscleModel extends MFreeModel3d
    public void addVelJacobian(
       SparseNumberedBlockMatrix M, double s) {
 
-      for (MFreeMuscleBundle mus : myMuscleList) {
+      for (MuscleBundle mus : myMuscleList) {
          mus.addVelJacobian(M, s);
       }
       super.addVelJacobian(M, s);
    }
 
    public void addSolveBlocks(SparseNumberedBlockMatrix S) {
-      for (MFreeMuscleBundle mus : myMuscleList) {
+      for (MuscleBundle mus : myMuscleList) {
          mus.addSolveBlocks(S);
       }
       super.addSolveBlocks(S);
@@ -538,9 +542,9 @@ public class MFreeMuscleModel extends MFreeModel3d
          // zero the excitations of any ExcitableComponent at t = 0.
          // Note that inputProbe.setState should do that same thing,
          // so we're just being extra careful here.
-         for (MFreeMuscleBundle mus : myMuscleList) {
+         for (MuscleBundle mus : myMuscleList) {
             mus.setExcitation(0);
-            for (MFreeMuscleElementDesc desc : mus.getElements()) {
+            for (MuscleElementDesc desc : mus.getElements()) {
                desc.setExcitation(0);
             }
          }
@@ -559,7 +563,7 @@ public class MFreeMuscleModel extends MFreeModel3d
 
    public static void addBundleControls(
       ControlPanel panel, MFreeMuscleModel muscle) {
-      for (MFreeMuscleBundle b : muscle.getMuscleBundles()) {
+      for (MuscleBundle b : muscle.getMuscleBundles()) {
          LabeledComponentBase widget =
             panel.addWidget(b.getName(), b, "excitation");
          if (b.getRenderProps() != null) {
@@ -887,13 +891,13 @@ public class MFreeMuscleModel extends MFreeModel3d
    }
 
    public void setBundlesActive(boolean active) {
-      for (MFreeMuscleBundle bundle : myMuscleList) {
+      for (MuscleBundle bundle : myMuscleList) {
          bundle.setFibresActive(active);
       }
    }
    
-   public MFreeMuscleBundle addFiberMeshBundle(double rad, PolylineMesh mesh) {
-      MFreeMuscleBundle bundle = new MFreeMuscleBundle();
+   public MuscleBundle addFiberMeshBundle(double rad, PolylineMesh mesh) {
+      MuscleBundle bundle = new MuscleBundle();
       addMuscleBundle(bundle);
       bundle.addFiberMeshElements(rad, mesh);
       return bundle;
@@ -985,7 +989,7 @@ public class MFreeMuscleModel extends MFreeModel3d
 //      if (myFiberMeshActive) {
          double dirLen = getDirectionRenderLen();
          if (dirLen > 0) {
-            for (MFreeElement3d e : getElements()) {
+            for (FemElement3d e : getElements()) {
                // This is to ensure that the invJ0 in the warping data is
                // updated in the current (simulation) thread:
                e.getWarpingData();
@@ -994,7 +998,7 @@ public class MFreeMuscleModel extends MFreeModel3d
 //      }
    }
 
-   protected void renderElementDirection(Renderer renderer, RenderProps props, MFreeElement3d elem,
+   protected void renderElementDirection(Renderer renderer, RenderProps props, FemElement3d elem,
       float[] coords0, float[] coords1, Matrix3d F, Vector3d dir, double len) {
       
       IntegrationData3d[] idata = elem.getIntegrationData();   
@@ -1033,10 +1037,10 @@ public class MFreeMuscleModel extends MFreeModel3d
       
    }
    
-   protected void renderIPointDirection(Renderer renderer, RenderProps props, MFreeElement3d elem,
+   protected void renderIPointDirection(Renderer renderer, RenderProps props, FemElement3d elem,
       float[] coords0, float[] coords1, Matrix3d F, Vector3d dir, double len) {
       
-      MFreeIntegrationPoint3d[] ipnt = elem.getIntegrationPoints();
+      IntegrationPoint3d[] ipnt = elem.getIntegrationPoints();
       IntegrationData3d[] idata = elem.getIntegrationData();   
       
       for (int i=0; i<ipnt.length; i++) {
@@ -1070,7 +1074,7 @@ public class MFreeMuscleModel extends MFreeModel3d
    }
    
    void renderDirection(
-      Renderer renderer, RenderProps props, MFreeElement3d elem,
+      Renderer renderer, RenderProps props, FemElement3d elem,
       float[] coords0, float[] coords1, Matrix3d F, Vector3d dir, double len) {
 
       switch(myDirectionRenderType) {
@@ -1106,7 +1110,7 @@ public class MFreeMuscleModel extends MFreeModel3d
             Vector3d dir = new Vector3d();
             float[] coords0 = new float[3];
             float[] coords1 = new float[3];
-            for (MFreeElement3d e : getElements()) {
+            for (FemElement3d e : getElements()) {
                
                renderDirection(
                   renderer, fiberRenderProps, e, coords0, coords1, F, dir, dirLen);

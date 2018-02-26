@@ -38,13 +38,13 @@ public class LinearMaterial extends LinearMaterialBase {
    }
 
    public LinearMaterial (double E, double nu) {
-      this (E, nu, DEFAULT_COROTATED);
+      this (E, nu, /*corotated=*/true);
    }
 
    public LinearMaterial (double E, double nu, boolean corotated) {
-      super (corotated);
       setYoungsModulus (E);
       setPoissonsRatio (nu);
+      setCorotated (corotated);
    }
 
    public synchronized void setPoissonsRatio (double nu) {
@@ -87,7 +87,16 @@ public class LinearMaterial extends LinearMaterialBase {
       return myEMode;
    }
 
-   @Override
+   /** 
+    * @deprecated
+    * 
+    * Computes the Cauchy stress from Cauchy strain and adds it to and existing
+    * stress.
+    * 
+    * @param sigma value to which stress should be added
+    * @param Eps Cauchy stress
+    * @param R (optional) Co-Rotation matrix, if any
+    */
    public void addStress (
       SymmetricMatrix3d sigma, SymmetricMatrix3d Eps, Matrix3dBase R) {
 
@@ -130,75 +139,66 @@ public class LinearMaterial extends LinearMaterialBase {
       }
    }
    
-   public void computeStress (
-      SymmetricMatrix3d sigma, SolidDeformation def, Matrix3d Q,
-      FemMaterial baseMat) {
-
-      Matrix3dBase R = computeStrain(def.getF(), sigma, def.getR());
-
+   @Override
+   protected void multiplyC(SymmetricMatrix3d sigma, SymmetricMatrix3d eps) {
+    
       // lam and mu are the first and second Lame parameters
       double lam = myE*myNu/((1+myNu)*(1-2*myNu));
       double mu = myE/(2*(1+myNu));
 
       // convert sigma from strain to stress
       // sigma = 2*mu*eps + lamda*trace(eps)*I
-      double lamtrEps = lam*(sigma.m00+sigma.m11+sigma.m22);
-      sigma.scale (2*mu);
-      sigma.m00 += lamtrEps;
-      sigma.m11 += lamtrEps;
-      sigma.m22 += lamtrEps;
+      double lamtrEps = lam*(eps.m00+eps.m11+eps.m22);
+      
+      double m00 = 2*mu*eps.m00 + lamtrEps;
+      double m11 = 2*mu*eps.m11 + lamtrEps;
+      double m22 = 2*mu*eps.m22 + lamtrEps;
+      double m01 = 2*mu*eps.m01;
+      double m02 = 2*mu*eps.m02;
+      double m12 = 2*mu*eps.m12;
+      
+      sigma.set(m00, m11, m22, m01, m02, m12);
+   }
+   
+   @Override
+   protected void getC(Matrix6d C) {
+    
+      //      // lam and mu are the first and second Lame parameters
+      //      double lam = myE*myNu/((1+myNu)*(1-2*myNu));
+      //      double mu = myE/(2*(1+myNu));
+      //      D.setZero();
+      //      D.m00 = lam + 2*mu;
+      //      D.m01 = lam;
+      //      D.m02 = lam;
+      //      D.m10 = lam;
+      //      D.m11 = lam + 2*mu;
+      //      D.m12 = lam;
+      //      D.m20 = lam;
+      //      D.m21 = lam;
+      //      D.m22 = lam + 2*mu;
+      //      D.m33 = mu;
+      //      D.m44 = mu;
+      //      D.m55 = mu;
+      
+      double a = myE / (1+ myNu);  // 2 mu
+      double dia = (1 - myNu) / (1 - 2 * myNu) * a;
+      double mu = 0.5 * a;
+      double off = myNu / (1 - 2 * myNu) * a;
 
-      // rotate stress back to original frame
-      if (isCorotated()) {
-         sigma.mulLeftAndTransposeRight (R);
-      }
+      C.m00 = dia; C.m01 = off; C.m02 = off; C.m03 = 0;   C.m04 = 0;   C.m05 = 0;
+      C.m10 = off; C.m11 = dia; C.m12 = off; C.m13 = 0;   C.m14 = 0;   C.m15 = 0;
+      C.m20 = off; C.m21 = off; C.m22 = dia; C.m23 = 0;   C.m24 = 0;   C.m25 = 0;
+      C.m30 = 0;   C.m31 = 0;   C.m32 = 0;   C.m33 = mu;  C.m34 = 0;   C.m35 = 0;
+      C.m40 = 0;   C.m41 = 0;   C.m42 = 0;   C.m43 = 0;   C.m44 = mu;  C.m45 = 0;
+      C.m50 = 0;   C.m51 = 0;   C.m52 = 0;   C.m53 = 0;   C.m54 = 0;   C.m55 = mu;
    }
 
    public void computeTangent (
       Matrix6d D, SymmetricMatrix3d stress, SolidDeformation def, 
       Matrix3d Q, FemMaterial baseMat) {
-
-      D.setZero();
       
-      // lam and mu are the first and second Lame parameters
-      double lam = myE*myNu/((1+myNu)*(1-2*myNu));
-      double mu = myE/(2*(1+myNu));
-      D.m00 = lam + 2*mu;
-      D.m01 = lam;
-      D.m02 = lam;
-      D.m10 = lam;
-      D.m11 = lam + 2*mu;
-      D.m12 = lam;
-      D.m20 = lam;
-      D.m21 = lam;
-      D.m22 = lam + 2*mu;
-      D.m33 = mu;
-      D.m44 = mu;
-      D.m55 = mu;
-      
-      // XXX isotropic materials are invariant under rotation
-      //      if (myCorotated) {
-      //
-      //         // need to rotate this tensor from linear frame into material one
-      //         Matrix3d F = def.getF();
-      //         RotationMatrix3d R = new RotationMatrix3d();
-      //
-      //         Matrix3dBase dR = def.getR();
-      //         if (dR == null) {
-      //            if (mySVD == null) {
-      //               mySVD = new SVDecomposition3d();
-      //            }
-      //            // use sigma to store P; this will be converted to Cauchy strain
-      //            mySVD.polarDecomposition (R, (Matrix3d)null, F);
-      //         } else {
-      //            R.set(dR);
-      //         }
-      //
-      //         // R rotates from linear frame to the material one. Transpose
-      //         // of R rotates from material frame to linear one.
-      //         R.transpose();
-      //         TensorUtils.rotateTangent2 (D, D, R);
-      //      }
+      // XXX linear isotropic materials are invariant under rotation
+      getC(D);
    }
 
    public boolean equals (FemMaterial mat) {
@@ -207,7 +207,7 @@ public class LinearMaterial extends LinearMaterialBase {
       }
       LinearMaterial linm = (LinearMaterial)mat;
       if (myNu != linm.myNu ||
-         myE != linm.myE) {
+          myE != linm.myE) {
          return false;
       }
       else {

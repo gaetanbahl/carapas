@@ -91,11 +91,7 @@ public abstract class FemMaterial extends MaterialBase {
          myViscoBehavior = null;
          notifyHostOfPropertyChange ("viscoBehavior");
       }
-   }
-
-   public BulkIncompressibleBehavior getIncompressibleBehavior() {
-      return null;
-   }   
+   } 
 
    /**
     * Computes the tangent stiffness matrix
@@ -131,7 +127,7 @@ public abstract class FemMaterial extends MaterialBase {
    public boolean isIncompressible() {
       return false;
    }
-   
+
    public boolean isViscoelastic() {
       return false;
    }
@@ -153,7 +149,7 @@ public abstract class FemMaterial extends MaterialBase {
     * @return true if material is corotated
     */
    public boolean isCorotated() {
-      return false;
+	  return false;
    }
    
    public boolean equals (FemMaterial mat) {

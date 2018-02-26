@@ -143,13 +143,14 @@ public class MLSShapeFunction implements MFreeShapeFunction {
    }
    
    @Override
-   public boolean maybeUpdate(Point3d coords, MFreeNode3d[] nodes) {
+   public boolean maybeUpdate(Vector3d coords, MFreeNode3d[] nodes) {
       if (this.myNodes == nodes) {
          if (coords.distance(this.myPnt) < nodes[0].getInfluenceRadius()) {
             return false;
          }
       }
-      update(coords, nodes);
+      Point3d pnt = new Point3d(coords);
+      update(pnt, nodes);
       return true;
    }
    
