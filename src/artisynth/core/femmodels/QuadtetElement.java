@@ -77,8 +77,8 @@ public class QuadtetElement extends FemElement3d {
          
       }
       return myWarpingPoint;
-   }  
-
+   } 
+   
    private static double computeLinearTetN(int i, Vector3d coords) {
       double s1 = coords.x;
       double s2 = coords.y;

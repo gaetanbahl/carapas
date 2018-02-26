@@ -61,7 +61,7 @@ import artisynth.core.modelbase.TransformableGeometry;
 import artisynth.core.util.ScanToken;
 
 public class FemMuscleModel extends FemModel3d
-   implements AuxiliaryMaterial, ExcitationComponent {
+implements AuxiliaryMaterial, ExcitationComponent {
 
    protected MuscleBundleList myMuscleList;
    protected MuscleMaterial myMuscleMat;

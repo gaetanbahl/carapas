@@ -1538,7 +1538,7 @@ public abstract class FemElement3d extends FemElement
       //e.myAvgGNx = null;
       e.myIncompressConstraints = null;
       //e.myIncompressConstraints1 = null;
-      //      e.myIncompressConstraints2 = null;
+//      e.myIncompressConstraints2 = null;
    
       // Note that frame information is not presently duplicated
       e.myIntegrationData = null;
