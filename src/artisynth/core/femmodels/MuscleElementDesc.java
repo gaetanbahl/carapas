@@ -8,10 +8,26 @@ package artisynth.core.femmodels;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
+import maspack.geometry.DelaunayInterpolator;
+import maspack.geometry.GeometryTransformer;
+import maspack.matrix.AffineTransform3dBase;
+import maspack.matrix.Matrix3d;
+import maspack.matrix.Matrix6d;
+import maspack.matrix.Point3d;
+import maspack.matrix.SymmetricMatrix3d;
+import maspack.matrix.Vector3d;
+import maspack.properties.PropertyList;
+import maspack.render.Renderer;
+import maspack.render.RenderList;
+import maspack.render.RenderProps;
+import maspack.render.Renderer.Shading;
+import maspack.render.color.ColorUtils;
+import maspack.util.ArraySort;
+import maspack.util.IndentingPrintWriter;
+import maspack.util.NumberFormat;
+import maspack.util.ReaderTokenizer;
 import artisynth.core.femmodels.MuscleBundle.DirectionRenderType;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.MaterialBase;
@@ -22,41 +38,24 @@ import artisynth.core.mechmodels.ExcitationSourceList;
 import artisynth.core.mechmodels.ExcitationUtils;
 import artisynth.core.modelbase.ComponentUtils;
 import artisynth.core.modelbase.CompositeComponent;
+import artisynth.core.modelbase.CompositeComponentBase;
 import artisynth.core.modelbase.DynamicActivityChangeEvent;
 import artisynth.core.modelbase.ModelComponent;
 import artisynth.core.modelbase.RenderableComponentBase;
+import artisynth.core.modelbase.ScanWriteUtils;
 import artisynth.core.modelbase.TransformGeometryContext;
 import artisynth.core.modelbase.TransformableGeometry;
-import artisynth.core.util.ScalableUnits;
-import artisynth.core.util.ScanToken;
-import maspack.geometry.DelaunayInterpolator;
-import maspack.geometry.GeometryTransformer;
-import maspack.matrix.AffineTransform3dBase;
-import maspack.matrix.Matrix3d;
-import maspack.matrix.Matrix6d;
-import maspack.matrix.Point3d;
-import maspack.matrix.SymmetricMatrix3d;
-import maspack.matrix.Vector3d;
-import maspack.properties.PropertyList;
-import maspack.render.RenderList;
-import maspack.render.RenderProps;
-import maspack.render.Renderer;
-import maspack.render.Renderer.Shading;
-import maspack.render.color.ColorUtils;
-import maspack.util.ArraySort;
-import maspack.util.IndentingPrintWriter;
-import maspack.util.NumberFormat;
-import maspack.util.ReaderTokenizer;
+import artisynth.core.util.*;
 
 /**
  * A class wrapping the description of each FEM element belonging to a
  * MuscleBundle. It implements the AuxiliaryMaterial required to effect muscle
  * activation within the element, and contains the element-specific muscle
  * direction information.
- */
+*/
 public class MuscleElementDesc
-extends RenderableComponentBase
-implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableGeometry {
+   extends RenderableComponentBase
+   implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableGeometry {
 
    FemElement3d myElement;
    private MuscleMaterial myMuscleMat;
@@ -69,7 +68,7 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
    // the following are set if an activation color is specified:
    protected float[] myDirectionColor; // render color for directions
    protected float[] myWidgetColor; // render color for elements
-
+ 
    // minimum activation level
    protected static final double minActivation = 0.0;
    // maximum activation level
@@ -103,7 +102,7 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
    public PropertyList getAllPropertyInfo() {
       return myProps;
    }
-
+     
    public void setDirection (Vector3d dir) {
       myDir.set (dir);
       myDir.normalize();
@@ -161,7 +160,7 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
       MuscleMaterial mat = getEffectiveMuscleMaterial();
       return mat == null || mat.isInvertible();
    }
-   
+
    @Override
    public boolean isLinear() {
       MuscleMaterial mat = getEffectiveMuscleMaterial();
@@ -302,13 +301,13 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
    public double getDefaultActivationWeight() {
       return 0;
    }
-
+   
    public void updateBounds(Vector3d pmin, Vector3d pmax) {
       super.updateBounds(pmin, pmax);
       if (myElement != null)
-         myElement.updateBounds(pmin, pmax);
+	 myElement.updateBounds(pmin, pmax);
    }
-
+   
    void setExcitationColors (RenderProps props) {
       ModelComponent gparent = getGrandParent();
       if (gparent instanceof MuscleBundle) {
@@ -332,7 +331,7 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
             ColorUtils.interpolateColor (
                myWidgetColor, baseColor, excitationColor, s);
             myWidgetColor[3] = (float)props.getAlpha ();
-
+            
          }
          else {
             myDirectionColor = null;
@@ -347,50 +346,50 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
       myElement.getWarpingData();
       setExcitationColors (myRenderProps);
    }
-
+   
 
    protected void renderINodeDirection(Renderer renderer, RenderProps props,
       float[] coords0, float[] coords1, Matrix3d F, Vector3d dir, double len) {
-
+      
       IntegrationPoint3d[] ipnt = myElement.getIntegrationPoints();
       IntegrationData3d[] idata = myElement.getIntegrationData();   
-
+      
       for (int i=0; i<ipnt.length; i++) {
-
+      
          Vector3d mdir = getMuscleDirection(ipnt[i]);
          boolean drawLine = false;
          if (mdir != null) {
             drawLine = true;
             dir.set(mdir);
          }
-
+         
          if (drawLine) {
             ipnt[i].computeGradientForRender(F, myElement.getNodes(), idata[i].myInvJ0);
             ipnt[i].computeCoordsForRender(coords0, myElement.getNodes());
             F.mul(dir,dir);
-
+            
             double size = myElement.computeDirectedRenderSize (dir);
             dir.scale(0.5*size);
             dir.scale(len);
-
+            
             coords0[0] -= (float)dir.x / 2;
             coords0[1] -= (float)dir.y / 2;
             coords0[2] -= (float)dir.z / 2;
             coords1[0] = coords0[0] + (float)dir.x;
             coords1[1] = coords0[1] + (float)dir.y;
             coords1[2] = coords0[2] + (float)dir.z;
-
+            
             renderer.drawLine(
                props, coords0, coords1, myDirectionColor,
                /*capped=*/true, /*highlight=*/false);   
          }
       }
-
+      
    }
-
+   
    protected void renderElementDirection(Renderer renderer, RenderProps props,
       float[] coords0, float[] coords1, Matrix3d F, Vector3d dir, double len) {
-
+      
       myElement.computeRenderCoordsAndGradient (F, coords0);
 
       dir.setZero();
@@ -400,8 +399,8 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
          if (mdir != null) {
             dir.add(mdir);
             ++count;
+            }
          }
-      }
       
       if (count > 0) {
          dir.normalize();
@@ -410,27 +409,27 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
          double size = myElement.computeDirectedRenderSize (dir);      
          dir.scale (0.5*size);
          dir.scale(len);
-   
+            
          coords0[0] -= (float)dir.x/2;
          coords0[1] -= (float)dir.y/2;
          coords0[2] -= (float)dir.z/2;
-   
+            
          coords1[0] = coords0[0] + (float)dir.x;
          coords1[1] = coords0[1] + (float)dir.y;
          coords1[2] = coords0[2] + (float)dir.z;
-   
+            
          renderer.drawLine (
             props, coords0, coords1, myDirectionColor, 
             /*capped=*/true, isSelected());
       }
-
+      
    }
-
+   
    void renderDirection (
       Renderer renderer, RenderProps props,
       float[] coords0, float[] coords1, Matrix3d F, Vector3d dir, double len, DirectionRenderType type) {
 
-
+      
       switch(type) {
          case ELEMENT:
             renderElementDirection(renderer, props, coords0, coords1, F, dir, len);
@@ -439,9 +438,9 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
             renderINodeDirection(renderer, props, coords0, coords1, F, dir, len);
             break;
       }
-
+      
    }
-
+      
    public void render (Renderer renderer, int flags) {
       render (renderer, myRenderProps, flags);
    }   
@@ -451,7 +450,7 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
       double directionLength = 0;
       ModelComponent gparent = getGrandParent();
       DirectionRenderType renderType = DirectionRenderType.ELEMENT;
-
+      
       if (gparent instanceof MuscleBundle) {
          MuscleBundle bundle = (MuscleBundle)gparent;
          widgetSize = bundle.getElementWidgetSize();
@@ -501,11 +500,11 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
          }
       }
    }
-
+  
    public void computeStress (
       SymmetricMatrix3d sigma, SolidDeformation def,
       IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
-
+      
       MuscleMaterial mat = getEffectiveMuscleMaterial();
       if (mat != null) {
          Vector3d dir = getMuscleDirection(pt.getNumber());
@@ -578,7 +577,7 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
       setDirection (dir);
    }
 
-   public void interpolateIpntDirection (
+public void interpolateIpntDirection (
       DelaunayInterpolator interp, Vector3d[] restDirs) {
 
       int[] idxs = new int[4];
@@ -587,20 +586,20 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
       Point3d loc = new Point3d();
 
       FemElement3d e = getElement();
-
+      
       Vector3d[] dirs = myDirs;
       if (dirs == null) {
          return;
       }
-
+      
       IntegrationPoint3d[] ipnts = e.getIntegrationPoints();
       for (int j=0; j<e.numIntegrationPoints(); ++j) {
-
+         
          if (dirs[j] != null) {
-
+            
             ipnts[j].computePosition(loc, e);
             interp.getInterpolation (wghts, idxs, loc);
-
+            
             // arrange weights into ascending order
             ArraySort.quickSort (wghts, idxs);
             dir.setZero();
@@ -614,11 +613,11 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
                   dir.scaledAdd (w, restDirs[idxs[i]]);
                }
             }
-
+            
             dirs[j].set(dir);
          }
       }
-
+      
       myDirs = dirs;
    }
 
@@ -629,7 +628,7 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
    public void setElement (FemElement3d elem) {
       myElement = elem;
    }
-
+   
    public void transformGeometry(AffineTransform3dBase X) {
       TransformGeometryContext.transform (this, X, 0);
    }
@@ -672,7 +671,7 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
          }
       }
    }
-
+   
    public void addTransformableDependencies (
       TransformGeometryContext context, int flags) {
       // no dependencies
@@ -702,9 +701,9 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
       //myElement.removeBackReference (this);
       myElement.removeAuxiliaryMaterial (this);
    }
-
+   
    @Override
-   public void connectToHierarchy () {
+      public void connectToHierarchy () {
       super.connectToHierarchy ();
       if (MuscleBundle.getAncestorFem (this) != null) {
          referenceElement();
@@ -713,14 +712,14 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
    }
 
    @Override
-   public void disconnectFromHierarchy() {
+      public void disconnectFromHierarchy() {
       //ExcitationUtils.removeAncestorAsSource (this, /*up to grandparent*/2);
       if (MuscleBundle.getAncestorFem (this) != null) {
          dereferenceElement();
       }
       super.disconnectFromHierarchy();
    }
-
+ 
    void scanDirections (ReaderTokenizer rtok) throws IOException {
       rtok.scanToken ('[');
       LinkedList<Vector3d> directions = new LinkedList<Vector3d>();
@@ -745,7 +744,7 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
    void printDirections (PrintWriter pw, NumberFormat fmt) {
       pw.println ("directions=[");
       IndentingPrintWriter.addIndentation (pw, 2);
-
+      
       for (int i=0; i<myDirs.length; i++) {
          if (myDirs[i] != null) {
             pw.println (myDirs[i].toString (fmt));
@@ -761,7 +760,7 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
    public void printElementReference (PrintWriter pw, CompositeComponent ancestor)
       throws IOException {
       pw.print ("element=" +
-         ComponentUtils.getWritePathName (ancestor, myElement));
+                ComponentUtils.getWritePathName (ancestor, myElement));
    }
 
    @Override
@@ -786,7 +785,7 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
    }   
 
    protected boolean postscanItem (
-      Deque<ScanToken> tokens, CompositeComponent ancestor) throws IOException {
+   Deque<ScanToken> tokens, CompositeComponent ancestor) throws IOException {
 
       if (postscanAttributeName (tokens, "element")) {
          setElement (postscanReference (tokens, FemElement3d.class, ancestor));
@@ -801,7 +800,7 @@ implements AuxiliaryMaterial, ExcitationComponent, ScalableUnits, TransformableG
 
    public void writeItems (
       PrintWriter pw, NumberFormat fmt, CompositeComponent ancestor)
-         throws IOException {
+      throws IOException {
 
       super.writeItems (pw, fmt, ancestor);
       printElementReference (pw, ancestor);

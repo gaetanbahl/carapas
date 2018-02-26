@@ -1791,4 +1791,8 @@ implements CollidableBody, PointAttachable {
       return ax;
    }
 
+   public FemModel3d getModel() {
+      return myFem;
+   }
+
 }

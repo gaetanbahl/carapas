@@ -91,7 +91,7 @@ public class IntersectionFactory {
       int nNodes = cChart.length;
       boolean tried[][] = new boolean[nEnds][nNodes];
       
-      for (int i=0; i<nEnds; i++) {
+      for (int i=0; i<nEnds; i++) {         
          int[] set = endSets.get(i);
          for (int j=0; j<nNodes; j++) {
          

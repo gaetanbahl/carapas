@@ -732,7 +732,7 @@ public class MFreeFactory {
 
       model.addNodes(Arrays.asList(nodes));
       model.addElements(elemList);
-      model.setSurfaceMesh("surface", surface);
+      model.setSurfaceMesh(surface);
       
       model.updateNodeMasses(-1, null);
 
@@ -772,7 +772,7 @@ public class MFreeFactory {
          ArrayList<Vector3d> grad = new ArrayList<Vector3d>(deps.length);
          getShapeCoordsAndGradients(fun, coords, grad, cpnts[i], deps);
          ipnts[i] = MFreeIntegrationPoint3d.create(deps, coords, grad, cpnts[i].w);
-         ipnts[i].setID(i);
+         ipnts[i].setNumber(i);
       }
 
       return ipnts;
@@ -929,46 +929,46 @@ public class MFreeFactory {
    //
    //      return elemList;
    //   }
-
-   public static void createNodeMeshes(MFreeModel3d model,
-      Collection<MFreeNode3d> nodes, PolygonalMesh surface) {
-      
-      // set nodal influence regions
-      PolygonalMesh icoSphere = MeshFactory.createIcosahedralSphere(1, 2);
-
-      if (nodes == null) {
-         nodes = model.getNodes();
-      }
-      
-      HashMap<MFreeNode3d,PolygonalMesh> meshMap = new HashMap<MFreeNode3d,PolygonalMesh>();
-      AffineTransform3d trans = new AffineTransform3d();
-      for (MFreeNode3d node : nodes) {
-         PolygonalMesh nmesh = null;
-         if (node.isRadial()) {
-            nmesh = new PolygonalMesh(icoSphere);
-            double r = node.getInfluenceRadius();
-            trans.setIdentity();
-            trans.setTranslation(node.getRestPosition());
-            trans.applyScaling(r, r, r);
-            nmesh.transform(trans);
-            
-            if (surface != null) {
-               nmesh = MeshFactory.getIntersection(nmesh, surface);
-            }
-            meshMap.put(node, nmesh);
-         }
-      }
-      
-      // I do this after generating all meshes so that isInDomain doesn't start
-      // using the meshes before all are ready (speed issue)
-      for (MFreeNode3d node : nodes) {
-         PolygonalMesh nmesh = meshMap.get(node);
-         if (nmesh != null) {
-            node.setBoundaryMesh(nmesh);
-         }
-         // model.addMesh("node_" + node.getNumber(), nmesh);
-      }
-   }
+//
+//   public static void createNodeMeshes(MFreeModel3d model,
+//      Collection<MFreeNode3d> nodes, PolygonalMesh surface) {
+//      
+//      // set nodal influence regions
+//      PolygonalMesh icoSphere = MeshFactory.createIcosahedralSphere(1, 2);
+//
+//      if (nodes == null) {
+//         nodes = model.getNodes();
+//      }
+//      
+//      HashMap<MFreeNode3d,PolygonalMesh> meshMap = new HashMap<MFreeNode3d,PolygonalMesh>();
+//      AffineTransform3d trans = new AffineTransform3d();
+//      for (MFreeNode3d node : nodes) {
+//         PolygonalMesh nmesh = null;
+//         if (node.isRadial()) {
+//            nmesh = new PolygonalMesh(icoSphere);
+//            double r = node.getInfluenceRadius();
+//            trans.setIdentity();
+//            trans.setTranslation(node.getRestPosition());
+//            trans.applyScaling(r, r, r);
+//            nmesh.transform(trans);
+//            
+//            if (surface != null) {
+//               nmesh = MeshFactory.getIntersection(nmesh, surface);
+//            }
+//            meshMap.put(node, nmesh);
+//         }
+//      }
+//      
+//      // I do this after generating all meshes so that isInDomain doesn't start
+//      // using the meshes before all are ready (speed issue)
+//      for (MFreeNode3d node : nodes) {
+//         PolygonalMesh nmesh = meshMap.get(node);
+//         if (nmesh != null) {
+//            node.setBoundaryMesh(nmesh);
+//         }
+//         // model.addMesh("node_" + node.getNumber(), nmesh);
+//      }
+//   }
 
    //   public static void createPairedElemMeshes(List<MFreeElement3d> elemList,
    //      BVTree nodeTree) {
@@ -992,60 +992,60 @@ public class MFreeFactory {
    //
    //   }
 
-   public static void createElemMeshes(
-      MFreeModel3d model, Collection<MFreeElement3d> elemList, PolygonalMesh surface) {
-
-      if (elemList == null) {
-        elemList = model.getElements();
-      }
-      
-      // pre-build BSP trees for all nodes
-      HashMap<Integer,BSPTree> meshMap = new HashMap<Integer,BSPTree>();
-      HashMap<BSPTree,MFreeNode3d> meshMapInv = new HashMap<BSPTree,MFreeNode3d>();
-
-      HashSet<MFreeNode3d> nodeset = new HashSet<>();
-      for (MFreeElement3d elem : elemList) {
-         for (MFreeNode3d node : elem.getNodes()) {
-            nodeset.add(node);
-         }
-      }
-      ArrayList<MFreeNode3d> nodes = new ArrayList<>(nodeset);
-      
-      boolean[][] connectivityChart = buildIntersectionChart(nodes); 
-      DirectedGraph<int[],Integer> connectivityGraph = IntersectionFactory.buildConnectivityGraph(connectivityChart);
-      
-      HashMap<int[],BSPTree> nullMap = new HashMap<int[],BSPTree>(1);
-      for (int i = 0; i < nodes.size(); i++) {
-         MFreeNode3d node = nodes.get(i);
-         BSPTree tree = new BSPTree(node.getBoundaryMesh());
-         meshMap.put(i, tree);
-         meshMapInv.put(tree, node);
-      }
-      
-      DirectedGraph<BSPTree,BSPTree> meshGraph = connectivityGraph.exchangeData(nullMap, meshMap);
-      IntersectionFactory.buildSpatialPartition(meshGraph, null);
-      DirectedGraph<BSPTree,MFreeNode3d> nodeGraph = meshGraph.exchangeEdgeData(meshMapInv);
-      Vertex<BSPTree,MFreeNode3d> root = nodeGraph.getVertex(0);
-
-      for (MFreeElement3d elem : elemList) {
-         Vertex<BSPTree,MFreeNode3d> vtx = root;
-         for (MFreeNode3d node : elem.getNodes()) {
-            for (DirectedEdge<BSPTree,MFreeNode3d> edge : vtx.getForwardEdges()) {
-               if (edge.getData() == node) {
-                  vtx = edge.traverseForwards();
-                  break;
-               }
-            }
-         }
-
-         PolygonalMesh mesh = vtx.getData().generateMesh();
-         if (mesh.numFaces() > 0) {
-            elem.setBoundaryMesh(mesh);
-            // model.addMesh("elem_" + elem.getNumber(), mesh);
-         }
-
-      }
-   }
+   //   public static void createElemMeshes(
+   //      MFreeModel3d model, Collection<MFreeElement3d> elemList, PolygonalMesh surface) {
+   //
+   //      if (elemList == null) {
+   //        elemList = model.getElements();
+   //      }
+   //      
+   //      // pre-build BSP trees for all nodes
+   //      HashMap<Integer,BSPTree> meshMap = new HashMap<Integer,BSPTree>();
+   //      HashMap<BSPTree,MFreeNode3d> meshMapInv = new HashMap<BSPTree,MFreeNode3d>();
+   //
+   //      HashSet<MFreeNode3d> nodeset = new HashSet<>();
+   //      for (MFreeElement3d elem : elemList) {
+   //         for (MFreeNode3d node : elem.getNodes()) {
+   //            nodeset.add(node);
+   //         }
+   //      }
+   //      ArrayList<MFreeNode3d> nodes = new ArrayList<>(nodeset);
+   //      
+   //      boolean[][] connectivityChart = buildIntersectionChart(nodes); 
+   //      DirectedGraph<int[],Integer> connectivityGraph = IntersectionFactory.buildConnectivityGraph(connectivityChart);
+   //      
+   //      HashMap<int[],BSPTree> nullMap = new HashMap<int[],BSPTree>(1);
+   //      for (int i = 0; i < nodes.size(); i++) {
+   //         MFreeNode3d node = nodes.get(i);
+   //         BSPTree tree = new BSPTree(node.getBoundaryMesh());
+   //         meshMap.put(i, tree);
+   //         meshMapInv.put(tree, node);
+   //      }
+   //      
+   //      DirectedGraph<BSPTree,BSPTree> meshGraph = connectivityGraph.exchangeData(nullMap, meshMap);
+   //      IntersectionFactory.buildSpatialPartition(meshGraph, null);
+   //      DirectedGraph<BSPTree,MFreeNode3d> nodeGraph = meshGraph.exchangeEdgeData(meshMapInv);
+   //      Vertex<BSPTree,MFreeNode3d> root = nodeGraph.getVertex(0);
+   //
+   //      for (MFreeElement3d elem : elemList) {
+   //         Vertex<BSPTree,MFreeNode3d> vtx = root;
+   //         for (MFreeNode3d node : elem.getNodes()) {
+   //            for (DirectedEdge<BSPTree,MFreeNode3d> edge : vtx.getForwardEdges()) {
+   //               if (edge.getData() == node) {
+   //                  vtx = edge.traverseForwards();
+   //                  break;
+   //               }
+   //            }
+   //         }
+   //
+   //         PolygonalMesh mesh = vtx.getData().generateMesh();
+   //         if (mesh.numFaces() > 0) {
+   //            elem.setBoundaryMesh(mesh);
+   //            // model.addMesh("elem_" + elem.getNumber(), mesh);
+   //         }
+   //
+   //      }
+   //   }
 
    //   public static ArrayList<MFreeElement3d> findPairdElementsContaining(
    //      Point3d pnt, BVTree bvtree, double tol) {
@@ -1215,19 +1215,19 @@ public class MFreeFactory {
       return node;
    }
 
-   private static void updatePointCoordinates(
-      MFreeShapeFunction fun, 
-      List<? extends MFreePoint3d> pnts,
-      BVTree nodeTree, double tol) {
-
-      VectorNd coords = new VectorNd();
-      for (MFreePoint3d pnt : pnts) {
-         MFreeNode3d[] deps =
-            findNodesContaining(pnt.getRestPosition(), nodeTree, tol);
-         getShapeCoords(fun, coords, pnt.getRestPosition(), deps);
-         pnt.setDependentNodes(deps, coords);
-      }
-   }
+   //   private static void updatePointCoordinates(
+   //      MFreeShapeFunction fun, 
+   //      List<? extends MFreePoint3d> pnts,
+   //      BVTree nodeTree, double tol) {
+   //
+   //      VectorNd coords = new VectorNd();
+   //      for (MFreePoint3d pnt : pnts) {
+   //         MFreeNode3d[] deps =
+   //            findNodesContaining(pnt.getRestPosition(), nodeTree, tol);
+   //         getShapeCoords(fun, coords, pnt.getRestPosition(), deps);
+   //         pnt.setDependentNodes(deps, coords);
+   //      }
+   //   }
 
    //   public static MeshBase convertToMFreeMesh(MeshBase orig,
    //      BVTree nodeTree, double tol) {
@@ -1445,7 +1445,7 @@ public class MFreeFactory {
       // add everything to model
       model.addNodes(nodeList);
       model.addElements(elemList);
-      model.setSurfaceMesh(surfaceMFree);
+      model.setSurfaceMeshComp(surfaceMFree);
       
       // copy properties
       model.setDensity(fem.getDensity());
@@ -1505,18 +1505,17 @@ public class MFreeFactory {
       createPartitionedElementsFromPoints(A[] pnts, HashMap<A,MFreeElement3d> pntMap) {
       
       ArrayList<MFreeElement3d> elems = new ArrayList<MFreeElement3d>();
-      HashMap<MFreeNode3d,LinkedList<MFreeElement3d>> elemMap = new HashMap<>();
+      HashMap<FemNode3d,LinkedList<MFreeElement3d>> elemMap = new HashMap<>();
       
       MFreeShapeFunction fun = new MLSShapeFunction();
       for (A pnt : pnts) {
-         MFreeNode3d[] nodes = pnt.getDependentNodes();
+         FemNode3d[] nodes = pnt.getDependentNodes();
          MFreeElement3d elem = findElem(nodes, elemMap);
          if (elem == null) {
             elem = new MFreeElement3d(fun, Arrays.copyOf(nodes, nodes.length));
-            // elem.setAllTermsActive(true);
             elems.add(elem);
             
-            for (MFreeNode3d node : nodes) {
+            for (FemNode3d node : nodes) {
                LinkedList<MFreeElement3d> elemList = elemMap.get(node);
                if (elemList == null) {
                   elemList = new LinkedList<>();
@@ -1534,15 +1533,15 @@ public class MFreeFactory {
 
    }
 
-   private static MFreeElement3d findElem(MFreeNode3d[] nodes,
-      Map<MFreeNode3d,LinkedList<MFreeElement3d>> elemMap) {
+   private static MFreeElement3d findElem(FemNode3d[] nodes,
+      Map<FemNode3d,LinkedList<MFreeElement3d>> elemMap) {
 
       // only check elements of dependent nodes
-      for (MFreeNode3d node : nodes) {
+      for (FemNode3d node : nodes) {
          LinkedList<MFreeElement3d> elemList = elemMap.get(node);
          if (elemList != null) {
             for (MFreeElement3d elem : elemList) {
-               MFreeNode3d[] enodes = elem.getNodes();
+               FemNode3d[] enodes = elem.getNodes();
                if (enodes.length == nodes.length) {
                   if (compareArrays(enodes, nodes)) {
                      return elem;
