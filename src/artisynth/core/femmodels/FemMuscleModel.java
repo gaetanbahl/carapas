@@ -6,37 +6,25 @@
  */
 package artisynth.core.femmodels;
 
-import java.awt.Color;
-import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.IOException;
+import java.awt.Color;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
+import java.util.Deque;
 
-import artisynth.core.femmodels.MuscleBundle.DirectionRenderType;
-import artisynth.core.materials.FemMaterial;
-import artisynth.core.materials.GenericMuscle;
-import artisynth.core.materials.MaterialBase;
-import artisynth.core.materials.MuscleMaterial;
-import artisynth.core.materials.SolidDeformation;
-import artisynth.core.mechmodels.ExcitationComponent;
-import artisynth.core.mechmodels.ExcitationSourceList;
-import artisynth.core.mechmodels.ExcitationUtils;
-import artisynth.core.mechmodels.Muscle;
-import artisynth.core.mechmodels.MuscleExciter;
-import artisynth.core.modelbase.ComponentList;
-import artisynth.core.modelbase.CompositeComponent;
-import artisynth.core.modelbase.DynamicActivityChangeEvent;
-import artisynth.core.modelbase.ModelComponent;
-import artisynth.core.modelbase.RenderableComponentList;
-import artisynth.core.modelbase.TransformGeometryContext;
-import artisynth.core.util.ScanToken;
+import maspack.util.NumberFormat;
+import maspack.util.ObjectHolder;
+import maspack.util.ReaderTokenizer;
 import maspack.geometry.BVNode;
 import maspack.geometry.BVTree;
 import maspack.geometry.Boundable;
 import maspack.geometry.LineSegment;
+import maspack.geometry.PolygonalMesh;
 import maspack.geometry.PolylineMesh;
 import maspack.geometry.Vertex3d;
+import maspack.geometry.GeometryTransformer;
+import maspack.matrix.AffineTransform3dBase;
 import maspack.matrix.Matrix3d;
 import maspack.matrix.Matrix6d;
 import maspack.matrix.Point3d;
@@ -48,15 +36,32 @@ import maspack.matrix.VectorNd;
 import maspack.properties.PropertyList;
 import maspack.properties.PropertyMode;
 import maspack.properties.PropertyUtils;
+import maspack.render.Renderer;
 import maspack.render.RenderList;
 import maspack.render.RenderProps;
-import maspack.render.Renderer;
 import maspack.render.Renderer.LineStyle;
-import maspack.util.NumberFormat;
-import maspack.util.ReaderTokenizer;
+import artisynth.core.femmodels.MuscleBundle.DirectionRenderType;
+import artisynth.core.materials.FemMaterial;
+import artisynth.core.materials.GenericMuscle;
+import artisynth.core.materials.MaterialBase;
+import artisynth.core.materials.MuscleMaterial;
+import artisynth.core.materials.SolidDeformation;
+import artisynth.core.mechmodels.ExcitationComponent;
+import artisynth.core.mechmodels.ExcitationUtils;
+import artisynth.core.mechmodels.ExcitationSourceList;
+import artisynth.core.mechmodels.Muscle;
+import artisynth.core.mechmodels.MuscleExciter;
+import artisynth.core.modelbase.ComponentList;
+import artisynth.core.modelbase.DynamicActivityChangeEvent;
+import artisynth.core.modelbase.ModelComponent;
+import artisynth.core.modelbase.CompositeComponent;
+import artisynth.core.modelbase.RenderableComponentList;
+import artisynth.core.modelbase.TransformGeometryContext;
+import artisynth.core.modelbase.TransformableGeometry;
+import artisynth.core.util.ScanToken;
 
 public class FemMuscleModel extends FemModel3d
-   implements ExcitationComponent {
+implements AuxiliaryMaterial, ExcitationComponent {
 
    protected MuscleBundleList myMuscleList;
    protected MuscleMaterial myMuscleMat;
@@ -390,20 +395,20 @@ public class FemMuscleModel extends FemModel3d
       return new GenericMuscle();
    }
 
-   //   @Override
-   //   public boolean isInvertible() {
-   //      return myMuscleMat == null || myMuscleMat.isInvertible();
-   //   }
-   //
-   //   @Override
-   //   public boolean isLinear() {
-   //      return myMuscleMat == null || myMuscleMat.isLinear();
-   //   }
-   //
-   //   @Override
-   //   public boolean isCorotated() {
-   //      return myMuscleMat == null || myMuscleMat.isCorotated();
-   //   }
+   @Override
+   public boolean isInvertible() {
+      return myMuscleMat == null || myMuscleMat.isInvertible();
+   }
+   
+   @Override
+   public boolean isLinear() {
+      return myMuscleMat == null;
+   }
+   
+   @Override
+   public boolean isCorotated() {
+      return myMuscleMat == null;
+   }
 
    public void setMuscleMaterial(MuscleMaterial mat) {
       if (mat == null) {
@@ -639,31 +644,31 @@ public class FemMuscleModel extends FemModel3d
    //      }
    //   }
 
-   //   public void computeStress(
-   //      SymmetricMatrix3d sigma, SolidDeformation def,
-   //      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
-   //
-   //      MuscleMaterial mat = getMuscleMaterial();
-   //      if (mat != null && dt.myFrame != null) {
-   //         myTmpDir.x = dt.myFrame.m00;
-   //         myTmpDir.y = dt.myFrame.m10;
-   //         myTmpDir.z = dt.myFrame.m20;
-   //         mat.computeStress (sigma, getNetExcitation(), myTmpDir, def, baseMat);
-   //      }
-   //   }
-   //
-   //   public void computeStress(
-   //      SymmetricMatrix3d sigma, SolidDeformation def,
-   //      Matrix3d Q, FemMaterial baseMat) {
-   //
-   //      MuscleMaterial mat = getMuscleMaterial();
-   //      if (mat != null) {
-   //         myTmpDir.x = Q.m00;
-   //         myTmpDir.y = Q.m10;
-   //         myTmpDir.z = Q.m20;
-   //         mat.computeStress (sigma, getNetExcitation(), myTmpDir, def, baseMat);
-   //      }
-   //   }
+   public void computeStress(
+      SymmetricMatrix3d sigma, SolidDeformation def,
+      IntegrationPoint3d pt, IntegrationData3d dt, FemMaterial baseMat) {
+
+      MuscleMaterial mat = getMuscleMaterial();
+      if (mat != null && dt.myFrame != null) {
+         myTmpDir.x = dt.myFrame.m00;
+         myTmpDir.y = dt.myFrame.m10;
+         myTmpDir.z = dt.myFrame.m20;
+         mat.computeStress (sigma, getNetExcitation(), myTmpDir, def, baseMat);
+      }
+   }
+
+   public void computeStress(
+      SymmetricMatrix3d sigma, SolidDeformation def,
+      Matrix3d Q, FemMaterial baseMat) {
+
+      MuscleMaterial mat = getMuscleMaterial();
+      if (mat != null) {
+         myTmpDir.x = Q.m00;
+         myTmpDir.y = Q.m10;
+         myTmpDir.z = Q.m20;
+         mat.computeStress (sigma, getNetExcitation(), myTmpDir, def, baseMat);
+      }
+   }
 
    //   public void transformGeometry (
    //      GeometryTransformer gtr, TransformGeometryContext context, int flags) {

@@ -11,6 +11,7 @@ import java.util.*;
 
 import maspack.matrix.*;
 import maspack.util.*;
+import maspack.function.Function1x1;
 import maspack.geometry.*;
 import maspack.properties.*;
 import maspack.util.InternalErrorException;

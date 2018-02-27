@@ -7,11 +7,7 @@ import maspack.properties.PropertyList;
 import maspack.properties.PropertyUtils;
 import maspack.util.DynamicArray;
 
-/**
- * FEM material base implementing {@link ConstitutiveMaterial}.  Keeps track
- * of subclasses for use in selector widgets.
- */
-public abstract class FemMaterial extends MaterialBase implements ConstitutiveMaterial {
+public abstract class FemMaterial extends MaterialBase {
 
    static DynamicArray<Class<?>> mySubclasses = new DynamicArray<>(
       new Class<?>[] {
@@ -95,12 +91,7 @@ public abstract class FemMaterial extends MaterialBase implements ConstitutiveMa
          myViscoBehavior = null;
          notifyHostOfPropertyChange ("viscoBehavior");
       }
-   }
-
-   @Override
-   public BulkIncompressibleBehavior getIncompressibleBehavior() {
-      return null;
-   }
+   } 
 
    /**
     * Computes the tangent stiffness matrix
@@ -136,7 +127,7 @@ public abstract class FemMaterial extends MaterialBase implements ConstitutiveMa
    public boolean isIncompressible() {
       return false;
    }
-   
+
    public boolean isViscoelastic() {
       return false;
    }

@@ -26,7 +26,7 @@ public interface AuxiliaryMaterial extends Clonable {
    public abstract boolean hasSymmetricTangent();
 
    public abstract boolean isInvertible();
-
+   
    /**
     * Linear stress/stiffness response to deformation, allows tangent
     * to be pre-computed and stored.

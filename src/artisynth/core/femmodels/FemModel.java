@@ -6,18 +6,42 @@
  */
 package artisynth.core.femmodels;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.Collection;
-import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.Collection;
+import java.util.Deque;
+import java.io.PrintWriter;
+import java.io.IOException;
 
+import maspack.matrix.Matrix;
+import maspack.matrix.Point3d;
+import maspack.matrix.SparseBlockMatrix;
+import maspack.matrix.SparseNumberedBlockMatrix;
+import maspack.matrix.Vector3d;
+import maspack.matrix.VectorNd;
+import maspack.matrix.VectorNi;
+import maspack.properties.PropertyList;
+import maspack.properties.PropertyMode;
+import maspack.properties.PropertyUtils;
+import maspack.render.Renderer;
+import maspack.render.RenderableUtils;
+import maspack.solvers.IterativeSolver.ToleranceType;
+import maspack.util.DoubleInterval;
+import maspack.util.FunctionTimer;
+import maspack.util.StringHolder;
+import maspack.util.ReaderTokenizer;
+import maspack.util.NumberFormat;
+import artisynth.core.modelbase.PropertyChangeListener;
+import artisynth.core.modelbase.PropertyChangeEvent;
+import artisynth.core.modelbase.ScanWriteUtils;
+import artisynth.core.modelbase.CompositeComponent;
+import artisynth.core.util.ScanToken;
+import artisynth.core.util.ScalableUnits;
 import artisynth.core.materials.FemMaterial;
 import artisynth.core.materials.LinearMaterial;
 import artisynth.core.materials.MaterialBase;
-import artisynth.core.mechmodels.Collidable;
 import artisynth.core.mechmodels.Constrainer;
+import artisynth.core.mechmodels.Collidable;
 import artisynth.core.mechmodels.DynamicAttachment;
 import artisynth.core.mechmodels.DynamicComponent;
 import artisynth.core.mechmodels.ForceEffector;
@@ -29,35 +53,11 @@ import artisynth.core.mechmodels.Point;
 import artisynth.core.mechmodels.PointList;
 import artisynth.core.modelbase.ComponentChangeEvent;
 import artisynth.core.modelbase.ComponentList;
-import artisynth.core.modelbase.CompositeComponent;
 import artisynth.core.modelbase.DynamicActivityChangeEvent;
 import artisynth.core.modelbase.ModelComponent;
 import artisynth.core.modelbase.ModelComponentBase;
-import artisynth.core.modelbase.PropertyChangeEvent;
-import artisynth.core.modelbase.PropertyChangeListener;
 import artisynth.core.modelbase.RenderableComponentList;
-import artisynth.core.modelbase.ScanWriteUtils;
 import artisynth.core.modelbase.TransformableGeometry;
-import artisynth.core.util.ScalableUnits;
-import artisynth.core.util.ScanToken;
-import maspack.matrix.Matrix;
-import maspack.matrix.Point3d;
-import maspack.matrix.SparseBlockMatrix;
-import maspack.matrix.SparseNumberedBlockMatrix;
-import maspack.matrix.Vector3d;
-import maspack.matrix.VectorNd;
-import maspack.matrix.VectorNi;
-import maspack.properties.PropertyList;
-import maspack.properties.PropertyMode;
-import maspack.properties.PropertyUtils;
-import maspack.render.RenderableUtils;
-import maspack.render.Renderer;
-import maspack.solvers.IterativeSolver.ToleranceType;
-import maspack.util.DoubleInterval;
-import maspack.util.FunctionTimer;
-import maspack.util.NumberFormat;
-import maspack.util.ReaderTokenizer;
-import maspack.util.StringHolder;
 
 public abstract class FemModel extends MechSystemBase
    implements TransformableGeometry, ScalableUnits, Constrainer, 
@@ -811,7 +811,7 @@ public abstract class FemModel extends MechSystemBase
     * {@inheritDoc}
     */
    @Override
-   public boolean hasState() {
+      public boolean hasState() {
       return true;
    }
 

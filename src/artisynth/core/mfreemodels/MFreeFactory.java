@@ -69,7 +69,7 @@ public class MFreeFactory {
    
    public static RadialWeightFunctionType DEFAULT_RADIAL_KERNEL_TYPE = 
       RadialWeightFunctionType.SPLINE;
-
+   
    public static MFreeModel3d createBeam(MFreeModel3d model,
       double[] size, int res[]) {
       return createBeam(model, DEFAULT_RADIAL_KERNEL_TYPE, 

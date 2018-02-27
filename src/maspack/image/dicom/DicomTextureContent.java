@@ -259,8 +259,8 @@ public class DicomTextureContent extends ReferenceCountedBase implements Texture
       if (nslices < 2) {
          setSlice(0);       
       } else {
-      setSlice ((int)Math.round (z*(image.getNumSlices ()-1)));
-   }
+         setSlice ((int)Math.round (z*(image.getNumSlices ()-1)));
+      }
    }
    
    /**
@@ -630,7 +630,7 @@ public class DicomTextureContent extends ReferenceCountedBase implements Texture
             for (int j=0; j<textureWidth; ++j) {
                switch(internalStorage) {
                   case UBYTE:
-               raster.getDataBuffer ().setElem (pos+j, textureImage.get ());   
+                     raster.getDataBuffer ().setElem (pos+j, textureImage.get ());
                      break;
                   case UBYTE_RGB:
                      raster.getDataBuffer ().setElem (0, pos+j, textureImage.get ());

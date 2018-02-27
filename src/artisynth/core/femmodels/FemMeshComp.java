@@ -455,8 +455,7 @@ implements CollidableBody, PointAttachable {
          for (int i=0; i<elemArray.length; i++) {
             System.out.println (" element "+elemArray[i].getNumber());
          }
-         // XXX I need an element though
-         // return null;
+         return null;
          // ignore for now ...
          // throw new InternalErrorException (
          //    "Face "+face+" associated with "+elems.size()+" elements");
