@@ -1,7 +1,5 @@
-package artisynth.core.mfreemodels;
+package maspack.geometry;
 
-import maspack.geometry.AABB;
-import maspack.geometry.OBB;
 import maspack.matrix.Point3d;
 import maspack.matrix.RigidTransform3d;
 import maspack.matrix.Vector3d;
@@ -11,10 +9,10 @@ public class SphereIntersector {
    /**
     * Intersects two spheres, finding the distance along
     * the line from c1 to c2 for the intersection plane
-    * @param c1
-    * @param r1
-    * @param c2
-    * @param r2
+    * @param c1  center of circle 1
+    * @param r1  radius of circle 1
+    * @param c2  center of circle 2
+    * @param r2  radias of circle 2
     * @param axis from c1 to c2
     * @param xdv x populated with distance along axis, d is the distance from c1 to c2, v is the volume of the intersection
     * @return intersection volume
@@ -86,6 +84,15 @@ public class SphereIntersector {
       return v;
    }
    
+   /**
+    * Bounds the intersection of two spheres
+    * @param c1 center of sphere 1
+    * @param r1 radius of sphere 1
+    * @param c2 center of sphere 2
+    * @param r2 radius of sphere 2
+    * @return oriented bounding box
+    * 
+    */
    public static OBB bound(Point3d c1, double r1, Point3d c2, double r2) {
       Vector3d axis = new Vector3d();
       Vector3d xdv = new Vector3d();
@@ -146,11 +153,6 @@ public class SphereIntersector {
    
    /**
     * modifies min1, max1, returns volume
-    * @param min1
-    * @param max1
-    * @param min2
-    * @param max2
-    * @return
     */
    private static double boundIntersection(Vector3d min1, Vector3d max1, 
       Vector3d min2, Vector3d max2) {
@@ -191,10 +193,10 @@ public class SphereIntersector {
    }
    
    /**
-    * Bound N spheres with a bounding box
-    * @param c
-    * @param r
-    * @return
+    * Bound the intersection of N spheres with a bounding box
+    * @param c sphere centers
+    * @param r sphere radii
+    * @return axis-aligned bounding volume
     */
    public static AABB bound(Point3d[] c, double[] r) {
       

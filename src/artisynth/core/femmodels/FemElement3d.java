@@ -10,6 +10,7 @@ import java.io.*;
 import java.util.*;
 
 import maspack.matrix.*;
+import maspack.numerics.GoldenSectionSearch;
 import maspack.util.*;
 import maspack.function.Function1x1;
 import maspack.geometry.*;
@@ -889,46 +890,6 @@ public abstract class FemElement3d extends FemElement
       return -1; // failed
    }
    
-   // performs golden-section search to minimize f in the range [a, b]
-   private double gss(Function1x1 f, double a, double b, double tol, double ftol) {
-
-      final double g = (Math.sqrt(5)+1)/2; 
-      
-      double c = b - (b-a)/g;
-      double fc = f.eval(c);
-      double d = a + (b-a) / g;
-      double fd = f.eval(d);
-      
-      double s = c;
-      double fs = fc;
-      if (fd < fs) {
-         s = d;
-         fs = fd;
-      }
-      
-      while ((d-c) > tol && fs > ftol) {
-         if (fc < fd) {
-            b = d;
-         } else {
-            a = c;
-         }
-         
-         c = b - (b-a)/g;
-         fc = f.eval(c);
-         d = a + (b-a) / g;
-         fd = f.eval(d);
-         
-         s = c;
-         fs = fc;
-         if (fd < fs) {
-            s = d;
-            fs = fd;
-         }
-      }
-      
-      return s;
-   }
-   
    private static class GSSResidual implements Function1x1 {
       private Point3d c0;
       private Point3d target;
@@ -1058,7 +1019,7 @@ public abstract class FemElement3d extends FemElement
          // do a golden section search in range
          double eps = 1e-12;
          func.set(prevCoords, del);
-         double alpha = gss(func, 0, 1, eps, 0.8*prn*prn);
+         double alpha = GoldenSectionSearch.minimize(func, 0, 1, eps, 0.8*prn*prn);
          coords.scaledAdd(alpha, del, prevCoords);
          computeNaturalCoordsResidual(res, coords, lpnt);
          rn = res.norm();
