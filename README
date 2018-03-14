@@ -1,3 +1,33 @@
+**ORIGINAL ARTISYNTH README BELOW **
+====================================
+
+## Introduction
+
+This is Carapas, an Orthopedic Surgery Simulator based on Artisynth.
+
+## Installation
+
+```
+git clone http://github.com/gaetanbahl/carapas 
+cd carapas
+source setup.bash
+./bin/updateArtisynthLibs
+make
+``` 
+
+## Usage
+
+To launch Carapas:
+
+`./carapas`
+
+To launch the muscle mesh generator:
+
+`./musclefitting`
+
+
+=====================================
+
 This is the general distribution of ArtiSynth.
 
 For installation instructions, go to www.artisynth.org, and navigate
