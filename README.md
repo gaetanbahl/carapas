@@ -1,7 +1,6 @@
 # Carapas README
 
 **ORIGINAL ARTISYNTH README BELOW **
-====================================
 
 ## Introduction
 
@@ -27,8 +26,6 @@ To launch the muscle mesh generator:
 
 `./musclefitting`
 
-
-=====================================
 
 # Original Artisynth README
 
