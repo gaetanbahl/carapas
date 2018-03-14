@@ -2864,8 +2864,12 @@ public class Main implements DriverInterface, ComponentChangeListener {
 
    private PullController myPullController;
 
-   PullController getPullController() {
+   public PullController getPullController() {
       return myPullController;
+   }
+   
+   public void setPullControllerStiffness(double stiffness) {
+      getPullController().setStiffness (stiffness);
    }
 
    Cursor getDefaultCursor() {
